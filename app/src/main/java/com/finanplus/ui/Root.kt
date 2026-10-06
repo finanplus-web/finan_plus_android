@@ -361,6 +361,7 @@ private fun ProblemNotice(reask: Int) {
     val dialogs = LocalDialogs.current
     val scope = rememberCoroutineScope()
     val saveCopy = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        com.finanplus.security.AppLock.endExternal()
         val p = Repo.problem.value
         if (uri != null && p is LoadProblem.Invalid) {
             val ok = runCatching { ctx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(p.raw.toByteArray()) } != null }.getOrDefault(false)
@@ -402,6 +403,8 @@ private fun ProblemNotice(reask: Int) {
                         "Outras opções",
                         "Começar do zero deixa o app vazio. Se você tem um Backup JSON, restaure-o em Ajustes › Dados.",
                         ok = "Começar do zero", cancel = "Decidir depois", danger = true,
+                        // com a cópia cifrada guardada, fecha o aviso; se a gravação estiver bloqueada, o aviso fixo no topo reabre a pergunta
+                        onCancel = { Repo.dismissProblem() },
                     ) { Repo.startFresh() }
                 },
             ) {

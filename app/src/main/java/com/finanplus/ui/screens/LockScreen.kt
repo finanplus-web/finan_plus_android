@@ -155,7 +155,7 @@ fun LockScreen(activity: MainActivity, dev: DeviceSettings) {
 }
 
 /** "45 s", "2 min", "1 h" */
-private fun waitText(seconds: Int): String = when {
+internal fun waitText(seconds: Int): String = when {
     seconds < 60 -> "$seconds s"
     seconds < 3600 -> "${(seconds + 59) / 60} min"
     else -> "1 h"

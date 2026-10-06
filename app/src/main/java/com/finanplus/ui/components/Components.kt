@@ -96,12 +96,21 @@ fun MoneyText(c: Cents, modifier: Modifier = Modifier, style: TextStyle = Materi
     val base: TextUnit = if (style.fontSize.isSpecified) style.fontSize else 16.sp
     var size by remember(text, base) { mutableStateOf(base) }
     var fits by remember(text, base) { mutableStateOf(false) }
+    // largura em que o tamanho atual foi calculado: se ela aumentar (ex.: girar a tela), recomeça do tamanho normal
+    var measuredAt by remember(text, base) { mutableStateOf(-1) }
     Text(
         text,
         modifier.semantics { if (hide) contentDescription = "Valor oculto" }.drawWithContent { if (fits) drawContent() },
         style = style.copy(fontSize = size), color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
         onTextLayout = { r ->
-            if (r.didOverflowWidth && size.value > 11f) size = (size.value * 0.9f).coerceAtLeast(11f).sp else fits = true
+            val w = r.layoutInput.constraints.maxWidth
+            val grew = measuredAt in 0 until w && size.value < base.value
+            measuredAt = w
+            when {
+                grew -> { size = base; fits = false }
+                r.didOverflowWidth && size.value > 11f -> size = (size.value * 0.9f).coerceAtLeast(11f).sp
+                else -> fits = true
+            }
         },
     )
 }

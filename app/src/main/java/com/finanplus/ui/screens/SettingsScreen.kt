@@ -109,15 +109,18 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
         else dialogs.notice("Não foi possível salvar", "O arquivo não foi gravado (sem espaço ou local indisponível). Tente de novo ou escolha outro local.")
     }
     val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        com.finanplus.security.AppLock.endExternal()
         if (uri != null) saveTo(uri, "Backup") {
             val meta = linkedMapOf<String, Any?>("app" to "Finan+", "version" to Backup.VERSION, "appVersion" to BuildConfig.VERSION_NAME, "createdAt" to Instant.now().toString())
             Backup.toJson(Repo.state.value, meta).toByteArray()
         }
     }
     val exportCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        com.finanplus.security.AppLock.endExternal()
         if (uri != null) saveTo(uri, "CSV") { Csv.build(Repo.state.value).toByteArray() }
     }
     val importJson = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        com.finanplus.security.AppLock.endExternal()
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             // lê no máximo o limite + 1 byte (nunca o arquivo inteiro antes de checar) e interpreta fora da thread da tela
@@ -200,7 +203,7 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                     Pill(if (dev.hasPin) "Remover PIN" else "Definir PIN", Modifier.weight(1f)) {
                         if (dev.hasPin) dialogs.input("Remover PIN", "Digite o PIN atual para confirmar.", "PIN atual", password = true) { pin ->
                             val wait = AppLock.waitSeconds()
-                            if (wait > 0) { dialogs.notice("Aguarde", "Muitas tentativas erradas. Tente de novo em $wait s."); return@input }
+                            if (wait > 0) { dialogs.notice("Aguarde", "Muitas tentativas erradas. Tente de novo em ${waitText(wait)}."); return@input }
                             AppLock.registerAttempt() // mesmo limite de tentativas da tela de bloqueio
                             scope.launch {
                                 if (Pin.verify(pin, dev.pinHash)) { AppLock.resetFails(); prefs.update { it.copy(pinHash = "") } }

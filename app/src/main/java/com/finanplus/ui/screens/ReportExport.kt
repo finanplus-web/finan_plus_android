@@ -66,6 +66,7 @@ fun ReportExportSheet(s: AppState, initialFrom: LocalDate?, initialTo: LocalDate
     var busy by remember { mutableStateOf(false) }
 
     val save = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        com.finanplus.security.AppLock.endExternal()
         val a = from; val b = to
         if (uri == null || a == null || b == null) return@rememberLauncherForActivityResult
         busy = true

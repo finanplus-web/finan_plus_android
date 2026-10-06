@@ -95,6 +95,12 @@ object AppLock {
     /** Antes de abrir o seletor de arquivos do sistema: voltar dele não pede o PIN de novo (até 5 min). */
     fun allowExternalOnce() { externalUntil = SystemClock.elapsedRealtime() + EXTERNAL_GRACE_MS }
 
+    /**
+     * Chamado no retorno do seletor de arquivos/credencial. Sem isso, cancelar o seletor em menos de 700 ms
+     * (antes do ON_STOP do processo) deixava a carência armada e a próxima saída real do app ganhava 5 min sem PIN.
+     */
+    fun endExternal() { externalUntil = 0L }
+
     fun onBackground() { backgroundAt = SystemClock.elapsedRealtime() }
     fun onForeground(lockEnabled: Boolean, autoLockMin: Int) {
         if (!lockEnabled) { _locked.value = false; return }

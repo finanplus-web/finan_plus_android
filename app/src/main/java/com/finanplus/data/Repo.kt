@@ -74,9 +74,10 @@ object Repo {
 
     private fun load() {
         when (val r = store.read()) {
-            is SecureStore.ReadResult.Empty -> _state.value = AppState()
+            is SecureStore.ReadResult.Empty -> { saveBlocked = false; _state.value = AppState() }
             is SecureStore.ReadResult.Ok -> try {
                 val n = Backup.parse(r.json)
+                saveBlocked = false
                 _state.value = n.state
                 lastWritten = n.state
                 if (n.dropped.total > 0) _problem.value = LoadProblem.Dropped(n.dropped.total)
@@ -104,8 +105,10 @@ object Repo {
     /** "Tentar de novo" após [LoadProblem.KeystoreError]: relê o arquivo (que não foi tocado). */
     @Synchronized
     fun retryLoad(): Boolean {
+        // continua bloqueado durante a releitura (o Keystore pode levar ~1 s): uma alteração feita nesse
+        // intervalo gravaria o estado vazio por cima do arquivo intacto. load() libera só se a leitura der certo.
+        saveBlocked = true
         _problem.value = null
-        saveBlocked = false
         lastWritten = null
         load()
         runRecurring()

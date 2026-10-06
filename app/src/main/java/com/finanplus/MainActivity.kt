@@ -58,8 +58,9 @@ class MainActivity : FragmentActivity() {
         onFail: (String) -> Unit = {},
     ) {
         val prompt = BiometricPrompt(this, ContextCompat.getMainExecutor(this), object : BiometricPrompt.AuthenticationCallback() {
-            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { onSuccess() }
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { AppLock.endExternal(); onSuccess() }
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                AppLock.endExternal()
                 if (errorCode != BiometricPrompt.ERROR_NEGATIVE_BUTTON && errorCode != BiometricPrompt.ERROR_USER_CANCELED) onFail(errString.toString())
             }
         })
@@ -69,6 +70,9 @@ class MainActivity : FragmentActivity() {
         } else if (canUseDeviceAuth()) {
             info.setAllowedAuthenticators(DEVICE_AUTH)
         } else { onFail("Nenhuma digital ou bloqueio de tela cadastrado no aparelho."); return }
+        // No Android 10 e anteriores, "usar a senha do aparelho" abre a tela de credencial do sistema em outra
+        // Activity: o app vai para segundo plano e, com o bloqueio "Imediato", pediria o PIN na volta.
+        AppLock.allowExternalOnce()
         prompt.authenticate(info.build())
     }
 

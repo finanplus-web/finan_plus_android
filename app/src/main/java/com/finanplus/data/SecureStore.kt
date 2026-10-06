@@ -97,20 +97,35 @@ class SecureStore(context: Context) {
     fun read(): ReadResult {
         val main = if (file.exists() && file.length() > 0) file.readBytes() else null
         if (main == null) {
-            // sem o principal (ex.: processo morreu entre as duas trocas da gravação): usa a versão anterior
-            if (bak.exists() && bak.length() > 0) (decode(bak.readBytes()) as? Decoded.Ok)?.let { return ReadResult.Ok(it.json) }
+            // sem o principal (ex.: processo morreu entre as duas trocas da gravação): usa a versão anterior.
+            // Se ela não decifrar, NÃO devolve "vazio": a gravação seguinte a moveria e apagaria a única cópia.
+            if (bak.exists() && bak.length() > 0) {
+                val b = bak.readBytes()
+                return when (val d = decode(b)) {
+                    is Decoded.Ok -> ReadResult.Ok(d.json)
+                    is Decoded.Transient -> ReadResult.KeystoreError(describe(d.e))
+                    is Decoded.Bad -> ReadResult.Unreadable(keepCopy(b))
+                }
+            }
             return ReadResult.Empty
         }
         return when (val d = decode(main)) {
             is Decoded.Ok -> ReadResult.Ok(d.json)
-            is Decoded.Transient -> ReadResult.KeystoreError(d.e.javaClass.simpleName + (d.e.message?.let { ": $it" } ?: ""))
+            is Decoded.Transient -> ReadResult.KeystoreError(describe(d.e))
             is Decoded.Bad -> {
                 val copy = keepCopy(main)
                 val prev = if (bak.exists() && bak.length() > 0) decode(bak.readBytes()) else null
-                if (prev is Decoded.Ok) ReadResult.Ok(prev.json) else ReadResult.Unreadable(copy)
+                when (prev) {
+                    is Decoded.Ok -> ReadResult.Ok(prev.json)
+                    // a versão anterior pode ser boa e só o Keystore falhou agora: não tratar como perdida
+                    is Decoded.Transient -> ReadResult.KeystoreError(describe(prev.e))
+                    else -> ReadResult.Unreadable(copy)
+                }
             }
         }
     }
+
+    private fun describe(e: Exception) = e.javaClass.simpleName + (e.message?.let { ": $it" } ?: "")
 
     @Synchronized
     fun write(json: String) {

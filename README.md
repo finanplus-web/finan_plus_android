@@ -1,4 +1,4 @@
-# Finan+ para Android (nativo) — v1.1.0
+# Finan+ para Android (nativo) — v1.1.1
 
 Versão nativa do Finan+ em **Kotlin + Jetpack Compose**, com todas as funcionalidades do Finan+ web v0.6.0, mais criptografia real, widget de saldo, notificações de vencimento e desbloqueio por biometria.
 

@@ -1,5 +1,52 @@
 # Changelog
 
+## 1.1.1 — correções da auditoria (06/10/2026)
+
+Correções dos problemas encontrados na auditoria de 06/10/2026 (segurança, perda de dados, cálculos e interface). Os três erros de cálculo que também existiam nas outras versões foram corrigidos igualmente no Finan+ web 1.1.2 e no Finan+ para Linux 1.1.7.
+
+### Segurança
+- **Diálogos por cima do bloqueio:** ao bloquear, qualquer diálogo aberto é fechado e nenhum é desenhado enquanto o app está bloqueado. Antes, "Definir PIN", "Apagar tudo" ou "Restaurar" deixados abertos continuavam utilizáveis por cima da tela de bloqueio (dava para trocar o PIN sem saber o atual). "Definir PIN" não desbloqueia mais o app por conta própria.
+- **Limite de tentativas do PIN gravado no aparelho:** depois de 5 erros, a espera começa em 30 s e dobra até 1 hora. Fechar o app, forçar a parada ou reiniciar o celular não zera mais a contagem (antes ficava só na memória). A tentativa é contada antes da conferência, e "Remover PIN" em Ajustes segue o mesmo limite.
+- **Bloqueio automático:** saiu dos dados do backup e ficou só no aparelho (restaurar um backup não muda mais a segurança). Novas opções: *Imediatamente* (padrão), 1, 5, 15 ou 30 minutos, ou *Só ao abrir o app*. Quem usava "Desativado" passa para *Imediatamente*. Voltar do seletor de arquivos do sistema ou da tela de senha do Android não pede o PIN de novo.
+- **Biometria forte:** o desbloqueio aceita só biometria Classe 3 (digital ou rosto 3D); reconhecimento facial 2D, que pode ser enganado com foto, não vale mais. No Android 10 e anteriores, a alternativa "senha do aparelho" segue a regra do sistema. Uma falha passageira do sensor não desliga mais a digital sozinha.
+- **Notificações discretas:** com PIN, digital ou "Ocultar valores", a notificação de vencimentos mostra só "N lançamentos pedem atenção", sem títulos nem valores (antes podiam aparecer na tela de bloqueio do Android). "Apagar tudo" remove a notificação já exibida.
+- **Widget:** com bloqueio ativo, os valores do widget ficam ocultos por padrão (dá para mostrar de novo em Ajustes). No modo oculto, o título da próxima conta também some.
+- **Outros:** `taskAffinity` vazio (proteção contra sequestro de tarefa no Android 8–10), regras de backup do Android com `path="."`, `.gitignore` cobre `keystore.properties`, `*.p12` e `*.pem`.
+
+### Dados nunca perdidos sem aviso
+- **Erro passageiro do Keystore** (comum logo após ligar ou atualizar o aparelho) não é mais tratado como "dados perdidos": o app tenta de novo, e se ainda falhar mostra "Chave de criptografia indisponível" com **Tentar de novo**. Nada é gravado por cima do arquivo enquanto isso.
+- **Arquivo que não decifra:** a gravação fica bloqueada até você escolher **Começar do zero** (com cópia cifrada guardada) ou restaurar um backup. "Decidir depois" não libera mais a gravação, e o aviso diz a verdade quando a cópia não pôde ser guardada.
+- **Versão anterior (`.bak`):** cada gravação guarda a versão anterior; se a atual não abrir, o app usa a anterior. As trocas de arquivo são atômicas, e um `.bak` que não abre nunca é apagado. Ficam só as 3 cópias "danificado" mais recentes.
+- **Falha ao salvar** (por exemplo, armazenamento cheio) mostra um aviso fixo no topo e o app tenta de novo a cada 15 s. Antes, a falha passava em silêncio.
+- **Backup JSON e CSV:** o resultado é sempre confirmado ("Backup salvo" ou "Não foi possível salvar"), o arquivo é gravado no modo que trunca (sobrescrever um arquivo maior não deixa sobra), e uma falha não fecha mais o app.
+- **Restaurar:** o arquivo é lido com limite (nunca inteiro antes de checar os 30 MB) e interpretado fora da thread da tela. Backup feito por uma versão mais nova do Finan+ é avisado.
+
+### Cálculos (também corrigidos no web e no Linux)
+- **Recorrência reativada** não cria mais de uma vez os lançamentos dos meses em que ficou pausada: retoma a partir do mês atual.
+- **Pagamento de fatura** não pode mais ser desmarcado como pendente (descontava o mesmo valor duas vezes).
+- **Backup com valores gigantes ou booleanos:** valores acima de R$ 9.999.999.999.999,99 (o limite da digitação) e `true`/`false` em campos de dinheiro são recusados; antes, somas estouravam e o saldo trocava de sinal.
+
+### Cálculos e backup (só Android)
+- Backup salvo no Bloco de Notas (com BOM) é aceito, como no web.
+- Descrição longa de parcela ou recorrência não perde mais o fim a cada abertura do app.
+- Ids inválidos ou repetidos num backup editado à mão não mudam mais a conta ou o cartão dos lançamentos.
+- "0.500" é lido como R$ 0,50; algarismos não latinos são recusados; "r$ 10" é aceito.
+- Assistente: "últimos dez dias" não é mais entendido como dezembro; "últimas 2 semanas" funciona; datas não dependem do idioma do aparelho.
+- Eixo dos gráficos sem "R$ 1000" nem "R$ 1000 mil" nas fronteiras.
+- 11 testes novos (`RegressionTest.kt`): 71 no total, todos passando.
+
+### Interface
+- **Valores nunca cortados com "…":** se não couberem, a fonte diminui até caber (mínimo 11sp) e volta ao normal quando há espaço.
+- **Só ícones Material Symbols:** setas de receitas/despesas, selo "Privado", metas, limites, teclado do PIN, seletor e botões **+ / −** dos cartões de Ajustes eram símbolos de texto (↑ ↓ ● ◎ ✓ ⚠ ＋ ⌫ ▾); viraram ícones (novos: `arrow_upward`, `arrow_downward`, `arrow_drop_down`, `backspace`, `shield`, `warning`).
+- **Nada se perde ao bloquear ou girar:** aba, filtros e o formulário aberto (com o que foi digitado) sobrevivem ao bloqueio automático, a girar a tela e a mudar o tamanho da fonte.
+- **Descartar alterações?** Deslizar a folha para baixo, tocar fora ou voltar com alterações não salvas pergunta antes de descartar.
+- **"Ocultar valores"** também oculta as porcentagens (uso das receitas, limites, variação entre meses).
+- **TalkBack:** interruptores, caixas de seleção e o botão de pago anunciam "ativado/desativado"; alvos de toque com pelo menos 48dp.
+- Tela de bloqueio rola quando não cabe (celular deitado, fonte grande). Mês do filtro acompanha a virada do mês com o app aberto. Busca calcula o texto normalizado uma vez por versão dos dados.
+
+Como foi verificado: o núcleo foi compilado e os 71 testes rodados na JVM. O APK não foi compilado neste ambiente (sem Android SDK); a interface passou por revisão linha a linha focada em erros de compilação (imports, assinaturas da BOM 2025.05.01, recursos).
+
+
 ## 1.1.0 — Ajustes recolhíveis
 
 Todos os cartões de *Ajustes* agora abrem e fecham com o botão **+ / −**, como "Limites mensais" já fazia. Fechado, cada cartão mostra um resumo do que está configurado:

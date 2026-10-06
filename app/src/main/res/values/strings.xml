@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Finan+</string>
+    <string name="widget_name">Saldo Finan+</string>
+    <string name="widget_description">Saldo atual, previsto no fim do mês e próximo vencimento</string>
+</resources>

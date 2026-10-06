@@ -3,6 +3,7 @@
 
 package com.finanplus
 
+import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.compose.setContent
@@ -35,13 +36,16 @@ class MainActivity : FragmentActivity() {
         setContent { FinanRoot(activity = this) }
     }
 
+    /** O aparelho tem bloqueio de tela (PIN, padrão ou senha do Android). */
+    fun isDeviceSecure(): Boolean = getSystemService(android.app.KeyguardManager::class.java)?.isDeviceSecure == true
+
     /** Há digital/rosto cadastrado no aparelho. */
     fun canUseBiometric(): Boolean =
         BiometricManager.from(this).canAuthenticate(BIOMETRIC) == BiometricManager.BIOMETRIC_SUCCESS
 
     /** Há digital OU bloqueio de tela (senha/padrão/PIN do Android) para usar como alternativa. */
     fun canUseDeviceAuth(): Boolean =
-        BiometricManager.from(this).canAuthenticate(BIOMETRIC or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+        BiometricManager.from(this).canAuthenticate(DEVICE_AUTH) == BiometricManager.BIOMETRIC_SUCCESS
 
     /**
      * Pede a digital. [withPinFallback] = o app tem PIN próprio: o botão "Usar PIN" volta para o teclado.
@@ -63,10 +67,19 @@ class MainActivity : FragmentActivity() {
         if (withPinFallback && canUseBiometric()) {
             info.setAllowedAuthenticators(BIOMETRIC).setNegativeButtonText("Usar PIN")
         } else if (canUseDeviceAuth()) {
-            info.setAllowedAuthenticators(BIOMETRIC or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+            info.setAllowedAuthenticators(DEVICE_AUTH)
         } else { onFail("Nenhuma digital ou bloqueio de tela cadastrado no aparelho."); return }
         prompt.authenticate(info.build())
     }
 
-    private companion object { const val BIOMETRIC = BiometricManager.Authenticators.BIOMETRIC_WEAK }
+    private companion object {
+        /**
+         * Só biometria Classe 3 (forte): a fraca (Classe 2) aceita reconhecimento facial 2D, que pode ser enganado com foto.
+         * Aparelhos só com biometria fraca usam o bloqueio de tela do Android como alternativa.
+         */
+        const val BIOMETRIC = BiometricManager.Authenticators.BIOMETRIC_STRONG
+        /** STRONG | DEVICE_CREDENTIAL só é aceito a partir do Android 11; antes, o par suportado é WEAK | DEVICE_CREDENTIAL. */
+        val DEVICE_AUTH = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) BIOMETRIC or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+            else BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
+    }
 }

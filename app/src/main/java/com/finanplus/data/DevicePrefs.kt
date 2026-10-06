@@ -5,12 +5,13 @@ package com.finanplus.data
 
 import android.content.Context
 import androidx.core.content.edit
+import com.finanplus.security.AppLock
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Configurações que pertencem a ESTE aparelho e nunca vão para o backup:
- * PIN, biometria, notificações, widget, bloqueio de capturas de tela e opções do assistente.
+ * PIN, biometria, bloqueio automático, notificações, widget, bloqueio de capturas de tela e opções do assistente.
  * O PIN é guardado só como hash PBKDF2 com sal.
  */
 data class DeviceSettings(
@@ -19,6 +20,11 @@ data class DeviceSettings(
     val notifications: Boolean = true,
     val widgetValues: Boolean = true,
     val secureScreen: Boolean = true,
+    /**
+     * Bloqueio automático ao voltar do segundo plano: [AppLock.AUTOLOCK_IMMEDIATE] (padrão), N minutos ou
+     * [AppLock.AUTOLOCK_ON_OPEN] (só ao abrir o app). Fica no aparelho: restaurar um backup não muda a segurança.
+     */
+    val autoLock: Int = AppLock.AUTOLOCK_IMMEDIATE,
     // ---- assistente (cada função pode ser desligada separadamente) ----
     /** sugerir categoria pela descrição ao criar lançamentos */
     val assistCategory: Boolean = true,
@@ -46,6 +52,7 @@ class DevicePrefs private constructor(context: Context) {
         notifications = sp.getBoolean("notifications", true),
         widgetValues = sp.getBoolean("widgetValues", true),
         secureScreen = sp.getBoolean("secureScreen", true),
+        autoLock = sp.getInt("autoLock", AppLock.AUTOLOCK_IMMEDIATE).takeIf { it in AppLock.AUTOLOCK_OPTIONS } ?: AppLock.AUTOLOCK_IMMEDIATE,
         assistCategory = sp.getBoolean("assistCategory", true),
         assistTips = sp.getBoolean("assistTips", true),
         assistAsk = sp.getBoolean("assistAsk", true),
@@ -56,7 +63,7 @@ class DevicePrefs private constructor(context: Context) {
         val n = f(_flow.value)
         sp.edit(commit = true) {
             putString("pin", n.pinHash); putBoolean("biometric", n.biometric); putBoolean("notifications", n.notifications)
-            putBoolean("widgetValues", n.widgetValues); putBoolean("secureScreen", n.secureScreen)
+            putBoolean("widgetValues", n.widgetValues); putBoolean("secureScreen", n.secureScreen); putInt("autoLock", n.autoLock)
             remove("materialIcons") // preferência da fase de teste dos ícones, não é mais usada
             putBoolean("assistCategory", n.assistCategory); putBoolean("assistTips", n.assistTips); putBoolean("assistAsk", n.assistAsk)
             // guarda só as últimas 200 dicas dispensadas (os ids incluem o mês, então as antigas deixam de importar)
@@ -74,6 +81,16 @@ class DevicePrefs private constructor(context: Context) {
     var lastNotified: String
         get() = sp.getString("lastNotified", "") ?: ""
         set(v) = sp.edit { putString("lastNotified", v) }
+
+    /**
+     * Migração da 1.1.1 (uma vez): o bloqueio automático saiu do AppState (que vai para o backup) e veio para cá;
+     * o antigo "Desativado" (0) vira "Imediato". Quem já usa PIN/digital passa a ter os valores do widget ocultos.
+     */
+    fun migrate(legacyAutoLock: Int) {
+        if (sp.getBoolean("migrated111", false)) return
+        update { it.copy(autoLock = if (legacyAutoLock > 0) legacyAutoLock else AppLock.AUTOLOCK_IMMEDIATE, widgetValues = it.widgetValues && !it.lockEnabled) }
+        sp.edit(commit = true) { putBoolean("migrated111", true) }
+    }
 
     fun wipe() { sp.edit(commit = true) { clear() }; _flow.value = load() }
 

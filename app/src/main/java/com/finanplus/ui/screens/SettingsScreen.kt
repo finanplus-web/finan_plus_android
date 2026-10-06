@@ -82,6 +82,8 @@ import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
 
+private const val MAX_BACKUP_BYTES = 30_000_000
+
 private val THEME_SWATCH = mapOf(
     ThemeId.AUTO to (0xFFD9E5FF to 0xFF181A1F), ThemeId.LIGHT to (0xFFEEF4FF to 0xFF3A5FC8), ThemeId.MATERIAL_YOU to (0xFFDBE7FF to 0xFF0B57D0),
     ThemeId.OLED to (0xFF181A1F to 0xFF8AA8FF), ThemeId.TOKYO to (0xFF1A1B26 to 0xFF7AA2F7), ThemeId.NORD to (0xFF2E3440 to 0xFF88C0D0),
@@ -98,30 +100,49 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
     val today = com.finanplus.ui.components.LocalToday.current
 
     // ---------- arquivos (Storage Access Framework: o usuário escolhe onde salvar) ----------
+    // Grava com "wt" (trunca: sobrescrever um arquivo maior não deixa sobra no fim) e sempre avisa o resultado.
+    fun saveTo(uri: android.net.Uri, what: String, bytes: () -> ByteArray) = scope.launch {
+        val ok = withContext(Dispatchers.IO) {
+            runCatching { ctx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(bytes()) } != null }.getOrDefault(false)
+        }
+        if (ok) dialogs.notice("$what salvo", if (what == "Backup") "O arquivo não é criptografado: guarde em local seguro." else "Arquivo gravado no local escolhido.")
+        else dialogs.notice("Não foi possível salvar", "O arquivo não foi gravado (sem espaço ou local indisponível). Tente de novo ou escolha outro local.")
+    }
     val exportJson = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        if (uri != null) scope.launch(Dispatchers.IO) {
+        if (uri != null) saveTo(uri, "Backup") {
             val meta = linkedMapOf<String, Any?>("app" to "Finan+", "version" to Backup.VERSION, "appVersion" to BuildConfig.VERSION_NAME, "createdAt" to Instant.now().toString())
-            ctx.contentResolver.openOutputStream(uri)?.use { it.write(Backup.toJson(Repo.state.value, meta).toByteArray()) }
+            Backup.toJson(Repo.state.value, meta).toByteArray()
         }
     }
     val exportCsv = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
-        if (uri != null) scope.launch(Dispatchers.IO) { ctx.contentResolver.openOutputStream(uri)?.use { it.write(Csv.build(Repo.state.value).toByteArray()) } }
+        if (uri != null) saveTo(uri, "CSV") { Csv.build(Repo.state.value).toByteArray() }
     }
     val importJson = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val text = withContext(Dispatchers.IO) {
-                runCatching { ctx.contentResolver.openInputStream(uri)?.use { ins -> ins.readBytes().takeIf { it.size < 30_000_000 }?.toString(Charsets.UTF_8) } }.getOrNull()
+            // lê no máximo o limite + 1 byte (nunca o arquivo inteiro antes de checar) e interpreta fora da thread da tela
+            val text: String? = withContext(Dispatchers.IO) {
+                runCatching {
+                    ctx.contentResolver.openInputStream(uri)?.use { ins ->
+                        val buf = java.io.ByteArrayOutputStream(); val chunk = ByteArray(64 * 1024); var total = 0
+                        while (true) { val r = ins.read(chunk); if (r < 0) break; total += r; if (total > MAX_BACKUP_BYTES) return@use null; buf.write(chunk, 0, r) }
+                        buf.toString(Charsets.UTF_8.name())
+                    }
+                }.getOrNull()
             }
-            val n = try { Backup.parse(text ?: throw BackupException("vazio")) } catch (e: BackupException) {
-                dialogs.notice("Não foi possível restaurar", "Arquivo de backup inválido ou danificado. Nada foi alterado."); return@launch
+            if (text == null) { dialogs.notice("Não foi possível restaurar", "Arquivo grande demais (máximo 30 MB) ou ilegível. Nada foi alterado."); return@launch }
+            val n = withContext(Dispatchers.Default) {
+                try { Backup.parse(text) } catch (e: BackupException) { null } catch (e: Throwable) { null } // inclui falta de memória
             }
+            if (n == null) { dialogs.notice("Não foi possível restaurar", "Arquivo de backup inválido ou danificado. Nada foi alterado."); return@launch }
             val st = n.state
             val bad = n.dropped.total
             dialogs.confirm(
                 "Revisar restauração",
                 "Backup com ${st.txs.size} lançamentos, ${st.accounts.size} contas, ${st.cards.size} cartões e ${st.goals.size} metas." +
-                    (if (bad > 0) "\n$bad item(ns) inválido(s) será(ão) ignorado(s)." else "") + "\nSubstituir os dados atuais? O PIN deste aparelho é mantido.",
+                    (if (bad > 0) "\n$bad item(ns) inválido(s) será(ão) ignorado(s)." else "") +
+                    (if (n.newer) "\nEste backup foi feito por uma versão mais nova do Finan+: dados de recursos que esta versão não conhece serão ignorados." else "") +
+                    "\nSubstituir os dados atuais? O PIN e o bloqueio deste aparelho são mantidos.",
                 ok = "Substituir", danger = true,
             ) { Repo.replace(Finance.generateRecurring(st, LocalDate.now()).first) }
         }
@@ -147,7 +168,10 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                                     .clickable(role = Role.RadioButton) { Repo.update { it.copy(theme = t) } }
                                     .semantics { stateDescription = if (on) "selecionado" else "" }.padding(12.dp),
                             ) {
-                                Text(t.label + if (on) "  ✓" else "", fontWeight = FontWeight.Bold)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(t.label, fontWeight = FontWeight.Bold)
+                                    if (on) { Spacer(Modifier.width(6.dp)); com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CHECK, p.accent, size = 18.dp) }
+                                }
                                 Row(Modifier.padding(top = 7.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Box(Modifier.size(18.dp, 8.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color(a)).border(1.dp, p.muted.copy(alpha = 0.5f), CircleShape))
                                     Box(Modifier.size(18.dp, 8.dp).clip(CircleShape).background(androidx.compose.ui.graphics.Color(b)).border(1.dp, p.muted.copy(alpha = 0.5f), CircleShape))
@@ -175,8 +199,11 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pill(if (dev.hasPin) "Remover PIN" else "Definir PIN", Modifier.weight(1f)) {
                         if (dev.hasPin) dialogs.input("Remover PIN", "Digite o PIN atual para confirmar.", "PIN atual", password = true) { pin ->
+                            val wait = AppLock.waitSeconds()
+                            if (wait > 0) { dialogs.notice("Aguarde", "Muitas tentativas erradas. Tente de novo em $wait s."); return@input }
+                            AppLock.registerAttempt() // mesmo limite de tentativas da tela de bloqueio
                             scope.launch {
-                                if (Pin.verify(pin, dev.pinHash)) prefs.update { it.copy(pinHash = "") }
+                                if (Pin.verify(pin, dev.pinHash)) { AppLock.resetFails(); prefs.update { it.copy(pinHash = "") } }
                                 else dialogs.notice("Não foi possível remover", "PIN incorreto.")
                             }
                         } else dialogs.input("Definir PIN", "Use de 4 a 8 números.", "Novo PIN", password = true) { p1 ->
@@ -185,9 +212,11 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                                 if (p1 != p2) { dialogs.notice("PIN não definido", "Os PINs não conferem."); return@input }
                                 scope.launch {
                                     val h = Pin.hash(p1)
-                                    prefs.update { it.copy(pinHash = h) }
-                                    AppLock.unlock()
-                                    dialogs.notice("PIN ativado", "O PIN será pedido ao abrir o app.")
+                                    val hadWidgetValues = prefs.value.widgetValues
+                                    // com bloqueio, o widget passa a ocultar os valores (senão o saldo aparece na tela inicial sem PIN)
+                                    prefs.update { it.copy(pinHash = h, widgetValues = false) }
+                                    com.finanplus.widget.BalanceWidget.refresh(ctx)
+                                    dialogs.notice("PIN ativado", "O PIN será pedido ao abrir o app." + if (hadWidgetValues) " Os valores do widget foram ocultados; dá para mostrar de novo em “Notificações e widget”." else "")
                                 }
                             }
                         }
@@ -203,19 +232,29 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                         activity.promptBiometric(
                             title = if (v) "Ativar desbloqueio por digital" else "Desativar desbloqueio por digital",
                             withPinFallback = false,
-                            onSuccess = { prefs.update { it.copy(biometric = v) }; AppLock.unlock() },
+                            onSuccess = {
+                                prefs.update { it.copy(biometric = v, widgetValues = if (v) false else it.widgetValues) }
+                                scope.launch { com.finanplus.widget.BalanceWidget.refresh(ctx) }
+                            },
                             onFail = { dialogs.notice("Digital", it) },
                         )
                     }
                 } else if (dev.biometric) {
-                    SwitchRow("Desbloquear com digital", "Nenhuma digital cadastrada no aparelho agora", true) { prefs.update { it.copy(biometric = false) } }
+                    SwitchRow("Desbloquear com digital", "Nenhuma biometria forte (digital ou rosto 3D) disponível no aparelho agora", true) { prefs.update { it.copy(biometric = false) } }
                 } else {
                     Text("Para usar a digital, cadastre uma em Configurações do Android › Segurança.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(vertical = 6.dp))
                 }
                 SwitchRow("Ocultar valores", "Esconde os valores em reais na tela, no widget e nas notificações", s.privacy) { v -> Repo.update { it.copy(privacy = v) } }
-                SelectField(
-                    "Bloqueio automático", AppState.AUTOLOCK_OPTIONS.map { it to if (it == 0) "Desativado" else "$it minuto${if (it > 1) "s" else ""} em segundo plano" },
-                    s.autoLock, { v -> Repo.update { it.copy(autoLock = v) } },
+                if (dev.lockEnabled) SelectField(
+                    "Pedir desbloqueio ao voltar ao app",
+                    AppLock.AUTOLOCK_OPTIONS.map {
+                        it to when (it) {
+                            AppLock.AUTOLOCK_IMMEDIATE -> "Imediatamente"
+                            AppLock.AUTOLOCK_ON_OPEN -> "Só ao abrir o app"
+                            else -> "Após $it minuto${if (it > 1) "s" else ""} em segundo plano"
+                        }
+                    },
+                    dev.autoLock, { v -> prefs.update { it.copy(autoLock = v) } },
                 )
                 SwitchRow("Bloquear capturas de tela", "Também esconde o conteúdo na lista de apps recentes", dev.secureScreen) { v -> prefs.update { it.copy(secureScreen = v) } }
                 Text(
@@ -254,15 +293,15 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                     ManageItem("Cartão ${c.name}", "Limite $v · usado $u · fecha dia ${c.close} · vence dia ${c.due}") { Pill("Editar") { nav.open(Sheet.CardEdit(c.id)) } }
                 }
                 Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("＋ Conta", Modifier.weight(1f)) { nav.open(Sheet.AccountEdit()) }
-                    Pill("＋ Cartão", Modifier.weight(1f)) { nav.open(Sheet.CardEdit()) }
+                    Pill("Conta", Modifier.weight(1f), icon = com.finanplus.ui.components.Ico.ADD) { nav.open(Sheet.AccountEdit()) }
+                    Pill("Cartão", Modifier.weight(1f), icon = com.finanplus.ui.components.Ico.ADD) { nav.open(Sheet.CardEdit()) }
                 }
             }
         }
 
         item {
             Collapsible("Recorrências", if (s.recurring.isEmpty()) "Nenhuma recorrência cadastrada" else "${s.recurring.size} recorrência(s) cadastrada(s)") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Pill("＋ Nova") { nav.open(Sheet.RecurringEdit()) } }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Pill("Nova", icon = com.finanplus.ui.components.Ico.ADD) { nav.open(Sheet.RecurringEdit()) } }
                 if (s.recurring.isEmpty()) Text("Você também pode marcar “Repetir mensalmente” ao criar um lançamento.", style = MaterialTheme.typography.bodySmall, color = p.muted)
                 s.recurring.forEach { r ->
                     val where = if (r.cardId.isNotEmpty()) "Cartão " + (s.card(r.cardId)?.name ?: "") else s.account(r.accountId)?.name ?: ""
@@ -276,7 +315,7 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
 
         item {
             Collapsible("Limites mensais", if (s.limits.isEmpty()) "Nenhum limite definido" else "${s.limits.size} limite(s) definido(s)") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Pill("＋ Adicionar") { nav.open(Sheet.LimitEdit()) } }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Pill("Adicionar", icon = com.finanplus.ui.components.Ico.ADD) { nav.open(Sheet.LimitEdit()) } }
                 s.limits.forEach { (c, v) ->
                     ManageItem(c, "${if (s.privacy) "R$ ••••" else Money.format(v)} por mês") { Pill("Editar") { nav.open(Sheet.LimitEdit(c)) } }
                 }
@@ -325,8 +364,8 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
         item {
             Collapsible("Dados", "Backup, restauração, CSV e relatório em PDF") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Exportar CSV", Modifier.weight(1f)) { exportCsv.launch("lancamentos-${LocalDate.now()}.csv") }
-                    Pill("Backup JSON", Modifier.weight(1f)) { exportJson.launch("backup-finan-plus-${LocalDate.now()}.json") }
+                    Pill("Exportar CSV", Modifier.weight(1f)) { AppLock.allowExternalOnce(); exportCsv.launch("lancamentos-${LocalDate.now()}.csv") }
+                    Pill("Backup JSON", Modifier.weight(1f)) { AppLock.allowExternalOnce(); exportJson.launch("backup-finan-plus-${LocalDate.now()}.json") }
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -334,7 +373,7 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Restaurar", Modifier.weight(1f)) { importJson.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
+                    Pill("Restaurar", Modifier.weight(1f)) { AppLock.allowExternalOnce(); importJson.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
                     Pill("Apagar tudo", Modifier.weight(1f), danger = true) {
                         dialogs.confirm("Apagar todos os dados", "Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.", ok = "Apagar tudo", danger = true) {
                             Repo.wipe(); AppLock.unlock()
@@ -367,7 +406,9 @@ private fun Collapsible(title: String, summary: String, content: @Composable Col
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
                 Text(summary, style = MaterialTheme.typography.bodySmall, color = p.muted)
             }
-            Box(Modifier.size(38.dp).clip(CircleShape).background(p.accent2), contentAlignment = Alignment.Center) { Text(if (open) "−" else "+", style = MaterialTheme.typography.titleLarge) }
+            Box(Modifier.size(38.dp).clip(CircleShape).background(p.accent2), contentAlignment = Alignment.Center) {
+                com.finanplus.ui.components.AppIcon(if (open) com.finanplus.ui.components.Ico.REMOVE else com.finanplus.ui.components.Ico.ADD, p.text, size = 22.dp)
+            }
         }
         if (open) Column(Modifier.padding(start = 17.dp, end = 17.dp, bottom = 17.dp), content = content)
     }

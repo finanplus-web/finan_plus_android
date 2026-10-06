@@ -60,7 +60,7 @@ import java.time.format.DateTimeFormatter
 
 /** "03 de Outubro de 2026" — nomes próprios, sem depender do idioma do aparelho. */
 fun fullDate(d: LocalDate): String =
-    "%02d de %s de %d".format(d.dayOfMonth, com.finanplus.core.assist.Br.MONTHS[d.monthValue - 1].replaceFirstChar { it.uppercase() }, d.year)
+    String.format(java.util.Locale.ROOT, "%02d de %s de %d", d.dayOfMonth, com.finanplus.core.assist.Br.MONTHS[d.monthValue - 1].replaceFirstChar { it.uppercase() }, d.year)
 
 fun YearMonth.label(): String = format(DateTimeFormatter.ofPattern("MMM 'de' yyyy", BR))
 
@@ -94,8 +94,13 @@ fun HomeScreen(s: AppState) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     // data completa e dinâmica (ex.: "03 de Outubro de 2026"); muda sozinha com o dia
                     Text(fullDate(today), Modifier.weight(1f))
-                    Box(Modifier.clip(RoundedCornerShape(99.dp)).background(p.green.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 6.dp)) {
-                        Text("● Privado", color = p.green, fontSize = 12.sp)
+                    Row(
+                        Modifier.clip(RoundedCornerShape(99.dp)).background(p.green.copy(alpha = 0.14f)).padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.SHIELD, p.green, size = 13.dp)
+                        Spacer(Modifier.width(4.dp))
+                        Text("Privado", color = p.green, fontSize = 12.sp)
                     }
                 }
                 Spacer(Modifier.height(18.dp))
@@ -105,18 +110,22 @@ fun HomeScreen(s: AppState) {
                 }
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    StatBox("↑ Receitas do mês", flow.income, Modifier.weight(1f), color = p.green)
-                    StatBox("↓ Despesas do mês", flow.expense, Modifier.weight(1f), color = p.red)
+                    StatBox("Receitas do mês", flow.income, Modifier.weight(1f), color = p.green, icon = com.finanplus.ui.components.Ico.UP)
+                    StatBox("Despesas do mês", flow.expense, Modifier.weight(1f), color = p.red, icon = com.finanplus.ui.components.Ico.DOWN)
                 }
                 Spacer(Modifier.height(16.dp))
                 Bar(if (flow.income > 0) flow.expense.toFloat() / flow.income else 0f, p.accent, Modifier.sensitive(hide))
                 Spacer(Modifier.height(10.dp))
                 val used = if (flow.income > 0) flow.expense * 100.0 / flow.income else 0.0
                 Text(
-                    if (flow.income > 0) "Neste mês você usou ${"%.1f".format(BR, used)}% das receitas." else "Adicione seus primeiros lançamentos.",
+                    when {
+                        flow.income <= 0 -> "Adicione seus primeiros lançamentos."
+                        hide -> "Valores ocultos. Desligue “Ocultar valores” em Ajustes para ver o uso das receitas."
+                        else -> "Neste mês você usou ${"%.1f".format(BR, used)}% das receitas."
+                    },
                     style = MaterialTheme.typography.bodySmall, color = p.muted, fontWeight = FontWeight.SemiBold,
                 )
-                if (flow.income > 0) {
+                if (flow.income > 0 && !hide) {
                     val saved = maxOf(0.0, 100 - used)
                     Spacer(Modifier.height(6.dp))
                     Box(Modifier.clip(RoundedCornerShape(99.dp)).background(p.accent.copy(alpha = 0.12f)).padding(horizontal = 9.dp, vertical = 5.dp)) {
@@ -184,7 +193,13 @@ fun HomeScreen(s: AppState) {
                         Spacer(Modifier.height(6.dp))
                         Bar((pct / 100).toFloat(), color, Modifier.sensitive(hide), height = 7.dp)
                         Text(
-                            when { u > lim -> "Limite ultrapassado"; pct >= 100 -> "Limite atingido"; pct >= 80 -> "Atenção: ${"%.0f".format(BR, pct)}% usado"; else -> "${"%.0f".format(BR, pct)}% usado" },
+                            when {
+                                u > lim -> "Limite ultrapassado"
+                                pct >= 100 -> "Limite atingido"
+                                hide -> if (pct >= 80) "Atenção: perto do limite" else "Dentro do limite" // porcentagem também revela valores
+                                pct >= 80 -> "Atenção: ${"%.0f".format(BR, pct)}% usado"
+                                else -> "${"%.0f".format(BR, pct)}% usado"
+                            },
                             style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 4.dp),
                         )
                     }
@@ -193,7 +208,7 @@ fun HomeScreen(s: AppState) {
         }
         item { SectionHead("Objetivos", "Metas") }
         if (s.goals.isEmpty()) item {
-            Glass(Modifier.fillMaxWidth(), radius = 24.dp) { Text("Crie uma meta com “◎ Meta”.", color = p.muted, modifier = Modifier.align(Alignment.CenterHorizontally)) }
+            Glass(Modifier.fillMaxWidth(), radius = 24.dp) { Text("Crie uma meta com o botão “Meta”, acima.", color = p.muted, modifier = Modifier.align(Alignment.CenterHorizontally)) }
         }
         items(s.goals, key = { it.id }) { g ->
             val plan = Finance.goalPlan(g, today)
@@ -207,10 +222,10 @@ fun HomeScreen(s: AppState) {
                 Spacer(Modifier.height(6.dp))
                 val info = (g.deadline?.let { "Até ${it.br()}" } ?: "Sem prazo") + if (plan.pastDue) " · prazo vencido" else ""
                 val planText = when {
-                    plan.done -> "Meta atingida ✓"
+                    plan.done -> "Meta atingida"
                     else -> listOfNotNull(
                         plan.needed?.let { if (hide) "Precisa de R$ ••••/mês" else "Precisa de ${com.finanplus.core.Money.format(it)}/mês" },
-                        plan.eta?.let { "Plano: conclui em ${it.label()}" + if (plan.late) " ⚠ após o prazo" else "" },
+                        plan.eta?.let { "Plano: conclui em ${it.label()}" + if (plan.late) " (após o prazo)" else "" },
                     ).joinToString(" · ")
                 }
                 Row(Modifier.fillMaxWidth()) {
@@ -223,10 +238,13 @@ fun HomeScreen(s: AppState) {
 }
 
 @Composable
-private fun StatBox(label: String, value: Long, modifier: Modifier, big: Boolean = false, color: androidx.compose.ui.graphics.Color) {
+private fun StatBox(label: String, value: Long, modifier: Modifier, big: Boolean = false, color: androidx.compose.ui.graphics.Color, icon: com.finanplus.ui.components.Ico? = null) {
     val p = Fin.c
     Column(modifier.clip(RoundedCornerShape(if (big) 21.dp else 19.dp)).background(if (p.dark) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.06f) else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.55f)).padding(14.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) { com.finanplus.ui.components.AppIcon(icon, p.muted, size = 14.dp); Spacer(Modifier.width(4.dp)) }
+            Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
         Spacer(Modifier.height(5.dp))
         MoneyText(value, color = color, style = if (big) MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold) else MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
     }

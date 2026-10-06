@@ -122,7 +122,7 @@ fun ReportExportSheet(s: AppState, initialFrom: LocalDate?, initialTo: LocalDate
             busy -> {}
             x == null || y == null -> dialogs.notice("Período incompleto", "Escolha as datas inicial e final.")
             y.isBefore(x) -> dialogs.notice("Período inválido", "A data final deve ser igual ou posterior à inicial.")
-            else -> save.launch(Reports.fileName(x, y))
+            else -> { com.finanplus.security.AppLock.allowExternalOnce(); save.launch(Reports.fileName(x, y)) }
         }
     }
 }

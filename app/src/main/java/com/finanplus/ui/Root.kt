@@ -42,7 +42,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -54,6 +58,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +71,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.finanplus.MainActivity
 import com.finanplus.core.AppState
 import com.finanplus.core.Kind
+import com.finanplus.core.Ops
 import com.finanplus.core.Tx
 import com.finanplus.data.DevicePrefs
 import com.finanplus.data.DeviceSettings
@@ -87,6 +94,7 @@ import com.finanplus.ui.screens.SettingsScreen
 import com.finanplus.ui.screens.SheetHost
 import com.finanplus.ui.theme.Fin
 import com.finanplus.ui.theme.FinanTheme
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
@@ -94,7 +102,8 @@ enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
     REPORTS("Relatórios", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
 }
 
-sealed interface Sheet {
+/** Folhas (formulários) abertas. Serializable para sobreviver a girar a tela e ao bloqueio. */
+sealed interface Sheet : java.io.Serializable {
     data class TxEdit(val kind: Kind, val id: String? = null) : Sheet
     data class GoalEdit(val id: String? = null) : Sheet
     data class AccountEdit(val id: String? = null) : Sheet
@@ -125,6 +134,24 @@ class Nav {
     var sheet by mutableStateOf<Sheet?>(null)
     val filters = Filters()
     fun open(s: Sheet) { sheet = s }
+
+    companion object {
+        /** Aba, folha aberta e filtros sobrevivem a girar a tela, mudar a fonte e ao bloqueio do app. */
+        val Saver = listSaver<Nav, Any?>(
+            save = { n -> listOf(n.tab.name, n.sheet, n.filters.from, n.filters.to, n.filters.query, n.filters.kind?.name, n.filters.paid) },
+            restore = { l ->
+                Nav().apply {
+                    tab = runCatching { Tab.valueOf(l[0] as String) }.getOrDefault(Tab.HOME)
+                    sheet = l[1] as Sheet?
+                    filters.from = l[2] as LocalDate?
+                    filters.to = l[3] as LocalDate?
+                    filters.query = l[4] as String? ?: ""
+                    filters.kind = (l[5] as String?)?.let { runCatching { Kind.valueOf(it) }.getOrNull() }
+                    filters.paid = l[6] as Boolean?
+                }
+            },
+        )
+    }
 }
 
 val LocalNav = staticCompositionLocalOf { Nav() }
@@ -149,22 +176,26 @@ fun FinanRoot(activity: MainActivity) {
             activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
         }
         val dialogs = remember { Dialogs() }
+        val nav = rememberSaveable(saver = Nav.Saver) { Nav() }
+        // guarda o estado "salvável" da tela principal enquanto ela está fora da composição (app bloqueado):
+        // ao desbloquear, a folha aberta e o que foi digitado continuam lá
+        val holder = rememberSaveableStateHolder()
+        val showLock = locked && dev.lockEnabled
+        // Bloqueou: fecha qualquer diálogo aberto. Um AlertDialog é uma janela própria e ficaria utilizável por cima
+        // da tela de bloqueio (ex.: "Definir PIN" deixado aberto permitia trocar o PIN sem saber o atual).
+        LaunchedEffect(showLock) { if (showLock) dialogs.close() }
         CompositionLocalProvider(LocalDialogs provides dialogs, LocalPrivacy provides s.privacy) {
             AppBackground {
                 // Bloqueado: o conteúdo do app nem é composto (nada acessível por trás).
-                if (locked && dev.lockEnabled) LockScreen(activity, dev) else MainScaffold(s, dev, activity)
+                if (showLock) LockScreen(activity, dev) else holder.SaveableStateProvider("main") { MainScaffold(s, dev, activity, nav) }
             }
-            DialogHost(dialogs)
+            if (!showLock) DialogHost(dialogs)
         }
     }
 }
 
 @Composable
-private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivity) {
-    val nav = remember { Nav() }
-    var savedTab by rememberSaveable { mutableStateOf(Tab.HOME.name) }
-    LaunchedEffect(Unit) { nav.tab = Tab.valueOf(savedTab) }
-    LaunchedEffect(nav.tab) { savedTab = nav.tab.name }
+private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivity, nav: Nav) {
     // Voltar: fecha a folha aberta (o próprio ModalBottomSheet trata) e depois volta para o Início.
     BackHandler(enabled = nav.tab != Tab.HOME && nav.sheet == null) { nav.tab = Tab.HOME }
 
@@ -181,7 +212,14 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
 
     // "hoje" dinâmico: muda na meia-noite, ao voltar ao app e se a data do aparelho mudar
     val today = com.finanplus.ui.components.rememberToday()
-    LaunchedEffect(today) { Repo.runRecurring(today) } // virou o mês com o app aberto
+    LaunchedEffect(today) {
+        Repo.runRecurring(today) // virou o mês com o app aberto
+        // o filtro estava no mês anterior inteiro (o padrão "este mês" de ontem): acompanha a virada
+        val prev = today.minusMonths(1)
+        val f = nav.filters
+        if (f.from == prev.withDayOfMonth(1) && f.to == prev.withDayOfMonth(prev.lengthOfMonth())) f.thisMonth()
+    }
+    var reaskProblem by remember { mutableIntStateOf(0) }
     CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             when (nav.tab) {
@@ -193,9 +231,10 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
             BottomNav(nav, Modifier.align(Alignment.BottomCenter))
+            SaveErrorBanner(Modifier.align(Alignment.TopCenter)) { reaskProblem++ }
         }
         nav.sheet?.let { sh -> key(sh) { SheetHost(s, sh) { nav.sheet = null } } }
-        ProblemNotice()
+        ProblemNotice(reaskProblem)
     }
 }
 
@@ -269,12 +308,14 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
             MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.kind == Kind.EXPENSE) p.red else p.green,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
         }
-        if (t.isCard) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
+        // compra no cartão e pagamento de fatura não alternam pago/pendente (ver Ops.canTogglePaid)
+        if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
         else {
             val label = (if (t.kind == Kind.INCOME) "Recebida" else "Paga") + ": ${t.desc}"
             Box(
-                Modifier.padding(end = 10.dp).size(44.dp).clip(CircleShape).clickable(role = Role.Checkbox, onClick = onToggle)
-                    .semantics { contentDescription = label; selected = t.paid },
+                Modifier.padding(end = 6.dp).size(48.dp).clip(CircleShape)
+                    .toggleable(value = t.paid, role = Role.Checkbox, onValueChange = { onToggle() })
+                    .semantics { contentDescription = label },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -288,29 +329,85 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
 }
 
 
+/** Aviso fixo no topo quando as alterações não estão sendo salvas (falha de gravação ou arquivo pendente de decisão). */
 @Composable
-private fun ProblemNotice() {
+private fun SaveErrorBanner(modifier: Modifier, onResolve: () -> Unit) {
+    val err by Repo.saveError.collectAsStateWithLifecycle()
+    val problem by Repo.problem.collectAsStateWithLifecycle()
+    val msg = err ?: return
+    val p = Fin.c
+    Row(
+        modifier.padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 6.dp, start = 12.dp, end = 12.dp)
+            .widthIn(max = 600.dp).fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(p.red.copy(alpha = 0.16f).compositeOver(p.bg))
+            .border(1.dp, p.red.copy(alpha = 0.5f), RoundedCornerShape(18.dp)).padding(horizontal = 12.dp, vertical = 10.dp)
+            .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.WARNING, p.red, size = 20.dp)
+        Text(msg, Modifier.weight(1f).padding(horizontal = 10.dp), style = MaterialTheme.typography.bodySmall, color = p.text)
+        if (problem != null) com.finanplus.ui.components.Pill("Resolver", onClick = onResolve)
+    }
+}
+
+/**
+ * Problemas ao abrir os dados. Nada é gravado por cima do arquivo até o usuário escolher:
+ * "Tentar de novo" (erro do Keystore), "Começar do zero" (com cópia cifrada guardada) ou salvar a cópia.
+ * "Decidir depois" fecha o aviso; o aviso fixo no topo continua e reabre esta pergunta.
+ */
+@Composable
+private fun ProblemNotice(reask: Int) {
     val problem by Repo.problem.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
     val dialogs = LocalDialogs.current
+    val scope = rememberCoroutineScope()
     val saveCopy = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
         val p = Repo.problem.value
-        if (uri != null && p is LoadProblem.Invalid) ctx.contentResolver.openOutputStream(uri)?.use { it.write(p.raw.toByteArray()) }
-        Repo.dismissProblem()
+        if (uri != null && p is LoadProblem.Invalid) {
+            val ok = runCatching { ctx.contentResolver.openOutputStream(uri, "wt")?.use { it.write(p.raw.toByteArray()) } != null }.getOrDefault(false)
+            if (ok) Repo.startFresh() else dialogs.notice("Não foi possível salvar", "A cópia não foi gravada. Escolha outro local e tente de novo.")
+        }
     }
-    LaunchedEffect(problem) {
+    LaunchedEffect(problem, reask) {
         when (val p = problem) {
             null -> {}
+            is LoadProblem.KeystoreError -> dialogs.confirm(
+                "Chave de criptografia indisponível",
+                "O Android não liberou a chave que protege seus dados agora (isso pode acontecer logo após ligar ou atualizar o aparelho). " +
+                    "Seus dados continuam guardados e nada foi alterado. Tente de novo; se continuar, reinicie o aparelho.",
+                ok = "Tentar de novo", cancel = "Outras opções",
+                onCancel = {
+                    dialogs.confirm(
+                        "Outras opções",
+                        "Começar do zero deixa o app vazio. O arquivo atual fica guardado, cifrado, e pode voltar a abrir depois. " +
+                            "Se você tem um Backup JSON, restaure-o em Ajustes › Dados.",
+                        ok = "Começar do zero", cancel = "Decidir depois", danger = true,
+                    ) { Repo.startFresh() }
+                },
+            ) {
+                scope.launch(kotlinx.coroutines.Dispatchers.IO) { Repo.retryLoad() }
+            }
             is LoadProblem.Unreadable -> dialogs.confirm(
                 "Dados não puderam ser abertos",
-                "Os dados salvos neste aparelho não puderam ser decifrados (isso acontece, por exemplo, depois de restaurar o sistema). Uma cópia do arquivo foi guardada. Restaure seu último Backup JSON em Ajustes › Dados.",
-                ok = "Entendi", cancel = "Depois", onCancel = { Repo.dismissProblem() },
-            ) { Repo.dismissProblem() }
+                "Os dados salvos neste aparelho não puderam ser decifrados (isso acontece, por exemplo, depois de restaurar o sistema). " +
+                    (if (p.copied) "Uma cópia cifrada do arquivo foi guardada. " else "Não foi possível guardar uma cópia do arquivo (verifique o espaço livre); começar do zero o descarta. ") +
+                    "Nada é salvo até você escolher. Se você tem um Backup JSON, comece do zero e restaure-o em Ajustes › Dados.",
+                ok = "Começar do zero", cancel = "Decidir depois", danger = !p.copied,
+            ) { Repo.startFresh() }
             is LoadProblem.Invalid -> dialogs.confirm(
                 "Dados danificados",
-                "Os dados salvos estavam danificados e não puderam ser abertos. Uma cópia foi guardada. Deseja salvar o conteúdo original para tentar recuperá-lo?",
-                ok = "Salvar cópia", cancel = "Agora não", onCancel = { Repo.dismissProblem() },
-            ) { saveCopy.launch("finan-plus-dados-danificados-${LocalDate.now()}.json") }
+                "Os dados salvos estavam danificados e não puderam ser abertos. Deseja salvar o conteúdo original num arquivo, para tentar recuperá-lo?",
+                ok = "Salvar cópia", cancel = "Outras opções",
+                onCancel = {
+                    dialogs.confirm(
+                        "Outras opções",
+                        "Começar do zero deixa o app vazio. Se você tem um Backup JSON, restaure-o em Ajustes › Dados.",
+                        ok = "Começar do zero", cancel = "Decidir depois", danger = true,
+                    ) { Repo.startFresh() }
+                },
+            ) {
+                com.finanplus.security.AppLock.allowExternalOnce()
+                saveCopy.launch("finan-plus-dados-danificados-${LocalDate.now()}.json")
+            }
             is LoadProblem.Dropped -> { dialogs.notice("Dados revisados", "${p.count} registro(s) inválido(s) foram ignorados ao abrir os dados."); Repo.dismissProblem() }
         }
     }

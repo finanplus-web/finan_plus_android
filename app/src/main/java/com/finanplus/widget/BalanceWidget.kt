@@ -51,8 +51,9 @@ class BalanceWidget : GlanceAppWidget() {
         val next = Finance.nextDue(s, today)
         val nextText = when {
             next == null -> "Nenhuma conta pendente"
-            else -> "${next.title} · ${if (next.date.isBefore(today)) "atrasada" else next.date.format(DateTimeFormatter.ofPattern("dd/MM"))}" +
-                if (show) " · ${Money.format(next.amount)}" else ""
+            // modo oculto: sem o título (ex.: "Psicólogo") nem o valor, só quando vence
+            !show -> if (next.date.isBefore(today)) "há conta atrasada" else "vencimento em ${next.date.format(DateTimeFormatter.ofPattern("dd/MM"))}"
+            else -> "${next.title} · ${if (next.date.isBefore(today)) "atrasada" else next.date.format(DateTimeFormatter.ofPattern("dd/MM"))} · ${Money.format(next.amount)}"
         }
         provideContent { GlanceTheme { Content(balance, future, nextText) } }
     }

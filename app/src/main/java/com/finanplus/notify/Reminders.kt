@@ -58,6 +58,9 @@ object Reminders {
         WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.KEEP, req)
     }
 
+    /** Remove a notificação de vencimentos (usado por "Apagar tudo"). */
+    fun cancel(ctx: Context) { try { NotificationManagerCompat.from(ctx).cancel(NOTIF_ID) } catch (_: Exception) { } }
+
     fun canNotify(ctx: Context): Boolean =
         (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
             NotificationManagerCompat.from(ctx).areNotificationsEnabled()
@@ -72,8 +75,10 @@ object Reminders {
         val key = today.toString() + ":" + items.joinToString(",") { it.refId + it.date }
         if (prefs.lastNotified == key) return
 
-        // Valores só aparecem se o usuário não pediu para ocultá-los; na tela de bloqueio, nunca.
-        val showValues = !s.privacy
+        // Com bloqueio do app (PIN/digital) ou "Ocultar valores", a notificação não mostra títulos nem valores:
+        // ela aparece na barra e, conforme o ajuste do Android, na tela de bloqueio, contornando o PIN do app.
+        val dev = prefs.value
+        val discreet = dev.lockEnabled || s.privacy
         val fmt = DateTimeFormatter.ofPattern("dd/MM")
         fun line(r: com.finanplus.core.Reminder): String {
             val what = when (r.type) {
@@ -82,18 +87,26 @@ object Reminders {
                 ReminderType.INCOME_DUE -> "A receber"
                 ReminderType.INVOICE_DUE -> if (r.date.isBefore(today)) "Fatura vencida" else "Fatura vence ${r.date.format(fmt)}"
             }
-            return "${r.title} · $what" + if (showValues) " · ${Money.format(r.amount)}" else ""
+            return "${r.title} · $what · ${Money.format(r.amount)}"
         }
-        val title = if (items.size == 1) line(items[0]).substringBefore(" · ") else "${items.size} lançamentos pedem atenção"
-        val text = if (items.size == 1) line(items[0]).substringAfter(" · ") else items.take(2).joinToString(" · ") { it.title }
+        val title = when {
+            discreet -> "Finan+"
+            items.size == 1 -> line(items[0]).substringBefore(" · ")
+            else -> "${items.size} lançamentos pedem atenção"
+        }
+        val text = when {
+            discreet -> if (items.size == 1) "1 lançamento pede atenção. Abra o app para ver." else "${items.size} lançamentos pedem atenção. Abra o app para ver."
+            items.size == 1 -> line(items[0]).substringAfter(" · ")
+            else -> items.take(2).joinToString(" · ") { it.title }
+        }
 
         val open = PendingIntent.getActivity(ctx, 0, Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val public = NotificationCompat.Builder(ctx, CHANNEL).setSmallIcon(R.drawable.ic_stat_finan)
             .setContentTitle("Finan+").setContentText("Você tem vencimentos próximos").build()
-        val style = NotificationCompat.InboxStyle().also { st -> items.take(6).forEach { st.addLine(line(it)) } }
         val n = NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_finan)
-            .setContentTitle(title).setContentText(text).setStyle(style)
+            .setContentTitle(title).setContentText(text)
+            .apply { if (!discreet) setStyle(NotificationCompat.InboxStyle().also { st -> items.take(6).forEach { st.addLine(line(it)) } }) }
             .setContentIntent(open).setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE).setPublicVersion(public)
             .setCategory(NotificationCompat.CATEGORY_REMINDER)

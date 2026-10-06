@@ -10,3 +10,8 @@
 .cxx/
 *.keystore
 *.jks
+# segredos de assinatura: nunca no repositório
+keystore.properties
+signing.properties
+*.p12
+*.pem

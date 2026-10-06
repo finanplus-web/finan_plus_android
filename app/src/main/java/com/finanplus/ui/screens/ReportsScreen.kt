@@ -77,7 +77,7 @@ fun ReportsScreen(s: AppState) {
                         MoneyText(v, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
                     }
                     if (lim != null) Text(
-                        (if (v > lim) "⚠ Acima do" else "Dentro do") + " limite mensal de " + (if (hide) "R$ ••••" else Money.format(lim)),
+                        (if (v > lim) "Acima do" else "Dentro do") + " limite mensal de " + (if (hide) "R$ ••••" else Money.format(lim)),
                         style = MaterialTheme.typography.labelSmall, color = if (v > lim) p.red else p.muted,
                     )
                 }
@@ -99,8 +99,9 @@ fun ReportsScreen(s: AppState) {
                         val x = i * slot + slot * 0.18f
                         val hi = size.height * fl.income / max
                         val he = size.height * fl.expense / max
-                        drawRoundRect(p.green, Offset(x, size.height - hi), Size(bw, maxOf(hi, 2f)), CornerRadius(8f, 8f))
-                        drawRoundRect(p.red, Offset(x + bw + 4f, size.height - he), Size(bw, maxOf(he, 2f)), CornerRadius(8f, 8f))
+                        // mês sem valor não ganha barra; valor pequeno ganha um traço mínimo de 2 px
+                        if (fl.income > 0) drawRoundRect(p.green, Offset(x, size.height - maxOf(hi, 2f)), Size(bw, maxOf(hi, 2f)), CornerRadius(8f, 8f))
+                        if (fl.expense > 0) drawRoundRect(p.red, Offset(x + bw + 4f, size.height - maxOf(he, 2f)), Size(bw, maxOf(he, 2f)), CornerRadius(8f, 8f))
                     }
                 }
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
@@ -112,7 +113,12 @@ fun ReportsScreen(s: AppState) {
         item {
             val cur = Finance.monthFlow(s, today.ym())
             val prev = Finance.monthFlow(s, today.ym().minusMonths(1))
-            fun chg(a: Long, b: Long) = if (b == 0L) "Sem base" else { val c = (a - b) * 100.0 / b; (if (c >= 0) "↑ " else "↓ ") + "%.0f".format(BR, kotlin.math.abs(c)) + "% vs. mês anterior" }
+            // com "Ocultar valores", a variação percentual também fica oculta (revelaria a proporção entre os meses)
+            fun chg(a: Long, b: Long) = when {
+                hide -> "Variação oculta"
+                b == 0L -> "Sem base"
+                else -> { val c = (a - b) * 100.0 / b; (if (c >= 0) "+" else "−") + "%.0f".format(BR, kotlin.math.abs(c)) + "% vs. mês anterior" }
+            }
             Glass(Modifier.padding(top = 12.dp), radius = 25.dp) {
                 Column2("Comparação", "Este mês × mês anterior")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

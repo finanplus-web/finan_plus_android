@@ -6,6 +6,7 @@ package com.finanplus.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -62,11 +63,15 @@ fun MovesScreen(s: AppState) {
     val hide = LocalPrivacy.current
     // busca sem diferenciar acento: "cafe" encontra "Café"
     val q = com.finanplus.core.assist.Text.fold(f.query)
-    val list = s.txs.filter {
-        f.inRange(it) && (f.paid == null || it.paid == f.paid) && (f.kind == null || it.kind == f.kind) &&
-            (q.isEmpty() || com.finanplus.core.assist.Text.fold(it.desc + " " + it.category).contains(q))
-    }.sortedWith(compareByDescending<com.finanplus.core.Tx> { it.date }.thenByDescending { it.id })
-    val flow = Finance.flow(list)
+    // texto de busca já normalizado, calculado uma vez por versão dos dados (não a cada tecla, para cada lançamento)
+    val folded = androidx.compose.runtime.remember(s.txs) { s.txs.associate { it.id to com.finanplus.core.assist.Text.fold(it.desc + " " + it.category) } }
+    val list = androidx.compose.runtime.remember(s.txs, f.from, f.to, f.paid, f.kind, q) {
+        s.txs.filter {
+            f.inRange(it) && (f.paid == null || it.paid == f.paid) && (f.kind == null || it.kind == f.kind) &&
+                (q.isEmpty() || folded[it.id]?.contains(q) == true)
+        }.sortedWith(compareByDescending<com.finanplus.core.Tx> { it.date }.thenByDescending { it.id })
+    }
+    val flow = androidx.compose.runtime.remember(list) { Finance.flow(list) }
     val total = flow.income + flow.expense
     val pending = list.filter { it.isFlow && !it.paid }
 
@@ -98,11 +103,11 @@ fun MovesScreen(s: AppState) {
         item {
             Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Glass(Modifier.weight(1f), radius = 22.dp, padding = 15.dp) {
-                    Text("↑ Receitas", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                    IconLabel(com.finanplus.ui.components.Ico.UP, "Receitas")
                     MoneyText(flow.income, color = p.green, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
                 }
                 Glass(Modifier.weight(1f), radius = 22.dp, padding = 15.dp) {
-                    Text("↓ Despesas", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                    IconLabel(com.finanplus.ui.components.Ico.DOWN, "Despesas")
                     MoneyText(flow.expense, color = p.red, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
                 }
             }
@@ -119,11 +124,12 @@ fun MovesScreen(s: AppState) {
             Glass(Modifier.padding(top = 12.dp), radius = 25.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column2("Comparação", "Receitas × despesas", Modifier.weight(1f))
-                    Text(if (flow.income > 0) "${flow.expense * 100 / flow.income}% gasto" else "—", color = p.muted, fontWeight = FontWeight.Bold)
+                    Text(if (flow.income > 0 && !hide) "${flow.expense * 100 / flow.income}% gasto" else "", color = p.muted, fontWeight = FontWeight.Bold)
                 }
                 CompareBar("Receitas", if (total > 0) flow.income.toFloat() / total else 0f, p.green, hide)
                 CompareBar("Despesas", if (total > 0) flow.expense.toFloat() / total else 0f, p.red, hide)
                 val summary = when {
+                    hide && (flow.income > 0 || flow.expense > 0) -> "Valores ocultos."
                     flow.income > 0 -> "As despesas representam ${"%.1f".format(BR, flow.expense * 100.0 / flow.income)}% das receitas do período."
                     flow.expense > 0 -> "Há despesas, mas nenhuma receita neste período."
                     else -> "Nenhuma movimentação no período selecionado."
@@ -159,12 +165,23 @@ fun Column2(eyebrow: String, title: String, modifier: Modifier = Modifier) {
     }
 }
 
+/** Rótulo pequeno com ícone Material (ex.: seta para cima + "Receitas"). */
+@Composable
+private fun IconLabel(icon: com.finanplus.ui.components.Ico, text: String) {
+    val p = Fin.c
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        com.finanplus.ui.components.AppIcon(icon, p.muted, size = 14.dp)
+        Spacer(Modifier.width(4.dp))
+        Text(text, style = MaterialTheme.typography.bodySmall, color = p.muted)
+    }
+}
+
 @Composable
 private fun CompareBar(label: String, frac: Float, color: androidx.compose.ui.graphics.Color, hide: Boolean) {
     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, Modifier.padding(end = 8.dp).widthIn(min = 70.dp), style = MaterialTheme.typography.bodySmall)
         Bar(frac, color, Modifier.weight(1f).sensitive(hide), height = 10.dp)
-        Text("${(frac * 100).toInt()}%", Modifier.padding(start = 8.dp).widthIn(min = 38.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+        Text(if (hide) "••%" else "${(frac * 100).toInt()}%", Modifier.padding(start = 8.dp).widthIn(min = 38.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
     }
     Spacer(Modifier.height(2.dp))
 }

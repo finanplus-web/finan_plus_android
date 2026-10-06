@@ -19,6 +19,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.minimumInteractiveComponentSize
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -79,13 +85,24 @@ fun LocalDate.br(): String = format(DMY)
 /** Privacidade ("Ocultar valores") disponível em toda a árvore. */
 val LocalPrivacy = staticCompositionLocalOf { false }
 
-/** Valor em reais que respeita "Ocultar valores". */
+/**
+ * Valor em reais que respeita "Ocultar valores". Nunca é cortado com "…": se não couber na largura
+ * (tela estreita, fonte grande, valores altos), a fonte diminui aos poucos até caber (mínimo 11sp).
+ */
 @Composable
 fun MoneyText(c: Cents, modifier: Modifier = Modifier, style: TextStyle = MaterialTheme.typography.bodyLarge, color: Color = Color.Unspecified, prefix: String = "") {
     val hide = LocalPrivacy.current
+    val text = if (hide) "R$ ••••" else prefix + Money.format(c)
+    val base: TextUnit = if (style.fontSize.isSpecified) style.fontSize else 16.sp
+    var size by remember(text, base) { mutableStateOf(base) }
+    var fits by remember(text, base) { mutableStateOf(false) }
     Text(
-        if (hide) "R$ ••••" else prefix + Money.format(c), modifier.semantics { if (hide) contentDescription = "Valor oculto" },
-        style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        text,
+        modifier.semantics { if (hide) contentDescription = "Valor oculto" }.drawWithContent { if (fits) drawContent() },
+        style = style.copy(fontSize = size), color = color, maxLines = 1, softWrap = false, overflow = TextOverflow.Clip,
+        onTextLayout = { r ->
+            if (r.didOverflowWidth && size.value > 11f) size = (size.value * 0.9f).coerceAtLeast(11f).sp else fits = true
+        },
     )
 }
 
@@ -133,16 +150,21 @@ fun SectionHead(eyebrow: String?, title: String, action: String? = null, onActio
     }
 }
 
+/** Botão em pílula. [icon] opcional (Material Symbols) antes do texto. Área de toque de pelo menos 48dp. */
 @Composable
-fun Pill(text: String, modifier: Modifier = Modifier, selected: Boolean = false, danger: Boolean = false, onClick: () -> Unit) {
+fun Pill(text: String, modifier: Modifier = Modifier, selected: Boolean = false, danger: Boolean = false, icon: Ico? = null, onClick: () -> Unit) {
     val p = Fin.c
     val bg = when { danger -> p.red.copy(alpha = 0.14f); selected -> p.accent; else -> p.accent2 }
     val fg = when { danger -> p.red; selected -> p.onAccent; else -> p.text }
-    Box(
-        modifier.clip(RoundedCornerShape(15.dp)).background(bg).clickable(role = Role.Button, onClick = onClick)
+    // minimumInteractiveComponentSize reserva 48dp de altura para o toque sem mudar o desenho da pílula
+    Row(
+        modifier.minimumInteractiveComponentSize().clip(RoundedCornerShape(15.dp)).background(bg).clickable(role = Role.Button, onClick = onClick)
             .semantics { if (selected) stateDescription = "selecionado" }.padding(horizontal = 13.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) { Text(text, color = fg, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1) }
+        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) { AppIcon(icon, fg, size = 18.dp); Spacer(Modifier.width(5.dp)) }
+        Text(text, color = fg, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+    }
 }
 
 @Composable
@@ -190,7 +212,7 @@ fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifie
 private fun TapField(label: String, value: String, modifier: Modifier, onTap: () -> Unit) {
     Box(modifier.fillMaxWidth().padding(vertical = 5.dp)) {
         OutlinedTextField(value, {}, Modifier.fillMaxWidth(), label = { Text(label) }, readOnly = true, singleLine = true,
-            trailingIcon = { Text("▾", color = Fin.c.muted) }, shape = RoundedCornerShape(16.dp), colors = fieldColors())
+            trailingIcon = { AppIcon(Ico.DROPDOWN, Fin.c.muted, size = 24.dp) }, shape = RoundedCornerShape(16.dp), colors = fieldColors())
         Box(Modifier.matchParentSize().clip(RoundedCornerShape(16.dp)).clickable(role = Role.DropdownList, onClick = onTap).semantics { contentDescription = "$label: $value" })
     }
 }
@@ -228,7 +250,8 @@ fun DateField(label: String, date: LocalDate?, onChange: (LocalDate?) -> Unit, m
 @Composable
 fun SwitchRow(title: String, subtitle: String? = null, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Switch) { onChange(!checked) }.padding(vertical = 8.dp),
+        // toggleable: o TalkBack anuncia "ativado"/"desativado" (com clickable só dizia "interruptor")
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).toggleable(value = checked, role = Role.Switch, onValueChange = onChange).padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {

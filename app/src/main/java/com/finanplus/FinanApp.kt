@@ -15,14 +15,16 @@ import com.finanplus.security.AppLock
 class FinanApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        AppLock.init(this)
         Repo.init(this)
         val prefs = DevicePrefs.get(this)
+        prefs.migrate(Repo.state.value.autoLock)
         if (prefs.value.lockEnabled) AppLock.lockNow() // processo novo com PIN/digital: começa bloqueado
         Reminders.createChannel(this)
         Reminders.schedule(this)
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
-                AppLock.onForeground(prefs.value.lockEnabled, Repo.state.value.autoLock)
+                AppLock.onForeground(prefs.value.lockEnabled, prefs.value.autoLock)
                 Repo.runRecurring() // virou o mês com o app aberto em segundo plano
             }
             override fun onStop(owner: LifecycleOwner) { AppLock.onBackground() }

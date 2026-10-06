@@ -36,6 +36,12 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0) {
     CARD(R.drawable.ms_credit_card),
     ASSIST(R.drawable.ms_auto_awesome),
     FINGERPRINT(R.drawable.ms_fingerprint),
+    UP(R.drawable.ms_arrow_upward),
+    DOWN(R.drawable.ms_arrow_downward),
+    BACKSPACE(R.drawable.ms_backspace),
+    DROPDOWN(R.drawable.ms_arrow_drop_down),
+    WARNING(R.drawable.ms_warning),
+    SHIELD(R.drawable.ms_shield),
 
     // categorias
     FOOD(R.drawable.ms_shopping_cart),
@@ -117,6 +123,7 @@ fun categoryIcon(category: String): Ico? {
 @Composable
 fun CategoryGlyph(category: String, tint: Color) {
     val ico = categoryIcon(category)
-    if (ico != null) AppIcon(ico, tint, size = 20.dp)
-    else Text(category.trim().firstOrNull()?.uppercase() ?: "•", color = tint, fontWeight = FontWeight.Bold)
+    val initial = category.trim().firstOrNull()?.uppercase()
+    if (ico != null || initial == null) AppIcon(ico ?: Ico.OTHER, tint, size = 20.dp)
+    else Text(initial, color = tint, fontWeight = FontWeight.Bold)
 }

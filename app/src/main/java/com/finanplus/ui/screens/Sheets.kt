@@ -26,7 +26,12 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.SheetValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,9 +71,24 @@ private fun apply(o: Outcome, dialogs: Dialogs, close: () -> Unit) {
     if (err == null) close() else dialogs.notice(err.title, err.message)
 }
 
+/** O formulário aberto avisa se tem alterações não salvas (para perguntar antes de descartar). */
+class SheetGuard { var dirty = false }
+val LocalSheetGuard = staticCompositionLocalOf { SheetGuard() }
+
 @Composable
 fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
-    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val guard = remember { SheetGuard() }
+    val dialogs = LocalDialogs.current
+    // Deslizar para baixo, tocar fora ou voltar com alterações não salvas: pergunta antes de descartar.
+    val state = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { v ->
+        if (v == SheetValue.Hidden && guard.dirty) {
+            dialogs.confirm("Descartar alterações?", "O que você digitou neste formulário será perdido.", ok = "Descartar", cancel = "Continuar editando", danger = true) {
+                guard.dirty = false; onClose()
+            }
+            false
+        } else true
+    })
+    androidx.compose.runtime.CompositionLocalProvider(LocalSheetGuard provides guard) {
     ModalBottomSheet(onDismissRequest = onClose, sheetState = state, containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
             when (sheet) {
@@ -83,6 +103,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.ReportPdf -> ReportExportSheet(s, sheet.from, sheet.to, onClose)
             }
         }
+    }
     }
 }
 
@@ -117,7 +138,7 @@ private fun Segmented(options: List<Pair<Kind, String>>, selected: Kind, onSelec
 @Composable
 private fun CheckRow(text: String, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = Role.Checkbox) { onChange(!checked) }.padding(vertical = 4.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).toggleable(value = checked, role = Role.Checkbox, onValueChange = onChange).padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) { Checkbox(checked, null); Spacer(Modifier.padding(4.dp)); Text(text, fontWeight = FontWeight.SemiBold) }
 }
@@ -128,18 +149,23 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val tx = sheet.id?.let { id -> s.txs.firstOrNull { it.id == id } }
     val isPayment = tx?.cardPayment?.isNotEmpty() == true
-    var kind by remember { mutableStateOf(tx?.kind ?: sheet.kind) }
-    var desc by remember { mutableStateOf(tx?.desc ?: "") }
-    var value by remember { mutableStateOf(tx?.let { Money.input(it.value) } ?: "") }
-    var category by remember { mutableStateOf(tx?.category ?: s.cats.of(kind)[0]) }
-    var date by remember { mutableStateOf<LocalDate?>(tx?.date ?: LocalDate.now()) }
-    var paid by remember { mutableStateOf(tx?.paid ?: true) }
-    var useCard by remember { mutableStateOf(tx?.isCard == true) }
-    var accountId by remember { mutableStateOf(tx?.accountId ?: s.accounts[0].id) }
-    var cardId by remember { mutableStateOf(tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: "") }
-    var reps by remember { mutableStateOf("1") }
-    var repsMode by remember { mutableStateOf(RepsMode.TOTAL) }
-    var recurring by remember { mutableStateOf(false) }
+    var kind by rememberSaveable { mutableStateOf(tx?.kind ?: sheet.kind) }
+    var desc by rememberSaveable { mutableStateOf(tx?.desc ?: "") }
+    var value by rememberSaveable { mutableStateOf(tx?.let { Money.input(it.value) } ?: "") }
+    var category by rememberSaveable { mutableStateOf(tx?.category ?: s.cats.of(kind)[0]) }
+    var date by rememberSaveable { mutableStateOf<LocalDate?>(tx?.date ?: LocalDate.now()) }
+    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: true) }
+    var useCard by rememberSaveable { mutableStateOf(tx?.isCard == true) }
+    var accountId by rememberSaveable { mutableStateOf(tx?.accountId ?: s.accounts[0].id) }
+    var cardId by rememberSaveable { mutableStateOf(tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: "") }
+    var reps by rememberSaveable { mutableStateOf("1") }
+    var repsMode by rememberSaveable { mutableStateOf(RepsMode.TOTAL) }
+    var recurring by rememberSaveable { mutableStateOf(false) }
+    val guard = LocalSheetGuard.current
+    SideEffect {
+        guard.dirty = desc != (tx?.desc ?: "") || value != (tx?.let { Money.input(it.value) } ?: "") ||
+            (tx != null && (category != tx.category || date != tx.date)) || (tx == null && (reps != "1" || recurring))
+    }
 
     val canCard = kind == Kind.EXPENSE && s.cards.isNotEmpty() && !isPayment
     val card = useCard && canCard
@@ -189,11 +215,11 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
 private fun GoalEditor(s: AppState, id: String?, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val g = id?.let { x -> s.goals.firstOrNull { it.id == x } }
-    var name by remember { mutableStateOf(g?.name ?: "") }
-    var target by remember { mutableStateOf(g?.let { Money.input(it.target) } ?: "") }
-    var move by remember { mutableStateOf("") }
-    var deadline by remember { mutableStateOf(g?.deadline) }
-    var monthly by remember { mutableStateOf(g?.monthly?.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
+    var name by rememberSaveable { mutableStateOf(g?.name ?: "") }
+    var target by rememberSaveable { mutableStateOf(g?.let { Money.input(it.target) } ?: "") }
+    var move by rememberSaveable { mutableStateOf("") }
+    var deadline by rememberSaveable { mutableStateOf(g?.deadline) }
+    var monthly by rememberSaveable { mutableStateOf(g?.monthly?.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
     Header(if (g == null) "Nova meta" else "Editar meta", if (g == null) "Dê um nome e um valor ao seu objetivo." else "Guardado até agora: ${Money.format(g.saved)}")
     Field("Nome", name, { name = it }, maxLength = 60)
     MoneyField("Valor da meta (R$)", target, { target = it })
@@ -212,8 +238,8 @@ private fun GoalEditor(s: AppState, id: String?, close: () -> Unit) {
 private fun AccountEditor(s: AppState, id: String?, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val a = id?.let { s.account(it) }
-    var name by remember { mutableStateOf(a?.name ?: "") }
-    var initial by remember { mutableStateOf(a?.let { Money.input(it.initial) } ?: "0,00") }
+    var name by rememberSaveable { mutableStateOf(a?.name ?: "") }
+    var initial by rememberSaveable { mutableStateOf(a?.let { Money.input(it.initial) } ?: "0,00") }
     Header(if (a == null) "Nova conta" else "Editar conta", "O saldo inicial entra no saldo atual.")
     Field("Nome", name, { name = it }, maxLength = 40)
     MoneyField("Saldo inicial (R$)", initial, { initial = it })
@@ -232,10 +258,10 @@ private fun AccountEditor(s: AppState, id: String?, close: () -> Unit) {
 private fun CardEditor(s: AppState, id: String?, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val c = id?.let { s.card(it) }
-    var name by remember { mutableStateOf(c?.name ?: "") }
-    var limit by remember { mutableStateOf(c?.let { Money.input(it.limit) } ?: "") }
-    var close_ by remember { mutableStateOf((c?.close ?: 5).toString()) }
-    var due by remember { mutableStateOf((c?.due ?: 12).toString()) }
+    var name by rememberSaveable { mutableStateOf(c?.name ?: "") }
+    var limit by rememberSaveable { mutableStateOf(c?.let { Money.input(it.limit) } ?: "") }
+    var close_ by rememberSaveable { mutableStateOf((c?.close ?: 5).toString()) }
+    var due by rememberSaveable { mutableStateOf((c?.due ?: 12).toString()) }
     Header(if (c == null) "Novo cartão" else "Editar cartão", "Compras feitas após o dia de fechamento entram na fatura seguinte.")
     Field("Nome", name, { name = it }, maxLength = 40)
     MoneyField("Limite (R$)", limit, { limit = it })
@@ -260,9 +286,9 @@ private fun PayInvoiceEditor(s: AppState, cardId: String, close: () -> Unit) {
     val c = s.card(cardId)
     val cur = c?.let { Finance.cardStatus(s, it, LocalDate.now()).current }
     if (c == null || cur == null) { Header("Fatura", "Não há fatura em aberto neste cartão."); PrimaryButton("Fechar", onClick = close); return }
-    var value by remember { mutableStateOf(Money.input(cur.open)) }
-    var acc by remember { mutableStateOf(s.accounts[0].id) }
-    var date by remember { mutableStateOf<LocalDate?>(LocalDate.now()) }
+    var value by rememberSaveable { mutableStateOf(Money.input(cur.open)) }
+    var acc by rememberSaveable { mutableStateOf(s.accounts[0].id) }
+    var date by rememberSaveable { mutableStateOf<LocalDate?>(LocalDate.now()) }
     Header("Pagar fatura · ${c.name}", "Fatura de ${cur.ym.label()} · vence ${cur.due.br()} · em aberto ${Money.format(cur.open)}")
     MoneyField("Valor pago (R$)", value, { value = it })
     SelectField("Pago com a conta", s.accounts.map { it.id to it.name }, acc, { acc = it })
@@ -276,15 +302,15 @@ private fun PayInvoiceEditor(s: AppState, cardId: String, close: () -> Unit) {
 private fun RecurringEditor(s: AppState, id: String?, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val r = id?.let { x -> s.recurring.firstOrNull { it.id == x } }
-    var kind by remember { mutableStateOf(r?.kind ?: Kind.EXPENSE) }
-    var desc by remember { mutableStateOf(r?.desc ?: "") }
-    var value by remember { mutableStateOf(r?.let { Money.input(it.value) } ?: "") }
-    var day by remember { mutableStateOf((r?.day ?: 1).toString()) }
-    var category by remember { mutableStateOf(r?.category ?: s.cats.of(kind)[0]) }
-    var acc by remember { mutableStateOf(r?.accountId ?: s.accounts[0].id) }
-    var card by remember { mutableStateOf(r?.cardId ?: "") }
-    var active by remember { mutableStateOf(r?.active ?: true) }
-    var start by remember { mutableStateOf<LocalDate?>(LocalDate.now()) }
+    var kind by rememberSaveable { mutableStateOf(r?.kind ?: Kind.EXPENSE) }
+    var desc by rememberSaveable { mutableStateOf(r?.desc ?: "") }
+    var value by rememberSaveable { mutableStateOf(r?.let { Money.input(it.value) } ?: "") }
+    var day by rememberSaveable { mutableStateOf((r?.day ?: 1).toString()) }
+    var category by rememberSaveable { mutableStateOf(r?.category ?: s.cats.of(kind)[0]) }
+    var acc by rememberSaveable { mutableStateOf(r?.accountId ?: s.accounts[0].id) }
+    var card by rememberSaveable { mutableStateOf(r?.cardId ?: "") }
+    var active by rememberSaveable { mutableStateOf(r?.active ?: true) }
+    var start by rememberSaveable { mutableStateOf<LocalDate?>(LocalDate.now()) }
     val cats = s.cats.of(kind).let { if (category !in it) it + category else it }
     Header(if (r == null) "Nova recorrência" else "Editar recorrência", "Cria um lançamento pendente por mês, a partir da data de início.")
     Field("Descrição", desc, { desc = it }, maxLength = 120)
@@ -313,8 +339,8 @@ private fun RecurringEditor(s: AppState, id: String?, close: () -> Unit) {
 @Composable
 private fun LimitEditor(s: AppState, current: String?, close: () -> Unit) {
     val dialogs = LocalDialogs.current
-    var cat by remember { mutableStateOf(current ?: s.cats.expense[0]) }
-    var value by remember { mutableStateOf(current?.let { s.limits[it] }?.let { Money.input(it) } ?: "") }
+    var cat by rememberSaveable { mutableStateOf(current ?: s.cats.expense[0]) }
+    var value by rememberSaveable { mutableStateOf(current?.let { s.limits[it] }?.let { Money.input(it) } ?: "") }
     Header(if (current == null) "Novo limite" else "Editar limite", "Valor máximo mensal da categoria. Despesas pendentes do mês também contam.")
     SelectField("Categoria", s.cats.expense.map { it to it }, cat, { cat = it })
     MoneyField("Valor mensal (R$)", value, { value = it })

@@ -14,7 +14,10 @@ data class Dropped(val txs: Int = 0, val goals: Int = 0, val accounts: Int = 0, 
     val total get() = txs + goals + accounts + cards + recurring
 }
 
-data class Normalized(val state: AppState, val dropped: Dropped)
+/** [version] = backupVersion do arquivo (null se ausente); [newer] = feito por uma versão mais nova do Finan+. */
+data class Normalized(val state: AppState, val dropped: Dropped, val version: Int? = null) {
+    val newer get() = (version ?: 0) > Backup.VERSION
+}
 
 /**
  * Leitura e escrita do formato JSON (o mesmo do backup do Finan+ PWA, versões 4 e 5).
@@ -50,7 +53,12 @@ object Backup {
         is Boolean -> if (v) 1.0 else 0.0
         else -> null
     }
-    private fun cents(v: Any?): Cents = num(v)?.let { Money.fromReais(it) } ?: 0L
+    /** Dinheiro: número ou texto numérico; booleano não vale (true virava R$ 1,00) e valor acima de
+     *  [Money.MAX_ABS] é recusado (somas estouravam e o saldo trocava de sinal). Inválido = 0. */
+    private fun cents(v: Any?): Cents {
+        if (v is Boolean) return 0L
+        return num(v)?.let { Money.fromReaisOrNull(it) } ?: 0L
+    }
     private fun intIn(v: Any?, a: Int, b: Int, def: Int): Int {
         val n = num(v)?.roundToInt() ?: return def
         return if (n in a..b) n else def
@@ -70,6 +78,9 @@ object Backup {
         var d = Dropped()
         val used = HashSet<String>()
         fun idFor(v: Any?): String { var id = safeId(v); if (id.isEmpty() || id in used) id = Ids.new(); used.add(id); return id }
+        // id original do arquivo → id usado aqui (quando o original é inválido ou repetido, as referências acompanham a troca)
+        val accMap = HashMap<String, String>(); val cardMap = HashMap<String, String>()
+        fun rawId(v: Any?) = when (v) { is Double -> numToString(v); is String -> v.trim(); else -> "" }
 
         // categorias
         var cats = Categories(AppState.DEFAULT_EXPENSE, AppState.DEFAULT_INCOME)
@@ -87,22 +98,24 @@ object Backup {
         (r["accounts"] as? List<*>)?.forEach { x ->
             val a = obj(x)
             if (a == null || str(a["name"], 40).isEmpty()) { d = d.copy(accounts = d.accounts + 1); return@forEach }
-            accounts.add(Account(idFor(a["id"]), str(a["name"], 40), cents(a["initial"])))
+            val id = idFor(a["id"]); rawId(a["id"]).takeIf { it.isNotEmpty() }?.let { accMap.putIfAbsent(it, id) }
+            accounts.add(Account(id, str(a["name"], 40), cents(a["initial"])))
         }
         if (accounts.isEmpty()) { used.add(AppState.MAIN_ACCOUNT); accounts.add(Account(AppState.MAIN_ACCOUNT, "Conta principal", 0)) }
         val accIds = accounts.map { it.id }.toSet()
         val firstAcc = accounts[0].id
-        fun accOf(v: Any?) = str(v, 48).let { if (it in accIds) it else firstAcc }
+        fun accOf(v: Any?) = rawId(v).let { accMap[it] ?: if (it in accIds) it else firstAcc }
 
         // cartões
         val cards = ArrayList<Card>()
         (r["cards"] as? List<*>)?.forEach { x ->
             val c = obj(x)
             if (c == null || str(c["name"], 40).isEmpty()) { d = d.copy(cards = d.cards + 1); return@forEach }
-            cards.add(Card(idFor(c["id"]), str(c["name"], 40), maxOf(0, cents(c["limit"])), intIn(c["close"], 1, 31, 5), intIn(c["due"], 1, 31, 12)))
+            val id = idFor(c["id"]); rawId(c["id"]).takeIf { it.isNotEmpty() }?.let { cardMap.putIfAbsent(it, id) }
+            cards.add(Card(id, str(c["name"], 40), maxOf(0, cents(c["limit"])), intIn(c["close"], 1, 31, 5), intIn(c["due"], 1, 31, 12)))
         }
         val cardIds = cards.map { it.id }.toSet()
-        fun cardOf(v: Any?) = str(v, 48).let { if (it in cardIds) it else "" }
+        fun cardOf(v: Any?) = rawId(v).let { if (it.isEmpty()) "" else cardMap[it] ?: if (it in cardIds) it else "" }
 
         // recorrências
         val recurring = ArrayList<Recurring>()
@@ -156,10 +169,12 @@ object Backup {
         return Normalized(
             AppState(txs, goals, accounts, cards, recurring, cats, limits, r["privacy"] == true, autoLock, ThemeId.of(r["theme"])),
             d,
+            num(r["backupVersion"])?.roundToInt(),
         )
     }
 
-    fun parse(text: String): Normalized = try { normalize(Json.parse(text)) } catch (e: Json.ParseException) { throw BackupException("JSON inválido: ${e.message}") }
+    /** O BOM do início (arquivos salvos no Bloco de Notas) é ignorado, como no Finan+ web. */
+    fun parse(text: String): Normalized = try { normalize(Json.parse(text.removePrefix("\uFEFF"))) } catch (e: Json.ParseException) { throw BackupException("JSON inválido: ${e.message}") }
 
     /** Serializa no formato do PWA (valores em reais). [meta] = bloco _backup para arquivos exportados. */
     fun toJson(s: AppState, meta: Map<String, Any?>? = null): String {

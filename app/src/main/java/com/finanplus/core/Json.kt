@@ -125,7 +125,7 @@ object Json {
         for (c in s) when {
             c == '"' -> sb.append("\\\""); c == '\\' -> sb.append("\\\\")
             c == '\n' -> sb.append("\\n"); c == '\r' -> sb.append("\\r"); c == '\t' -> sb.append("\\t")
-            c < ' ' || c == ' ' || c == ' ' -> sb.append(String.format("\\u%04x", c.code))
+            c < ' ' || c == ' ' || c == ' ' -> sb.append(String.format(java.util.Locale.ROOT, "\\u%04x", c.code))
             else -> sb.append(c)
         }
         sb.append('"')

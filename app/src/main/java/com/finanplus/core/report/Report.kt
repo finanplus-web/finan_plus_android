@@ -145,9 +145,10 @@ object Reports {
     fun compact(c: Cents): String {
         val neg = c < 0
         val r = Math.abs(c) / 100.0
+        // a faixa é decidida depois de arredondar: 999,60 virava "R$ 1000" e 999.999,96 "R$ 1000 mil"
         val s = when {
-            r < 1_000 -> "R$ " + Math.round(r)
-            r < 1_000_000 -> "R$ " + one(r / 1_000) + " mil"
+            Math.round(r) < 1_000 -> "R$ " + Math.round(r)
+            Math.round(r / 100) < 10_000 -> "R$ " + one(r / 1_000) + " mil"
             else -> "R$ " + one(r / 1_000_000) + " mi"
         }
         return if (neg) "-$s" else s

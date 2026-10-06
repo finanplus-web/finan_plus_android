@@ -48,8 +48,8 @@ object Br {
 
     fun month(ym: YearMonth): String = MONTHS[ym.monthValue - 1]
     fun monthYear(ym: YearMonth): String = "${month(ym)} de ${ym.year}"
-    fun date(d: LocalDate): String = "%02d/%02d/%04d".format(d.dayOfMonth, d.monthValue, d.year)
-    fun dayMonth(d: LocalDate): String = "%02d/%02d".format(d.dayOfMonth, d.monthValue)
+    fun date(d: LocalDate): String = String.format(java.util.Locale.ROOT, "%02d/%02d/%04d", d.dayOfMonth, d.monthValue, d.year)
+    fun dayMonth(d: LocalDate): String = String.format(java.util.Locale.ROOT, "%02d/%02d", d.dayOfMonth, d.monthValue)
 
     /** Percentual inteiro, sempre positivo: 37.6 → "38%". */
     fun pct(v: Double): String = "${Math.round(Math.abs(v))}%"

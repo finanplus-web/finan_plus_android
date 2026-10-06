@@ -23,8 +23,17 @@ object Money {
         return (if (c < 0) "-" else "") + (a / 100) + "," + (a % 100).toString().padStart(2, '0')
     }
 
+    /** Maior valor aceito: 13 dígitos de reais (o mesmo limite da digitação), longe do estouro de Long. */
+    const val MAX_ABS: Cents = 999_999_999_999_999L
+
     /** Reais (Double vindo do JSON do PWA) → centavos. */
     fun fromReais(d: Double): Cents = (d * 100).roundToLong()
+
+    /** Como [fromReais], mas null se não for finito ou passar de [MAX_ABS] (backup editado ou hostil). */
+    fun fromReaisOrNull(d: Double): Cents? {
+        if (!d.isFinite() || abs(d) > MAX_ABS / 100.0) return null
+        return fromReais(d)
+    }
 
     /** Centavos → texto numérico em reais para o JSON ("12.5" → "12.50"). */
     fun toReaisJson(c: Cents): Json.Raw {
@@ -34,14 +43,16 @@ object Money {
 
     /**
      * Aceita "1.500,50", "1500,50", "1500.50", "1,500.25", "R$ 2.000", "-50".
+     * "0.500" é decimal (R$ 0,50): milhar não começa com zero.
      * Retorna centavos, ou null se inválido.
      */
     fun parse(input: String?): Cents? {
-        var s = (input ?: "").replace("R$", "").filterNot { it.isWhitespace() }
+        var s = (input ?: "").replace("R$", "", ignoreCase = true).filterNot { it.isWhitespace() }
         if (s.isEmpty()) return null
         val neg = s.startsWith('-')
         if (neg || s.startsWith('+')) s = s.substring(1)
-        if (s.isEmpty() || !s.all { it.isDigit() || it == '.' || it == ',' }) return null
+        // só algarismos ASCII: isDigit() aceitaria "١٢٣" (árabes) e outros sistemas
+        if (s.isEmpty() || !s.all { it in '0'..'9' || it == '.' || it == ',' }) return null
         val lc = s.lastIndexOf(','); val ld = s.lastIndexOf('.')
         if (lc >= 0 && ld >= 0) {
             val dec = if (lc > ld) ',' else '.'
@@ -52,7 +63,7 @@ object Money {
         } else if (lc >= 0) {
             if (s.count { it == ',' } > 1) return null
             s = s.replace(',', '.')
-        } else if (ld >= 0 && Regex("^\\d{1,3}(\\.\\d{3})+$").matches(s)) {
+        } else if (ld >= 0 && Regex("^[1-9]\\d{0,2}(\\.\\d{3})+$").matches(s)) {
             s = s.replace(".", "")
         }
         if (s.count { it == '.' } > 1) return null

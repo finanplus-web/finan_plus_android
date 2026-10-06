@@ -58,6 +58,14 @@ object Ask {
         "desse", "dessa", "hoje", "ontem", "por", "no", "na", "em", "de", "do", "da", "com", "o", "a", "os", "as", "que", "mais", "gasto",
         "atual", "corrente", "inteiro", "todo", "toda", "periodo", "compra", "compras", "vez",
     )
+    /** números por extenso em "últimos dez dias", "últimas duas semanas" */
+    private val NUM_W = mapOf(
+        "um" to 1, "uma" to 1, "dois" to 2, "duas" to 2, "tres" to 3, "quatro" to 4, "cinco" to 5, "seis" to 6, "sete" to 7,
+        "oito" to 8, "nove" to 9, "dez" to 10, "onze" to 11, "doze" to 12, "quinze" to 15, "vinte" to 20, "trinta" to 30,
+        "sessenta" to 60, "noventa" to 90,
+    )
+    /** abreviações que também são palavras comuns ("dez dias", "set", "out"): só valem como mês com contexto */
+    private val AMBIGUOUS_MONTHS = setOf("dez", "set", "out")
     private val MONTHS = mapOf(
         "janeiro" to 1, "jan" to 1, "fevereiro" to 2, "fev" to 2, "marco" to 3, "abril" to 4, "abr" to 4, "maio" to 5,
         "junho" to 6, "jun" to 6, "julho" to 7, "jul" to 7, "agosto" to 8, "ago" to 8, "setembro" to 9, "set" to 9,
@@ -108,11 +116,14 @@ object Ask {
         val f = " " + w.joinToString(" ") + " "
         fun has(vararg p: String) = p.any { f.contains(" $it ") }
         val ym = YearMonth.from(today)
-        // "últimos N dias"
-        Regex(" ultimos (\\d{1,3}) dias ").find(f)?.let { m ->
-            val n = m.groupValues[1].toInt().coerceIn(1, 366)
-            used += m.groupValues[1]
-            return Period(today.minusDays(n - 1L), today, "últimos $n dias")
+        // "últimos N dias" / "últimas N semanas" (N em algarismos ou por extenso: "últimos dez dias")
+        Regex(" ultim[oa]s (\\d{1,3}|${NUM_W.keys.joinToString("|")}) (dias|semanas) ").find(f)?.let { m ->
+            val q = m.groupValues[1]
+            val n = q.toIntOrNull() ?: NUM_W.getValue(q)
+            val weeks = m.groupValues[2] == "semanas"
+            val days = (if (weeks) n * 7 else n).coerceIn(1, 366)
+            used += q; used += m.groupValues[2]
+            return Period(today.minusDays(days - 1L), today, if (weeks) "últimas $n semanas" else "últimos $days dias")
         }
         when {
             has("hoje") -> return Period(today, today, "hoje")
@@ -130,8 +141,9 @@ object Ask {
         // nome de mês, com ou sem ano ("agosto", "ago de 2025", "em março 2024")
         for ((i, word) in w.withIndex()) {
             val m = MONTHS[word] ?: continue
-            used += word
             val yearWord = w.drop(i + 1).take(2).firstOrNull { it.length == 4 && it.all(Char::isDigit) }
+            if (word in AMBIGUOUS_MONTHS && yearWord == null && w.getOrNull(i - 1) !in setOf("em", "de", "no", "do")) continue
+            used += word
             val year = yearWord?.toInt()?.also { used += yearWord } ?: if (m > today.monthValue) today.year - 1 else today.year
             val target = YearMonth.of(year, m)
             return Period(target.atDay(1), target.atEndOfMonth(), Br.monthYear(target))

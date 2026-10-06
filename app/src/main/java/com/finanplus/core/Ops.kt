@@ -36,7 +36,7 @@ data class TxDraft(
 object Ops {
     // ---------------- lançamentos ----------------
     fun saveTx(s: AppState, editId: String?, d: TxDraft): Outcome {
-        val desc = d.desc.trim().take(200)
+        val desc = d.desc.trim().take(TX_DESC_MAX)
         val value = Money.parse(d.value)
         val card = d.kind == Kind.EXPENSE && d.cardId.isNotEmpty()
         if (desc.isEmpty()) return err("Informe uma descrição.", "Campo obrigatório")
@@ -65,12 +65,22 @@ object Ops {
             val group = Ids.new()
             values.mapIndexed { i, v ->
                 base.copy(id = Ids.new(), value = v, date = date.plusMonthsClamped(i.toLong()), paid = card || (i == 0 && d.paid),
-                    desc = "$desc (${i + 1}/$n)", groupId = group, parcelN = i + 1, parcelTotal = n)
+                    desc = parcelDesc(desc, i + 1, n), groupId = group, parcelN = i + 1, parcelTotal = n)
             }
         } else listOf(base)
         var rec = s.recurring
-        if (d.recurring) rec = rec + Recurring(Ids.new(), d.kind, desc, value, category, accountId, cardId, date.dayOfMonth, true, date, date.ym())
+        // a recorrência guarda até 120 caracteres (o limite lido de volta do arquivo); sem cortar aqui, o fim se perdia na próxima abertura
+        if (d.recurring) rec = rec + Recurring(Ids.new(), d.kind, desc.take(REC_DESC_MAX).trimEnd(), value, category, accountId, cardId, date.dayOfMonth, true, date, date.ym())
         return ok(s.copy(txs = s.txs + added, recurring = rec))
+    }
+
+    const val TX_DESC_MAX = 200
+    const val REC_DESC_MAX = 120
+
+    /** "Notebook (3/10)": corta a descrição antes do sufixo para o total caber em [TX_DESC_MAX] (senão o sufixo sumia ao reler). */
+    fun parcelDesc(desc: String, n: Int, total: Int): String {
+        val suffix = " ($n/$total)"
+        return desc.take(TX_DESC_MAX - suffix.length).trimEnd() + suffix
     }
 
     /** Parcelas seguintes do mesmo grupo (para perguntar se exclui junto). */
@@ -85,8 +95,12 @@ object Ops {
         return s.copy(txs = s.txs.filterNot { it.id in ids })
     }
 
+    /** Pago/pendente. Compra no cartão e pagamento de fatura não alternam: desmarcar um pagamento de fatura
+     *  reabria a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes. */
+    fun canTogglePaid(t: Tx) = !t.isCard && t.isFlow
+
     fun togglePaid(s: AppState, id: String): AppState =
-        s.copy(txs = s.txs.map { if (it.id == id && !it.isCard) it.copy(paid = !it.paid) else it })
+        s.copy(txs = s.txs.map { if (it.id == id && canTogglePaid(it)) it.copy(paid = !it.paid) else it })
 
     // ---------------- metas ----------------
     fun saveGoal(s: AppState, id: String?, name: String, target: String, move: String, deadline: LocalDate?, monthly: String): Outcome {
@@ -158,7 +172,7 @@ object Ops {
         s: AppState, id: String?, kind: Kind, desc: String, value: String, day: String, category: String,
         accountId: String, cardId: String, active: Boolean, start: LocalDate?, today: LocalDate,
     ): Outcome {
-        val ds = desc.trim().take(120); val v = Money.parse(value); val dd = day.trim().toIntOrNull()
+        val ds = desc.trim().take(REC_DESC_MAX); val v = Money.parse(value); val dd = day.trim().toIntOrNull()
         if (ds.isEmpty()) return err("Informe uma descrição.")
         if (v == null || v <= 0) return err("Informe um valor maior que zero.")
         if (dd == null || dd !in 1..31) return err("O dia deve estar entre 1 e 31.")
@@ -169,9 +183,18 @@ object Ops {
             if (start == null) return err("Informe a data de início.")
             s.copy(recurring = s.recurring + Recurring(Ids.new(), kind, ds, v, cat, acc, card, dd, true, start, null))
         } else s.copy(recurring = s.recurring.map {
-            if (it.id == id) it.copy(kind = kind, desc = ds, value = v, day = dd, category = cat, accountId = acc, cardId = card, active = active) else it
+            if (it.id != id) it
+            else it.copy(kind = kind, desc = ds, value = v, day = dd, category = cat, accountId = acc, cardId = card, active = active,
+                last = if (!it.active && active) resumedLast(it.last, today) else it.last)
         })
         return ok(Finance.generateRecurring(next, today).first)
+    }
+
+    /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
+     *  (Antes, reativar em outubro uma recorrência pausada em março criava 7 lançamentos pendentes de uma vez.) */
+    fun resumedLast(last: java.time.YearMonth?, today: LocalDate): java.time.YearMonth {
+        val prev = today.ym().minusMonths(1)
+        return if (last != null && last.isAfter(prev)) last else prev
     }
 
     fun deleteRecurring(s: AppState, id: String) = s.copy(recurring = s.recurring.filterNot { it.id == id })

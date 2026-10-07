@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -364,6 +365,13 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
             }
         }
 
+        if (BuildConfig.LAN_BETA) item {
+            val lan by com.finanplus.lan.Lan.ui.collectAsState()
+            Collapsible("Acesso pela rede (beta)", if (lan.running) "Ligado · ${lan.devices} aparelho(s) conectado(s)" else "Lançar e exportar pelo navegador de outro aparelho") {
+                com.finanplus.lan.LanSettings(lan)
+            }
+        }
+
         item {
             Collapsible("Dados", "Backup, restauração, CSV e relatório em PDF") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -380,6 +388,8 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                     Pill("Apagar tudo", Modifier.weight(1f), danger = true) {
                         dialogs.confirm("Apagar todos os dados", "Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.", ok = "Apagar tudo", danger = true) {
                             Repo.wipe(); AppLock.unlock()
+                            // beta: desliga o acesso pela rede e apaga a autoridade (CA) deste celular
+                            if (BuildConfig.LAN_BETA) { com.finanplus.lan.Lan.stop(ctx); scope.launch(Dispatchers.IO) { com.finanplus.lan.LanCa.reset(ctx) } }
                         }
                     }
                 }

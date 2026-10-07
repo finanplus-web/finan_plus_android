@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Nome diferente para não confundir com o app normal instalado no mesmo celular. -->
+<resources>
+    <string name="app_name">Finan+ Beta</string>
+    <string name="widget_name">Saldo Finan+ Beta</string>
+</resources>

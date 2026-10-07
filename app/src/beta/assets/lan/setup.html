@@ -1,0 +1,214 @@
+<!doctype html>
+<!-- Finan+ — Copyright (C) 2026 Juscelino Be — SPDX-License-Identifier: GPL-3.0-or-later
+     Página de instalação do certificado (servida em HTTP pela porta de instalação).
+     {{…}} são preenchidos pelo servidor. -->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Finan+ · instalar certificado</title>
+<style>
+:root{
+  --bg:#EEF4FF;--surface:rgba(255,255,255,.72);--border:rgba(255,255,255,.85);--text:#182238;--muted:#5B6579;
+  --accent:#3A5FC8;--accent2:#DFE8FF;--on-accent:#fff;--red:#B03A4F;--green:#1B7351;--track:#DFE5EF;
+  --glowA:#D9E5FF;--glowB:#FFE7ED;--shadow:0 10px 30px rgba(40,70,140,.10);--warn:#FFF3D6;--warn-text:#6B4A00;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#181A1F;--surface:#23262D;--border:#353941;--text:#F1F3F6;--muted:#A8ADB7;--accent:#8AA8FF;--accent2:#30343D;
+  --on-accent:#10131A;--red:#FF8A91;--green:#63D6A5;--track:#353941;--glowA:#181A1F;--glowB:#181A1F;--shadow:none;--warn:#3A3220;--warn-text:#F5D48A;}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);background:var(--bg);
+  background-image:radial-gradient(60rem 40rem at 10% -10%,var(--glowA),transparent 60%),radial-gradient(50rem 40rem at 110% 10%,var(--glowB),transparent 55%);
+  background-attachment:fixed;min-height:100vh}
+.wrap{max-width:760px;margin:0 auto;padding:22px 16px 56px}
+.glass{background:var(--surface);border:1px solid var(--border);border-radius:25px;padding:20px;box-shadow:var(--shadow);
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);margin-bottom:14px}
+h1{font-size:27px;font-weight:800;margin:4px 0 6px;letter-spacing:-.02em}
+h2{font-size:17px;margin:0 0 10px}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.step{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}
+.num{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-weight:800}
+.fp{font:600 13.5px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--accent2);border-radius:14px;padding:10px 12px;word-break:break-all;margin:8px 0}
+.fp.small{font-size:12px;font-weight:500}
+.warn{background:var(--warn);color:var(--warn-text);border-radius:16px;padding:12px 14px;margin:10px 0 0;font-size:14px}
+.btn{display:inline-block;font-weight:700;text-decoration:none;border-radius:999px;padding:11px 18px;background:var(--accent2);color:var(--text);margin:6px 8px 0 0}
+.btn.primary{background:var(--accent);color:var(--on-accent)}
+.btn:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details{border-top:1px solid var(--track);padding:10px 0}
+details:first-of-type{border-top:0}
+summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-weight:800;color:var(--accent);font-size:20px}
+details[open] summary::after{content:"−"}
+ol{margin:8px 0 0;padding-left:20px}
+li{margin:4px 0}
+code{font:13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--accent2);padding:1px 6px;border-radius:6px;word-break:break-all}
+.checking{display:flex;gap:14px;align-items:center}
+.checking[hidden],#guide[hidden]{display:none}
+.spinner{flex:0 0 auto;width:30px;height:30px;border-radius:50%;border:3px solid var(--track);border-top-color:var(--accent);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spinner{animation:none}}
+pre{font:12.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--accent2);padding:10px 12px;border-radius:12px;white-space:pre-wrap;word-break:break-all}
+</style>
+<script>
+/* Cores do tema escolhido no app (preenchidas pelo servidor). Inline no <html> para valer antes de desenhar. */
+window.FIN_THEME = /*{{THEME}}*/null;
+(function () {
+  var KEYS = { bg: "--bg", surface: "--surface", border: "--border", text: "--text", muted: "--muted", accent: "--accent",
+    accent2: "--accent2", onAccent: "--on-accent", red: "--red", green: "--green", track: "--track", glowA: "--glowA", glowB: "--glowB" };
+  var mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  function apply() {
+    var t = window.FIN_THEME; if (!t) return;
+    var p = (mq && mq.matches) ? t.dark : t.light; if (!p) return;
+    var st = document.documentElement.style;
+    for (var k in KEYS) if (p[k]) st.setProperty(KEYS[k], p[k]);
+    st.setProperty("--shadow", p.dark ? "none" : "0 10px 30px rgba(40,70,140,.10)");
+    st.setProperty("--warn", p.dark ? "#3A3220" : "#FFF3D6");
+    st.setProperty("--warn-text", p.dark ? "#F5D48A" : "#6B4A00");
+    st.colorScheme = p.dark ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t.id || "");
+  }
+  window.finApplyTheme = function (t) { if (t !== undefined) window.FIN_THEME = t; apply(); };
+  apply();
+  if (mq && mq.addEventListener) mq.addEventListener("change", apply);
+})();
+</script>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Finan+ · rede local</div>
+  <section class="glass checking" id="checking" role="status" aria-live="polite">
+    <div class="spinner" aria-hidden="true"></div>
+    <div><b>Abrindo o Finan+…</b><br><span class="muted">Verificando se este navegador já tem o certificado do celular.</span></div>
+  </section>
+  <div id="guide" hidden>
+  <h1>Primeiro acesso neste computador</h1>
+  <p class="muted">Instale o certificado do celular uma única vez. Depois disso, <b>este mesmo endereço</b> abre o Finan+ direto, com cadeado e conexão criptografada.</p>
+
+  <section class="glass">
+    <div class="step">
+      <div class="num">1</div>
+      <div>
+        <h2>Confira a impressão digital</h2>
+        <p class="muted" style="margin:0">Esta página chega sem criptografia. Compare o código abaixo com o que aparece no celular em <b>Ajustes › Acesso pela rede (beta) › Certificado deste celular</b>. Se for diferente, <b>não instale</b>.</p>
+        <div class="fp" aria-label="Impressão digital SHA-256">SHA-256: {{SHA256}}</div>
+        <div class="fp small" aria-label="Impressão digital SHA-1">SHA-1 (o Windows mostra esta): {{SHA1}}</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="glass">
+    <div class="step">
+      <div class="num">2</div>
+      <div>
+        <h2>Baixe o certificado</h2>
+        <a class="btn primary" href="/finanplus-ca.crt">Baixar finanplus-ca.crt</a>
+        <a class="btn" href="/finanplus-ca.pem" download>Formato PEM</a>
+        <p class="muted" style="margin:10px 0 0">Também dá para salvar pelo celular (<b>Salvar certificado</b>) e levar por cabo ou pendrive, sem passar pela rede.</p>
+        <div class="warn">Ele só vale para endereços da rede local (10.x, 172.16–31.x, 192.168.x). Mesmo instalado, não consegue se passar por nenhum site da internet.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="glass">
+    <div class="step">
+      <div class="num">3</div>
+      <div>
+        <h2>Instale no navegador</h2>
+
+        <details open>
+          <summary>Firefox (Linux, Windows, macOS)</summary>
+          <ol>
+            <li>Clique em <b>Baixar finanplus-ca.crt</b>. O Firefox abre a janela <i>“Confiar nesta autoridade?”</i>.</li>
+            <li>Clique em <b>Ver</b> e confira a impressão digital SHA-256.</li>
+            <li>Marque <b>Confiar nesta AC para identificar sites</b> e clique em <b>OK</b>.</li>
+          </ol>
+          <p class="muted">Se a janela não abrir: Configurações › Privacidade e segurança › Certificados › <b>Ver certificados</b> › aba <b>Autoridades</b> › <b>Importar</b>.</p>
+        </details>
+
+        <details>
+          <summary>Chrome, Edge ou Brave no Linux (Debian, Ubuntu…)</summary>
+          <p>Pelo terminal (mais rápido), com o arquivo na pasta Downloads:</p>
+<pre>sudo apt install libnss3-tools
+certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n "Finan+ CA" -i ~/Downloads/finanplus-ca.crt</pre>
+          <p>Ou pela tela: abra <code>chrome://certificate-manager</code> (ou <code>chrome://settings/certificates</code>) › certificados locais / <b>Autoridades</b> › <b>Importar</b> › marque <b>Confiar neste certificado para identificar sites</b>.</p>
+          <p class="muted">Feche e abra o navegador de novo.</p>
+        </details>
+
+        <details>
+          <summary>Windows (Chrome e Edge)</summary>
+          <ol>
+            <li>Abra o arquivo baixado › aba <b>Detalhes</b> › confira a <b>Impressão digital</b> (é a SHA-1 acima).</li>
+            <li>Aba <b>Geral</b> › <b>Instalar certificado</b> › <b>Usuário atual</b>.</li>
+            <li><b>Colocar todos os certificados no repositório a seguir</b> › <b>Autoridades de Certificação Raiz Confiáveis</b> › Concluir.</li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>macOS (Safari e Chrome)</summary>
+          <ol>
+            <li>Abra o arquivo: ele entra no <b>Acesso às Chaves</b>, em <i>Sessão</i>.</li>
+            <li>Clique duas vezes em “Finan+ Rede Local” › <b>Confiar</b> › “Ao usar este certificado”: <b>Confiar Sempre</b>.</li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>Outro Android (tablet)</summary>
+          <ol>
+            <li>Configurações › Segurança › Mais configurações › <b>Criptografia e credenciais</b> › <b>Instalar um certificado</b> › <b>Certificado de CA</b>.</li>
+            <li>Escolha o arquivo baixado. (O caminho muda um pouco conforme a marca.)</li>
+          </ol>
+        </details>
+
+        <details>
+          <summary>iPhone / iPad</summary>
+          <ol>
+            <li>Baixe pelo Safari › Ajustes › <b>Perfil Transferido</b> › Instalar.</li>
+            <li>Ajustes › Geral › Sobre › <b>Ajustes de Confiança de Certificados</b> › ative “Finan+ Rede Local”.</li>
+          </ol>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="glass">
+    <div class="step">
+      <div class="num">4</div>
+      <div>
+        <h2>Abra o Finan+</h2>
+        <a class="btn primary" href="{{HTTPS_URL}}">Abrir {{HTTPS_URL}}</a>
+        <p class="muted" style="margin:10px 0 0">Digite o código do celular e toque em <b>Permitir</b> quando ele perguntar. Nas próximas vezes, é só abrir o endereço que o celular mostra: ele vem direto para cá.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="glass">
+    <h2>Remover depois</h2>
+    <p class="muted" style="margin:0">Na mesma lista de autoridades do navegador (ou do sistema), apague “Finan+ Rede Local”. No celular, <b>Gerar novo</b> invalida o certificado antigo em todos os computadores.</p>
+    <p class="muted" style="margin:8px 0 0;font-size:12.5px">Autoridade: {{CA_NAME}}</p>
+  </section>
+  </div>
+</div>
+<script>
+"use strict";
+/* Já confia no certificado? Uma requisição ao endereço seguro só funciona se o navegador aceitar o certificado.
+   Funcionou → abre o Finan+ direto. Falhou (ou demorou) → mostra o passo a passo de instalação. */
+(async () => {
+  const secure = "{{HTTPS_URL_JS}}";
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 3000);
+  try {
+    await fetch(secure + "/api/ping", { mode: "no-cors", cache: "no-store", signal: ctrl.signal });
+    location.replace(secure + "/");
+    return;
+  } catch (_) {
+  } finally { clearTimeout(timer); }
+  document.getElementById("checking").hidden = true;
+  document.getElementById("guide").hidden = false;
+})();
+</script>
+</body>
+</html>

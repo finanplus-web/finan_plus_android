@@ -3,6 +3,7 @@
 
 package com.finanplus.ui.theme
 
+import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
@@ -60,23 +61,22 @@ val LocalPalette = staticCompositionLocalOf { Light }
 object Fin { val c: Palette @Composable get() = LocalPalette.current }
 
 @Composable
-fun resolvePalette(theme: ThemeId): Palette {
-    val sysDark = isSystemInDarkTheme()
-    return when (theme) {
-        ThemeId.AUTO -> if (sysDark) Oled else Light
-        ThemeId.LIGHT -> Light
-        ThemeId.OLED -> Oled
-        ThemeId.TOKYO -> Tokyo
-        ThemeId.NORD -> Nord
-        ThemeId.MATERIAL_YOU -> {
-            // Material You de verdade: cores do papel de parede (Android 12+). Antes disso, azul Material.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val ctx = LocalContext.current
-                val cs = if (sysDark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx)
-                fromScheme(cs, sysDark)
-            } else MaterialBlue
-        }
-    }
+fun resolvePalette(theme: ThemeId): Palette = paletteFor(theme, LocalContext.current, isSystemInDarkTheme())
+
+/**
+ * Escolha das cores de cada tema, fora do Compose. Usada pelo app e pelo acesso pela rede (beta),
+ * para o navegador mostrar exatamente as mesmas cores do celular.
+ */
+fun paletteFor(theme: ThemeId, ctx: Context, dark: Boolean): Palette = when (theme) {
+    ThemeId.AUTO -> if (dark) Oled else Light
+    ThemeId.LIGHT -> Light
+    ThemeId.OLED -> Oled
+    ThemeId.TOKYO -> Tokyo
+    ThemeId.NORD -> Nord
+    // Material You de verdade: cores do papel de parede (Android 12+). Antes disso, azul Material.
+    ThemeId.MATERIAL_YOU ->
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) fromScheme(if (dark) dynamicDarkColorScheme(ctx) else dynamicLightColorScheme(ctx), dark)
+        else MaterialBlue
 }
 
 private fun fromScheme(cs: ColorScheme, dark: Boolean) = Palette(

@@ -35,7 +35,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Testes e APK de teste
-        run: ./gradlew --no-daemon testDebugUnitTest assembleDebug
+        run: |
+          set -o pipefail
+          # erros de compilação e de teste também como avisos da execução (visíveis sem abrir o log)
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug 2>&1 | tee gradle.log || {
+            grep -E "^e: |What went wrong|> .*FAILED|Could not resolve|Exception|expected:" gradle.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done
+            exit 1; }
 
       - name: Guardar o APK de teste (artefato da execução)
         uses: actions/upload-artifact@v4

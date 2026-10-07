@@ -1,0 +1,1 @@
+Sem mudanças no app: esta versão muda só a forma de publicação. O APK assinado pelo autor agora também é publicado no GitHub. A versão do F-Droid continua assinada pelo F-Droid; para trocar de uma para a outra é preciso desinstalar o app (faça antes o Backup JSON em Ajustes › Dados).

@@ -1,8 +1,8 @@
 # Changelog
 
-## Em desenvolvimento
+## 1.1.3 — APK assinado também no GitHub (07/10/2026)
 
-Ao lançar, troque o título acima por `## 1.1.3 — …` (mesmo número do `versionName`).
+O app em si não mudou. Esta versão muda só a forma de publicação.
 
 - **APK assinado também no GitHub Releases** (opcional): em cada tag `vX.Y.Z`, o GitHub Actions gera o APK assinado com a chave do autor e o anexa à Release. Só funciona com os Secrets da chave configurados (ver README). O F-Droid continua compilando e assinando com a chave dele; a assinatura no `app/build.gradle.kts` só é ligada quando as variáveis da chave existem.
 - **Atenção:** o APK do GitHub e o do F-Droid têm assinaturas diferentes. Quem instalou por um não atualiza pelo outro sem desinstalar (faça antes o Backup JSON).

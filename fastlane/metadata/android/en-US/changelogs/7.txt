@@ -1,0 +1,1 @@
+No changes in the app: this release only changes how it is published. The APK signed by the author is now also published on GitHub. The F-Droid version is still signed by F-Droid; switching between them requires uninstalling the app (make a JSON backup first in Ajustes › Dados).

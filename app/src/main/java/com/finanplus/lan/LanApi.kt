@@ -55,7 +55,7 @@ class StateVersion {
     fun assign(next: AppState): Long { seen = next; return ++counter }
 }
 
-/** Arquivos do Finan+ web (PWA) embutidos no APK beta. Só nomes simples e tipos conhecidos. */
+/** Arquivos do Finan+ web (PWA) embutidos no APK (assets/lan/pwa). Só nomes simples e tipos conhecidos. */
 object PwaAssets {
     /** marca que faz o PWA entrar no modo remoto (dados no celular) */
     const val REMOTE_MARKER = "<meta name=\"finanplus-remote\" content=\"1\">"

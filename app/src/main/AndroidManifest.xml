@@ -5,6 +5,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
+    <!-- Acesso pela rede (opcional, desligado até o usuário ligar em Ajustes): abrir uma porta só no
+         IP privado do Wi-Fi (INTERNET), descobrir esse IP (ACCESS_NETWORK_STATE) e manter o servidor
+         num serviço em primeiro plano. O app não acessa a internet: não há nenhum servidor externo. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
     <!-- allowBackup=false: a chave de criptografia fica no Keystore deste aparelho e não seria
          restaurada em outro; a cópia de segurança é o Backup JSON, feito pelo próprio usuário. -->
     <application
@@ -34,6 +42,15 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".lan.LanService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Servidor local na rede Wi-Fi para usar o Finan+ pelo navegador de outro aparelho, ligado e desligado pelo usuário." />
+        </service>
 
         <receiver
             android:name=".widget.BalanceWidgetReceiver"

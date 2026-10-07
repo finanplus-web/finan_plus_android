@@ -190,8 +190,8 @@ fun FinanRoot(activity: MainActivity) {
                 if (showLock) LockScreen(activity, dev) else holder.SaveableStateProvider("main") { MainScaffold(s, dev, activity, nav) }
             }
             if (!showLock) DialogHost(dialogs)
-            // beta do acesso pela rede: "Permitir <navegador>?" aparece em qualquer tela, só com o app desbloqueado
-            if (!showLock && com.finanplus.BuildConfig.LAN_BETA) com.finanplus.lan.LanPairPrompt(dialogs)
+            // acesso pela rede: "Permitir <navegador>?" aparece em qualquer tela, só com o app desbloqueado
+            if (!showLock) com.finanplus.lan.LanPairPrompt(dialogs)
         }
     }
 }

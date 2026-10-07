@@ -1,4 +1,4 @@
-<p>Finan+ is a simple, lightweight and private personal finance app. It works fully offline: <b>no data ever leaves your device</b>, and the app does not even have internet permission.</p>
+<p>Finan+ is a simple, lightweight and private personal finance app. It works fully offline: <b>your data stays on your device</b>, with no account and no external server.</p>
 
 <p><b>Note:</b> the app interface is in Brazilian Portuguese and amounts are in Brazilian reais (R$).</p>
 
@@ -12,6 +12,7 @@
 <li>On-device assistant: suggests categories from descriptions, summarizes the month, gives saving tips and answers quick questions, always explaining why</li>
 <li>Balance widget and daily due-date reminders</li>
 <li>6 themes, including Material You, OLED, Tokyo Night and Nord</li>
+<li><b>Network access (optional):</b> use Finan+ in your computer's browser on the same Wi-Fi, with the data staying on the phone. HTTPS with the phone's own certificate, a code and confirmation on the phone</li>
 <li>JSON backup and restore (compatible with Finan+ web and Finan+ for Linux) and CSV export</li>
 </ul>
 
@@ -22,6 +23,7 @@
 <li>Screenshots blocked by default and an option to hide amounts</li>
 <li>Discreet notifications and widget when the app is protected</li>
 <li>No ads, no trackers, no account, no sign-up</li>
+<li>The network permission is only for local network access: off until you turn it on, works only on your home Wi-Fi and turns itself off after 10 minutes of inactivity. The app never connects to the internet</li>
 </ul>
 
 <p>Finan+ is free software, licensed under the GNU GPL v3 or later.</p>

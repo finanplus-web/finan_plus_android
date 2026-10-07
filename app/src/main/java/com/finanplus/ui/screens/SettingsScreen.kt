@@ -365,9 +365,9 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
             }
         }
 
-        if (BuildConfig.LAN_BETA) item {
+        item {
             val lan by com.finanplus.lan.Lan.ui.collectAsState()
-            Collapsible("Acesso pela rede (beta)", if (lan.running) "Ligado · ${lan.devices} aparelho(s) conectado(s)" else "Lançar e exportar pelo navegador de outro aparelho") {
+            Collapsible("Acesso pela rede", if (lan.running) "Ligado · ${lan.devices} aparelho(s) conectado(s)" else "Lançar e exportar pelo navegador de outro aparelho") {
                 com.finanplus.lan.LanSettings(lan)
             }
         }
@@ -388,8 +388,8 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                     Pill("Apagar tudo", Modifier.weight(1f), danger = true) {
                         dialogs.confirm("Apagar todos os dados", "Apagar TODOS os dados deste aparelho, inclusive o PIN? Faça um backup antes.", ok = "Apagar tudo", danger = true) {
                             Repo.wipe(); AppLock.unlock()
-                            // beta: desliga o acesso pela rede e apaga a autoridade (CA) deste celular
-                            if (BuildConfig.LAN_BETA) { com.finanplus.lan.Lan.stop(ctx); scope.launch(Dispatchers.IO) { com.finanplus.lan.LanCa.reset(ctx) } }
+                            // desliga o acesso pela rede e apaga a autoridade (CA) deste celular
+                            com.finanplus.lan.Lan.stop(ctx); scope.launch(Dispatchers.IO) { com.finanplus.lan.LanCa.reset(ctx) }
                         }
                     }
                 }
@@ -433,7 +433,7 @@ private fun AboutText() {
     val paras = listOf(
         "Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.",
         "O aplicativo permite organizar receitas, despesas, contas, cartões, categorias, limites mensais, metas e lançamentos recorrentes, além de acompanhar saldos e relatórios financeiros.",
-        "Esta versão é nativa para Android, construída com Kotlin e Jetpack Compose. Os dados ficam no aparelho, criptografados com AES-256 e chave no Android Keystore, sem conta, cadastro ou servidor.",
+        "Esta versão é nativa para Android, construída com Kotlin e Jetpack Compose. Os dados ficam no aparelho, criptografados com AES-256 e chave no Android Keystore, sem conta, cadastro ou servidor externo. O acesso pela rede é opcional, fica desligado até você ligar e funciona só na sua rede local.",
         "Inclui widget de saldo na tela inicial, avisos de vencimento, desbloqueio por PIN ou biometria e backup em JSON compatível com o Finan+ web.",
         "O assistente (sugestão de categoria, resumo do mês, dicas de economia e perguntas rápidas) funciona inteiro no aparelho, sem internet e sem modelo de IA externo: são regras e um classificador simples, com código aberto e explicação em cada resposta.",
         "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com os temas Material You, OLED, Tokyo Night e Nord.",

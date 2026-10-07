@@ -1,4 +1,4 @@
-<p>Finan+ é um aplicativo de controle financeiro pessoal simples, leve e privado. Funciona totalmente offline: <b>nenhum dado sai do seu aparelho</b>, o app nem tem permissão de acesso à internet.</p>
+<p>Finan+ é um aplicativo de controle financeiro pessoal simples, leve e privado. Funciona totalmente offline: <b>seus dados ficam no seu aparelho</b>, sem conta e sem nenhum servidor externo.</p>
 
 <p><b>O que você pode fazer</b></p>
 <ul>
@@ -10,6 +10,7 @@
 <li>Assistente que funciona no aparelho: sugere a categoria pela descrição, resume o mês, dá dicas de economia e responde perguntas rápidas. Cada resultado explica o porquê</li>
 <li>Widget de saldo e lembretes diários de vencimentos</li>
 <li>6 temas, incluindo Material You, OLED, Tokyo Night e Nord</li>
+<li><b>Acesso pela rede (opcional):</b> use o Finan+ no navegador do computador, na mesma rede Wi-Fi, com os dados continuando no celular. Conexão HTTPS com certificado do próprio celular, código e confirmação no celular</li>
 <li>Backup e restauração em JSON (compatível com o Finan+ web e o Finan+ para Linux) e exportação em CSV</li>
 </ul>
 
@@ -20,6 +21,7 @@
 <li>Capturas de tela bloqueadas por padrão e opção de ocultar valores</li>
 <li>Notificações e widget discretos quando o app está protegido</li>
 <li>Sem anúncios, sem rastreadores, sem conta e sem cadastro</li>
+<li>A permissão de rede existe só para o acesso pela rede local: fica desligado até você ligar, funciona só no Wi-Fi da sua casa e desliga sozinho após 10 minutos sem uso. O app não se conecta à internet</li>
 </ul>
 
 <p>O app está em português do Brasil e usa o Real (R$).</p>

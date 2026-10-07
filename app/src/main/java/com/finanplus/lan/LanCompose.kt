@@ -71,7 +71,7 @@ fun LanPairPrompt(dialogs: Dialogs) {
     }
 }
 
-/** Seção "Acesso pela rede (beta)" em Ajustes. */
+/** Seção "Acesso pela rede" em Ajustes. */
 @Composable
 fun LanSettings(lan: LanUi) {
     val p = Fin.c

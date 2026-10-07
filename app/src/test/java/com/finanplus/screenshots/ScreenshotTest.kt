@@ -37,7 +37,7 @@ import java.io.File
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(sdk = [34], application = Application::class, qualifiers = "w412dp-h915dp-xxhdpi-port")
+@Config(sdk = [34], application = Application::class, qualifiers = "w412dp-h915dp-port-xxhdpi")
 @OptIn(ExperimentalRoborazziApi::class)
 class ScreenshotTest {
     @get:Rule val compose = createEmptyComposeRule()

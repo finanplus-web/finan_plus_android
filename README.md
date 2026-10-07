@@ -4,7 +4,7 @@ Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com 
 
 Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados criptografados no aparelho, widget de saldo, notificações de vencimento, desbloqueio por PIN e digital, assistente que funciona sem internet, relatório em PDF e backup compatível com as outras versões.
 
-**Baixar:** pelo F-Droid (envio em andamento, ver [Publicar no F-Droid](#publicar-no-f-droid)) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
+**Baixar:** pelo F-Droid (envio em andamento, ver [Publicar no F-Droid](#publicar-no-f-droid)) ou [APK assinado no GitHub](../../releases/latest) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
 
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
@@ -84,6 +84,33 @@ O que já está pronto no repositório:
 
 O F-Droid encontra a tag nova sozinho, compila e publica, geralmente em alguns dias. A tag precisa ser exatamente `v` + `versionName`; o GitHub Actions avisa se não bater.
 
+## Publicar no GitHub (opcional)
+
+Além do F-Droid, o GitHub pode publicar sozinho o **APK assinado com a sua chave** na página de versões (Releases), a cada tag `vX.Y.Z`. Isso não muda nada no F-Droid, que continua compilando e assinando com a chave dele.
+
+> **Duas assinaturas:** o APK do GitHub (sua chave) e o do F-Droid (chave do F-Droid) não se atualizam um pelo outro. Para trocar de canal, a pessoa precisa desinstalar o app, então deve fazer antes o *Backup JSON* em *Ajustes › Dados*. As notas de cada Release avisam isso.
+
+### Configurar a chave (uma vez)
+
+1. Use a sua chave `.jks` do Android Studio (ou crie uma em *Build › Generate Signed App Bundle / APK › Create new*). Guarde uma cópia e as senhas fora do computador: sem elas não dá para publicar atualizações no GitHub.
+2. Gere o texto da chave: `base64 -w0 sua-chave.jks > chave.txt` (no Windows: `certutil -encode sua-chave.jks chave.txt` e apague a primeira e a última linha).
+3. No repositório: *Settings › Secrets and variables › Actions › New repository secret*, e crie:
+
+| Secret | Valor |
+|---|---|
+| `ANDROID_KEYSTORE_BASE64` | o conteúdo de `chave.txt` |
+| `ANDROID_KEYSTORE_PASSWORD` | a senha do arquivo `.jks` |
+| `ANDROID_KEY_ALIAS` | o nome (alias) da chave |
+| `ANDROID_KEY_PASSWORD` | a senha da chave |
+
+4. Apague o `chave.txt`. A chave nunca entra no repositório (`*.jks`, `*.keystore` e afins estão no `.gitignore`).
+
+### Publicar
+
+É o mesmo passo do F-Droid: ao criar e enviar a tag `vX.Y.Z`, o job **publicar** do *Compilar e testar* gera o `finan-plus_X.Y.Z.apk`, mostra no log a impressão digital SHA-256 do certificado e anexa o APK à Release da tag (criando a Release, com as notas do `CHANGELOG.md`, se ela ainda não existir). Sem os Secrets, ele só mostra um aviso e não publica nada.
+
+Se a tag já tiver sido enviada antes de configurar os Secrets: *Actions › Compilar e testar › Run workflow*, informe a tag (ex.: `v1.1.3`) e rode. Tags anteriores à 1.1.3 não têm o suporte a assinatura no código e não podem ser publicadas assim.
+
 ## Levar os dados do Finan+ web para o app
 
 1. No Finan+ web: *Ajustes › Dados › Backup JSON*.
@@ -106,7 +133,7 @@ app/src/main/java/com/finanplus/
   widget/      widget de saldo (Glance)
   ui/          Compose: tema, componentes, telas e editores
 app/src/test/  testes das regras de negócio
-.github/       compilação e testes automáticos (GitHub Actions)
+.github/       compilação, testes e APK assinado no GitHub (GitHub Actions)
 fastlane/      textos, ícone e capturas de tela do F-Droid
 fdroid/        receita de compilação para o fdroiddata
 docs/          auditoria e documentação extra

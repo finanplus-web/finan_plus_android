@@ -1,5 +1,12 @@
 # Changelog
 
+## Em desenvolvimento
+
+Ao lançar, troque o título acima por `## 1.1.3 — …` (mesmo número do `versionName`).
+
+- **APK assinado também no GitHub Releases** (opcional): em cada tag `vX.Y.Z`, o GitHub Actions gera o APK assinado com a chave do autor e o anexa à Release. Só funciona com os Secrets da chave configurados (ver README). O F-Droid continua compilando e assinando com a chave dele; a assinatura no `app/build.gradle.kts` só é ligada quando as variáveis da chave existem.
+- **Atenção:** o APK do GitHub e o do F-Droid têm assinaturas diferentes. Quem instalou por um não atualiza pelo outro sem desinstalar (faça antes o Backup JSON).
+
 ## 1.1.2 — pronto para o F-Droid (07/10/2026)
 
 O Finan+ para Android passa a ser distribuído **só pelo F-Droid**. O F-Droid compila o código deste repositório e assina o APK com a chave dele; nenhuma chave de assinatura fica no projeto nem no GitHub. O app em si não mudou: esta versão reúne as correções da 1.1.1, que nunca chegou a ser publicada.

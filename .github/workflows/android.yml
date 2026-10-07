@@ -2,10 +2,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Compila e testa o Finan+ para Android a cada envio (push/pull request) e a cada tag de versão.
-# Não assina nem publica nada: o app é distribuído pelo F-Droid, que compila este código e assina
-# o APK com a chave dele. Por isso este fluxo não usa Secrets.
-# Também gera o APK de release sem assinatura, o mesmo build que o F-Droid faz, para conferir
-# antes de criar a tag que o F-Droid vai usar.
+# Também gera o APK de release sem assinatura, o mesmo build que o F-Droid faz.
+#
+# Publicação no GitHub (job "publicar"): numa tag vX.Y.Z, ou manualmente em
+# Actions › Compilar e testar › Run workflow (informando a tag), gera o APK assinado com a chave
+# do autor e o anexa à Release da tag. A chave fica nos Secrets do repositório (ver README).
+# Sem os Secrets, nada é publicado. O F-Droid não usa este APK: ele compila e assina com a chave dele.
 name: Compilar e testar
 
 on:
@@ -14,6 +16,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag já existente para publicar o APK assinado (ex.: v1.1.2). Vazio: só compila e testa.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -75,3 +82,86 @@ jobs:
           path: |
             app/build/outputs/apk/debug/*.apk
             app/build/outputs/apk/release/*.apk
+
+  publicar:
+    needs: build
+    if: github.ref_type == 'tag' || inputs.tag != ''
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # para criar a Release e anexar o APK
+    env:
+      TAG: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
+    steps:
+      - name: Conferir se a chave está configurada
+        id: chave
+        env:
+          HAS_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        run: |
+          if [ "$HAS_KEY" != true ]; then
+            echo "::warning::Os Secrets da chave de assinatura não estão configurados: nenhum APK foi publicado (ver README, 'Publicar no GitHub')."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.chave.outputs.ok == 'true'
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v4
+        if: steps.chave.outputs.ok == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.chave.outputs.ok == 'true'
+
+      - name: Versão
+        if: steps.chave.outputs.ok == 'true'
+        id: ver
+        run: |
+          V=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          if [ "v$V" != "$TAG" ]; then
+            echo "::error::A tag $TAG não bate com a versão $V do app/build.gradle.kts"; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: APK assinado
+        if: steps.chave.outputs.ok == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          FINAN_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          FINAN_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          FINAN_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          export FINAN_KEYSTORE_FILE="$RUNNER_TEMP/finan-plus.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$FINAN_KEYSTORE_FILE"
+          ./gradlew --no-daemon assembleRelease
+          rm -f "$FINAN_KEYSTORE_FILE"
+          cp app/build/outputs/apk/release/app-release.apk "finan-plus_${V}.apk"
+          echo "Certificado de assinatura:"
+          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "finan-plus_${V}.apk" | grep -E "SHA-256|DN"
+
+      - name: Notas da versão
+        if: steps.chave.outputs.ok == 'true'
+        env:
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          awk -v v="$V" '$0 ~ "^## "v" " {f=1; next} /^## / && f {exit} f' CHANGELOG.md > notas.md
+          printf '\n---\n**Instalar:** baixe o `finan-plus_%s.apk` abaixo e abra no celular (Android 8.0 ou mais novo).\n\n**Atenção:** este APK é assinado pelo autor. A versão do F-Droid é assinada pelo F-Droid. Para trocar de uma para a outra é preciso desinstalar o app; faça antes o *Backup JSON* em Ajustes › Dados.\n' "$V" >> notas.md
+
+      - name: Criar ou atualizar a Release
+        if: steps.chave.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.ver.outputs.version }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" "finan-plus_${V}.apk" --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" "finan-plus_${V}.apk" --repo "$GITHUB_REPOSITORY" \
+              --title "Finan+ para Android $V" --notes-file notas.md
+          fi

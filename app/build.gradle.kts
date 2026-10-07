@@ -16,9 +16,21 @@ android {
         versionName = "1.1.2"
     }
 
-    // Publicação pelo F-Droid: o F-Droid compila este código e assina o APK com a chave dele.
-    // Nenhuma chave de assinatura fica no projeto. Para testar no seu celular, use o Android Studio
-    // (Run ▶ ou Build › Generate Signed App Bundle / APK).
+    // Dois canais de publicação:
+    // - F-Droid: compila este código e assina o APK com a chave dele (as variáveis abaixo não existem lá).
+    // - GitHub Releases: o GitHub Actions assina com a chave do autor, guardada nos Secrets do repositório.
+    // A chave (.jks) nunca entra no código. Sem as variáveis, o APK de release sai sem assinatura.
+    val keystoreFile = System.getenv("FINAN_KEYSTORE_FILE")
+    if (keystoreFile != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(keystoreFile)
+                storePassword = System.getenv("FINAN_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("FINAN_KEY_ALIAS")
+                keyPassword = System.getenv("FINAN_KEY_PASSWORD")
+            }
+        }
+    }
 
     // Sem o bloco de dependências cifrado pelo Google dentro do APK (o F-Droid recusa esse bloco).
     dependenciesInfo {
@@ -28,6 +40,7 @@ android {
 
     buildTypes {
         release {
+            if (keystoreFile != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

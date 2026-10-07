@@ -51,6 +51,23 @@ android {
         compose = true
         buildConfig = true
     }
+    // Capturas de tela da documentação (docs/screenshots): `./gradlew testDebugUnitTest -PfinanScreenshots=true`.
+    // Sem a propriedade, os testes de captura ficam de fora (o build normal não baixa nem roda o Robolectric).
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            all { test ->
+                val shots = project.findProperty("finanScreenshots") == "true"
+                if (shots) {
+                    test.systemProperty("roborazzi.test.record", "true")
+                    test.systemProperty("finan.screenshots.dir", rootProject.file("docs/screenshots").absolutePath)
+                    test.filter.includeTestsMatching("com.finanplus.screenshots.*")
+                } else {
+                    test.exclude("**/screenshots/**")
+                }
+            }
+        }
+    }
 }
 
 dependencies {
@@ -71,5 +88,12 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.roborazzi)
+    testImplementation(libs.androidx.test.core)
+    testImplementation(libs.roborazzi.compose)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
     testImplementation(libs.kotlin.test.junit)
 }

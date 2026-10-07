@@ -123,6 +123,9 @@ object Repo {
         return added
     }
 
+    /** Só para as capturas de tela da documentação (testes): mostra um estado sem gravar nada. */
+    internal fun showForScreenshots(s: AppState) { _state.value = s }
+
     fun update(f: (AppState) -> AppState) { _state.update(f); persist() }
 
     fun replace(s: AppState) { _state.value = s; persist() }

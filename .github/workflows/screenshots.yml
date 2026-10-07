@@ -1,0 +1,58 @@
+# Finan+ — Copyright (C) 2026 Juscelino Be
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Capturas de tela da documentação (README, docs/screenshots): as telas reais do app desenhadas pelo
+# Robolectric + Roborazzi com os dados de demonstração (app/src/test/.../screenshots). Roda quando a
+# interface muda ou manualmente (Actions › Capturas de tela › Run workflow) e grava as imagens no repositório.
+name: Capturas de tela
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'app/src/main/java/com/finanplus/ui/**'
+      - 'app/src/main/res/**'
+      - 'app/src/test/java/com/finanplus/screenshots/**'
+      - '.github/workflows/screenshots.yml'
+
+permissions:
+  contents: write   # para gravar as imagens no repositório
+
+concurrency:
+  group: screenshots
+  cancel-in-progress: true
+
+jobs:
+  screenshots:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Desenhar as telas
+        run: ./gradlew --no-daemon testDebugUnitTest -PfinanScreenshots=true
+
+      - name: Guardar as imagens (artefato da execução)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: capturas-de-tela
+          path: docs/screenshots/*.png
+          if-no-files-found: warn
+
+      - name: Gravar no repositório
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          if git diff --cached --quiet; then echo "Capturas sem mudança."; exit 0; fi
+          git commit -m "Capturas de tela atualizadas"
+          git pull --rebase origin main
+          git push origin HEAD:main

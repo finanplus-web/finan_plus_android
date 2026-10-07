@@ -14,6 +14,9 @@ android {
         targetSdk = 35
         versionCode = 7
         versionName = "1.1.3"
+        // Acesso pela rede (servidor local): só existe no build "beta", que é instalado à parte.
+        buildConfigField("boolean", "LAN_BETA", "false")
+        buildConfigField("String", "LAN_CONFIG", "\"\"")
     }
 
     // Dois canais de publicação:
@@ -44,6 +47,22 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+        // Beta local do "Acesso pela rede": instala ao lado do app normal (outro id, outros dados),
+        // assinado com a chave de debug. Só ele pede a permissão de internet (src/beta/AndroidManifest.xml).
+        // Gerar: Build Variants › beta (ou ./gradlew assembleBeta). Não é usado pelo F-Droid.
+        create("beta") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".beta"
+            versionNameSuffix = "-beta-lan"
+            buildConfigField("boolean", "LAN_BETA", "true")
+            // Parâmetros do acesso pela rede, sem mexer no código (sem segredos: só portas e tempos).
+            // Ex.: ./gradlew assembleBeta -PfinanLan="httpsPort=9443;idleMinutes=5"
+            // ou a variável de ambiente ORG_GRADLE_PROJECT_finanLan. Vazio = padrões de LanConfig.
+            val lanConfig = (project.findProperty("finanLan") as String?).orEmpty()
+            require(Regex("^[A-Za-z0-9=;]*$").matches(lanConfig)) { "finanLan: use só chave=valor;chave=valor" }
+            buildConfigField("String", "LAN_CONFIG", "\"$lanConfig\"")
+            matchingFallbacks += listOf("debug")
         }
     }
     compileOptions {

@@ -1,5 +1,18 @@
 # Changelog
 
+## Não publicado — beta "Acesso pela rede" (build `beta`, não vai para o F-Droid nem para as Releases)
+
+Recurso novo, só no build `beta` (instala ao lado do app, com outro id). **Não muda o app do F-Droid:**
+os builds debug e release continuam sem permissão de internet e com o recurso desligado.
+
+- O celular serve o Finan+ web completo para o navegador de outro aparelho na mesma rede Wi-Fi, com
+  HTTPS por uma autoridade (CA) própria do celular (chave no Android Keystore, válida só para IPs
+  privados), pareamento por código + "Permitir" no celular, e os dados continuando só no celular.
+- Auditoria de segurança, resiliência e arquitetura aplicada antes da publicação: `AUDITORIA-LAN.md`.
+- Como usar, instalar o certificado e configurar: `BETA-LAN.md`.
+- `Theme.kt`: `paletteFor()` (a escolha de cores de cada tema, fora do Compose); comportamento igual.
+- CI: compila também o build beta. 30 testes novos em JVM.
+
 ## 1.1.3 — APK assinado também no GitHub (07/10/2026)
 
 O app em si não mudou. Esta versão muda só a forma de publicação.

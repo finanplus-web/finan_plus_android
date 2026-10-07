@@ -16,8 +16,24 @@ android {
         versionName = "1.1.1"
     }
 
+    // Assinatura da versão de publicação: só pelo GitHub Actions, com a chave guardada nos Secrets do repositório
+    // (variáveis abaixo). A chave (.jks) nunca entra no código. Sem as variáveis, o build local funciona como sempre
+    // e a assinatura é feita pelo Android Studio (Build › Generate Signed App Bundle / APK).
+    val ciKeystore = System.getenv("FINAN_KEYSTORE_FILE")
+    if (ciKeystore != null) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(ciKeystore)
+                storePassword = System.getenv("FINAN_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("FINAN_KEY_ALIAS")
+                keyPassword = System.getenv("FINAN_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (ciKeystore != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

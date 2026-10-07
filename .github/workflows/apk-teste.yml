@@ -1,0 +1,31 @@
+# Finan+ — Copyright (C) 2026 Juscelino Be
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Temporário: gera o APK de teste e o coloca no branch "apk-teste" (para entrega fora do GitHub). Será removido.
+name: APK de teste (entrega)
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apk-teste.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew --no-daemon assembleDebug
+      - name: Publicar no branch apk-teste
+        run: |
+          mkdir out && cp app/build/outputs/apk/debug/app-debug.apk out/finan-plus-1.1.1-teste.apk
+          cd out && git init -q -b apk-teste && git add . \
+            && git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "APK de teste ${GITHUB_SHA::7}" \
+            && git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" apk-teste

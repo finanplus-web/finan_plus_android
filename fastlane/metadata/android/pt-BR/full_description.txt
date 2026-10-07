@@ -1,0 +1,27 @@
+<p>Finan+ é um aplicativo de controle financeiro pessoal simples, leve e privado. Funciona totalmente offline: <b>nenhum dado sai do seu aparelho</b>, o app nem tem permissão de acesso à internet.</p>
+
+<p><b>O que você pode fazer</b></p>
+<ul>
+<li>Receitas e despesas com categorias, contas e cartões de crédito (fatura atual e pagamento de fatura)</li>
+<li>Parcelas, lançamentos recorrentes e contas a pagar e a receber</li>
+<li>Saldo atual e saldo previsto para o fim do mês</li>
+<li>Limites mensais por categoria e metas de economia</li>
+<li>Relatórios com gráficos e exportação de relatório em PDF</li>
+<li>Assistente que funciona no aparelho: sugere a categoria pela descrição, resume o mês, dá dicas de economia e responde perguntas rápidas. Cada resultado explica o porquê</li>
+<li>Widget de saldo e lembretes diários de vencimentos</li>
+<li>6 temas, incluindo Material You, OLED, Tokyo Night e Nord</li>
+<li>Backup e restauração em JSON (compatível com o Finan+ web e o Finan+ para Linux) e exportação em CSV</li>
+</ul>
+
+<p><b>Privacidade e segurança</b></p>
+<ul>
+<li>Dados criptografados com AES-256-GCM, com a chave guardada no Android Keystore</li>
+<li>Bloqueio por PIN e/ou biometria forte, com bloqueio automático</li>
+<li>Capturas de tela bloqueadas por padrão e opção de ocultar valores</li>
+<li>Notificações e widget discretos quando o app está protegido</li>
+<li>Sem anúncios, sem rastreadores, sem conta e sem cadastro</li>
+</ul>
+
+<p>O app está em português do Brasil e usa o Real (R$).</p>
+
+<p>Finan+ é software livre, sob a licença GNU GPL v3 ou posterior.</p>

@@ -1,10 +1,10 @@
-# Finan+ para Android — v1.1.1
+# Finan+ para Android — v1.1.2
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
 Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados criptografados no aparelho, widget de saldo, notificações de vencimento, desbloqueio por PIN e digital, assistente que funciona sem internet, relatório em PDF e backup compatível com as outras versões.
 
-**Baixar:** [última versão (APK)](../../releases/latest) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
+**Baixar:** pelo F-Droid (envio em andamento, ver [Publicar no F-Droid](#publicar-no-f-droid)) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
 
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
@@ -15,7 +15,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 1. Instale o **Android Studio** (versão estável recente).
 2. Em *File › Open*, escolha a pasta `finan-android`. O Android Studio baixa o Gradle e as dependências sozinho.
 3. Conecte um celular (com *Depuração USB* ativada) ou crie um emulador e clique em **Run ▶**.
-4. Para gerar o arquivo de instalação: *Build › Generate Signed App Bundle / APK*. Use **AAB** para a Play Store e **APK** para instalar direto. Guarde a chave de assinatura (`.jks`) em lugar seguro: sem ela não é possível publicar atualizações.
+4. Para gerar um APK de teste para o seu celular: *Build › Generate Signed App Bundle / APK*. A versão distribuída ao público é compilada e assinada pelo F-Droid (ver abaixo), então essa chave serve só para os seus testes e nunca entra no repositório.
 
 Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
@@ -54,25 +54,35 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
 **Decisão de projeto:** a chave de dados *não* exige biometria a cada uso. Se exigisse, o widget e as notificações não conseguiriam ler os dados em segundo plano. A proteção contra quem está com o aparelho desbloqueado na mão é o PIN/biometria do app. A proteção contra cópia do arquivo, backups e leitura fora do app é a criptografia com chave no Keystore.
 
-## Publicar no GitHub
+## Publicar no F-Droid
 
-O arquivo [`.github/workflows/android.yml`](.github/workflows/android.yml) compila, roda os testes e gera um **APK de teste** a cada envio (fica em *Actions › execução › Artifacts*). O APK de teste é só para conferir o build: ele é "depurável", então não use com seus dados reais.
+O Finan+ para Android é distribuído **só pelo F-Droid**. O F-Droid baixa o código deste repositório, compila e assina o APK com a chave dele. Nenhuma chave de assinatura fica no projeto ou no GitHub, e não é preciso configurar Secrets.
 
-Para o GitHub publicar sozinho o **APK assinado** na página de versões (Releases), configure uma vez a chave de assinatura nos *Secrets* do repositório. Use a **mesma chave `.jks`** com que você já assina o app no Android Studio: com outra chave, o Android não deixa atualizar o app já instalado.
+O que já está pronto no repositório:
 
-1. No computador, gere o texto da chave: `base64 -w0 sua-chave.jks > chave.txt` (no Windows: `certutil -encode sua-chave.jks chave.txt` e apague a primeira e a última linha).
-2. No repositório: *Settings › Secrets and variables › Actions › New repository secret*, e crie:
-
-| Secret | Valor |
+| Onde | O quê |
 |---|---|
-| `ANDROID_KEYSTORE_BASE64` | o conteúdo de `chave.txt` |
-| `ANDROID_KEYSTORE_PASSWORD` | a senha do arquivo `.jks` |
-| `ANDROID_KEY_ALIAS` | o nome (alias) da chave |
-| `ANDROID_KEY_PASSWORD` | a senha da chave |
+| `fastlane/metadata/android/pt-BR/` e `en-US/` | Nome, descrições, ícone, capturas de tela e notas de cada versão (`changelogs/<versionCode>.txt`, até 500 caracteres) mostrados no F-Droid |
+| `fdroid/com.finanplus.yml` | Receita de compilação para o repositório `fdroiddata` |
+| `.github/workflows/android.yml` | Compila e testa a cada envio, gera o APK de release sem assinatura (o mesmo build do F-Droid) e confere tag e textos |
 
-3. Apague o `chave.txt`. A chave nunca entra no repositório (`*.jks`, `*.keystore` e afins estão no `.gitignore`).
+### Primeiro envio (uma vez)
 
-Depois disso, cada versão nova é publicada sozinha: aumente `versionCode` e `versionName` em `app/build.gradle.kts`, escreva a entrada no `CHANGELOG.md` (título `## 1.1.2 — …`) e envie para a `main`. O GitHub compila, testa, assina, cria a tag `v1.1.2` e a Release com o APK e as notas da versão. Se algum teste falhar, nada é publicado.
+1. Envie as mudanças para a `main` do GitHub e espere o *Compilar e testar* ficar verde em *Actions*.
+2. Crie a tag da versão e envie: `git tag v1.1.2` e `git push origin v1.1.2`.
+3. Crie uma conta em [gitlab.com](https://gitlab.com) e faça um *fork* de [fdroid/fdroiddata](https://gitlab.com/fdroid/fdroiddata). Deixe o fork **público**.
+4. No seu fork, crie a branch `com.finanplus` a partir da `master`.
+5. Adicione o arquivo `metadata/com.finanplus.yml` com o conteúdo de [`fdroid/com.finanplus.yml`](fdroid/com.finanplus.yml). Troque `commit: v1.1.2` pelo hash completo do commit da tag (`git rev-parse v1.1.2`): o F-Droid prefere o hash.
+6. Faça o commit com a mensagem `New App: com.finanplus` e abra o *merge request* para o `fdroiddata` com o título **New app: Finan+**, preenchendo o checklist do modelo.
+7. A compilação automática do GitLab mostra se deu certo. Responda às perguntas dos revisores no próprio merge request. A revisão costuma levar algumas semanas.
+
+### Cada versão nova (depois de aceito)
+
+1. Aumente `versionCode` e `versionName` em `app/build.gradle.kts`.
+2. Escreva a entrada no `CHANGELOG.md` e o arquivo `fastlane/metadata/android/pt-BR/changelogs/<versionCode>.txt` (e o `en-US`, se quiser).
+3. Envie para a `main`, crie a tag `vX.Y.Z` com o mesmo número do `versionName` e envie a tag.
+
+O F-Droid encontra a tag nova sozinho, compila e publica, geralmente em alguns dias. A tag precisa ser exatamente `v` + `versionName`; o GitHub Actions avisa se não bater.
 
 ## Levar os dados do Finan+ web para o app
 
@@ -96,7 +106,9 @@ app/src/main/java/com/finanplus/
   widget/      widget de saldo (Glance)
   ui/          Compose: tema, componentes, telas e editores
 app/src/test/  testes das regras de negócio
-.github/       compilação e publicação automáticas (GitHub Actions)
+.github/       compilação e testes automáticos (GitHub Actions)
+fastlane/      textos, ícone e capturas de tela do F-Droid
+fdroid/        receita de compilação para o fdroiddata
 docs/          auditoria e documentação extra
 ```
 

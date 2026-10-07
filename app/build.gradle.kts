@@ -12,28 +12,22 @@ android {
         applicationId = "com.finanplus"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.1.1"
+        versionCode = 6
+        versionName = "1.1.2"
     }
 
-    // Assinatura da versão de publicação: só pelo GitHub Actions, com a chave guardada nos Secrets do repositório
-    // (variáveis abaixo). A chave (.jks) nunca entra no código. Sem as variáveis, o build local funciona como sempre
-    // e a assinatura é feita pelo Android Studio (Build › Generate Signed App Bundle / APK).
-    val ciKeystore = System.getenv("FINAN_KEYSTORE_FILE")
-    if (ciKeystore != null) {
-        signingConfigs {
-            create("release") {
-                storeFile = file(ciKeystore)
-                storePassword = System.getenv("FINAN_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("FINAN_KEY_ALIAS")
-                keyPassword = System.getenv("FINAN_KEY_PASSWORD")
-            }
-        }
+    // Publicação pelo F-Droid: o F-Droid compila este código e assina o APK com a chave dele.
+    // Nenhuma chave de assinatura fica no projeto. Para testar no seu celular, use o Android Studio
+    // (Run ▶ ou Build › Generate Signed App Bundle / APK).
+
+    // Sem o bloco de dependências cifrado pelo Google dentro do APK (o F-Droid recusa esse bloco).
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
     }
 
     buildTypes {
         release {
-            if (ciKeystore != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

@@ -1,0 +1,5 @@
+First release on F-Droid.
+• Security: PIN attempt limit stored on the device, strong biometrics only, dialogs closed when locking, discreet notifications and widget.
+• Data: protection against data loss (copy of the previous version, warning when saving fails, "Try again" on Keystore errors).
+• Fixed calculations: reactivated recurrences, credit card bill payments and invalid values in backups.
+• Interface: amounts are never cut off; Material icons only.

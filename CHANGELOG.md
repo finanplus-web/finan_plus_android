@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.2 — pronto para o F-Droid (07/10/2026)
+
+O Finan+ para Android passa a ser distribuído **só pelo F-Droid**. O F-Droid compila o código deste repositório e assina o APK com a chave dele; nenhuma chave de assinatura fica no projeto nem no GitHub. O app em si não mudou: esta versão reúne as correções da 1.1.1, que nunca chegou a ser publicada.
+
+| Arquivo | Mudança |
+|---|---|
+| `app/build.gradle.kts` | versionCode 6, versionName 1.1.2. Saiu a assinatura pelo GitHub Actions. `dependenciesInfo` desligado: o APK não leva mais o bloco de dependências cifrado com chave do Google, que o F-Droid não aceita |
+| `.github/workflows/android.yml` | Só compila e testa (agora também o APK de release sem assinatura, igual ao do F-Droid), confere se a tag bate com a versão e se os textos do F-Droid estão no tamanho certo. Não usa Secrets nem cria Releases |
+| `fastlane/metadata/android/` (novo) | Nome, descrições, ícone, capturas de tela e notas da versão que aparecem no F-Droid, em português e inglês |
+| `fdroid/com.finanplus.yml` (novo) | Receita de compilação para enviar ao repositório `fdroiddata` do F-Droid |
+| `README.md` | Seção "Publicar no F-Droid" no lugar de "Publicar no GitHub" |
+
 ## 1.1.1 — correções da auditoria (06/10/2026)
 
 Correções dos problemas encontrados na auditoria de 06/10/2026 (segurança, perda de dados, cálculos e interface). Os três erros de cálculo que também existiam nas outras versões foram corrigidos igualmente no Finan+ web 1.1.2 e no Finan+ para Linux 1.1.7.

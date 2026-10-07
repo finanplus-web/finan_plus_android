@@ -1,0 +1,5 @@
+Primeira versão no F-Droid.
+• Segurança: limite de tentativas do PIN gravado no aparelho, só biometria forte, diálogos fechados ao bloquear, notificações e widget discretos.
+• Dados: proteção contra perda (cópia da versão anterior, aviso ao falhar ao salvar, "Tentar de novo" em erro do Keystore).
+• Cálculos corrigidos: recorrência reativada, pagamento de fatura e valores inválidos em backup.
+• Interface: valores nunca cortados e só ícones Material.

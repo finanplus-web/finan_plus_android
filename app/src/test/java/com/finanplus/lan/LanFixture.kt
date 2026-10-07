@@ -95,7 +95,8 @@ class LanFixture(config: LanConfig = LanConfig(httpPort = nextPort(), httpsPort 
     }
 
     companion object {
-        private val port = java.util.concurrent.atomic.AtomicInteger(19000 + (ProcessHandle.current().pid() % 500).toInt() * 20)
+        // base aleatória: execuções em paralelo não disputam as mesmas portas (os testes rodam com o android.jar, sem ProcessHandle)
+        private val port = java.util.concurrent.atomic.AtomicInteger(19000 + java.util.Random().nextInt(500) * 40)
         fun nextPort(): Int = port.getAndAdd(11)
     }
 }

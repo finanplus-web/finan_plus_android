@@ -32,13 +32,13 @@ data class LanUi(
     val message: String? = null,
 )
 
-/** Ponto de entrada do recurso "Acesso pela rede (beta)": estado para a tela e comandos. */
+/** Ponto de entrada do recurso "Acesso pela rede": estado para a tela e comandos. */
 object Lan {
     private val _ui = MutableStateFlow(LanUi())
     val ui: StateFlow<LanUi> = _ui
 
     /**
-     * Parâmetros do build beta (propriedade Gradle `finanLan`, ver [LanConfig]). Inválidos = erro na
+     * Parâmetros do build (propriedade Gradle `finanLan`, ver [LanConfig]). Inválidos = erro na
      * partida do servidor (com mensagem na tela), nunca valores ajustados em silêncio.
      */
     val config: LanConfig by lazy { LanConfig.parse(BuildConfig.LAN_CONFIG) }

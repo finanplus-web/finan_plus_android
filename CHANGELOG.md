@@ -1,17 +1,15 @@
 # Changelog
 
-## Não publicado — beta "Acesso pela rede" (build `beta`, não vai para o F-Droid nem para as Releases)
+## 1.2.0 — Acesso pela rede (07/10/2026)
 
-Recurso novo, só no build `beta` (instala ao lado do app, com outro id). **Não muda o app do F-Droid:**
-os builds debug e release continuam sem permissão de internet e com o recurso desligado.
+Recurso novo, opcional e desligado por padrão: **usar o Finan+ pelo navegador de outro aparelho na mesma rede Wi-Fi**, com os dados continuando só no celular.
 
-- O celular serve o Finan+ web completo para o navegador de outro aparelho na mesma rede Wi-Fi, com
-  HTTPS por uma autoridade (CA) própria do celular (chave no Android Keystore, válida só para IPs
-  privados), pareamento por código + "Permitir" no celular, e os dados continuando só no celular.
-- Auditoria de segurança, resiliência e arquitetura aplicada antes da publicação: `AUDITORIA-LAN.md`.
-- Como usar, instalar o certificado e configurar: `BETA-LAN.md`.
+- **Ajustes › Acesso pela rede:** o celular serve o Finan+ web completo (mesma interface do PWA) para o computador ou tablet. Mudanças feitas em um aparecem no outro; o tema acompanha o do celular.
+- **HTTPS de verdade, sem aviso no navegador:** o celular gera uma autoridade (CA) própria, com a chave guardada no Android Keystore (não sai do aparelho) e válida só para IPs de rede local. Basta instalar o certificado uma vez no computador.
+- **Entrada protegida:** código de 6 dígitos + confirmação "Permitir" no celular para cada aparelho novo; bloqueio após tentativas erradas; aparelhos podem ser desconectados a qualquer momento. O servidor desliga sozinho após 10 minutos sem uso.
+- **Permissões novas:** internet e estado da rede (só para atender aparelhos da rede local; o app não acessa nenhum servidor externo) e serviço em primeiro plano (a notificação mostra que o acesso está ligado).
+- Auditoria de segurança, resiliência e arquitetura antes da publicação: `AUDITORIA-LAN.md`. Como usar e configurar: `ACESSO-PELA-REDE.md`. 30 testes novos em JVM.
 - `Theme.kt`: `paletteFor()` (a escolha de cores de cada tema, fora do Compose); comportamento igual.
-- CI: compila também o build beta. 30 testes novos em JVM.
 
 ## 1.1.3 — APK assinado também no GitHub (07/10/2026)
 

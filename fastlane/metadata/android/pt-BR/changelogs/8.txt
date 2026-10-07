@@ -1,0 +1,1 @@
+Novo: Acesso pela rede (opcional, em Ajustes). Use o Finan+ no navegador do computador, na mesma rede Wi-Fi, com os dados continuando no celular. Conexão HTTPS com certificado do próprio celular, código de 6 dígitos e confirmação no celular. Desliga sozinho após 10 min sem uso. Por isso o app passa a ter permissão de rede; ele não se conecta à internet.

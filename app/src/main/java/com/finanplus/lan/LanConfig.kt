@@ -8,7 +8,7 @@ package com.finanplus.lan
  * tempo de execução (CA no Android Keystore, tokens só em memória) e nunca ficam no código nem no build.
  *
  * Os valores padrão são os de produção. Podem ser trocados sem mexer no código:
- *  - no app (build beta): propriedade Gradle `finanLan` (ou variável de ambiente `ORG_GRADLE_PROJECT_finanLan`),
+ *  - no app: propriedade Gradle `finanLan` (ou variável de ambiente `ORG_GRADLE_PROJECT_finanLan`),
  *    ex.: `httpsPort=9443;idleMinutes=5` → BuildConfig.LAN_CONFIG → [parse];
  *  - na JVM (testes, ferramentas): variáveis de ambiente `FINAN_LAN_*` → [fromEnv].
  * Valores fora dos limites são recusados (exceção na partida), nunca ajustados em silêncio.

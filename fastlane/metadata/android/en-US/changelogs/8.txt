@@ -1,0 +1,1 @@
+New: Network access (optional, in Settings). Use Finan+ in your computer's browser on the same Wi-Fi, with the data staying on the phone. HTTPS with the phone's own certificate, a 6-digit code and confirmation on the phone. Turns itself off after 10 min of inactivity. This is why the app now has network permission; it never connects to the internet.

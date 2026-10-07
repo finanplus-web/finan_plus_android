@@ -64,7 +64,7 @@ object Fin { val c: Palette @Composable get() = LocalPalette.current }
 fun resolvePalette(theme: ThemeId): Palette = paletteFor(theme, LocalContext.current, isSystemInDarkTheme())
 
 /**
- * Escolha das cores de cada tema, fora do Compose. Usada pelo app e pelo acesso pela rede (beta),
+ * Escolha das cores de cada tema, fora do Compose. Usada pelo app e pelo acesso pela rede,
  * para o navegador mostrar exatamente as mesmas cores do celular.
  */
 fun paletteFor(theme: ThemeId, ctx: Context, dark: Boolean): Palette = when (theme) {

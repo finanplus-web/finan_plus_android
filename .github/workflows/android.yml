@@ -45,7 +45,7 @@ jobs:
         run: |
           set -o pipefail
           # erros de compilação e de teste também como avisos da execução (visíveis sem abrir o log)
-          ./gradlew --no-daemon testDebugUnitTest assembleDebug assembleRelease assembleBeta 2>&1 | tee gradle.log || {
+          ./gradlew --no-daemon testDebugUnitTest assembleDebug assembleRelease 2>&1 | tee gradle.log || {
             grep -E "^e: |What went wrong|> .*FAILED|Could not resolve|Exception|expected:" gradle.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done
             exit 1; }
 

@@ -1,6 +1,6 @@
-# Auditoria · Acesso pela rede (beta) — 07/10/2026
+# Auditoria · Acesso pela rede — 07/10/2026
 
-Escopo: o recurso **Acesso pela rede** do Finan+ Android (pacote `com.finanplus.lan`, build `beta`)
+Escopo: o recurso **Acesso pela rede** do Finan+ Android (pacote `com.finanplus.lan`; publicado na 1.2.0)
 e o **modo remoto** do Finan+ web (`js/remote.js` e os pontos de integração em `js/app.js`).
 Código escrito com auxílio de IA nas betas 1–4; esta auditoria trata esse código como legado.
 
@@ -126,4 +126,4 @@ O código está no repositório (este PR). Requisitos:
 | Navegador real (Chromium) | — | instalação → HTTPS automático, conectar → permitir, gravar nos dois sentidos, tema, conflito, nada gravado no navegador; PWA normal intacto |
 
 Não testado aqui (precisa do aparelho): Keystore, notificações, janela "Permitir", Ajustes. O CI do
-PR compila o build beta e roda os testes em JVM.
+CI compila o app e roda os testes em JVM a cada envio.

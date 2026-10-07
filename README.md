@@ -1,13 +1,14 @@
-# Finan+ para Android — v1.1.3
+# Finan+ para Android — v1.2.0
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
-Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados criptografados no aparelho, widget de saldo, notificações de vencimento, desbloqueio por PIN e digital, assistente que funciona sem internet, relatório em PDF e backup compatível com as outras versões.
+Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados criptografados no aparelho, widget de saldo, notificações de vencimento, desbloqueio por PIN e digital, assistente que funciona sem internet, relatório em PDF, backup compatível com as outras versões e **acesso pela rede local** (usar o Finan+ no navegador do computador, com os dados no celular).
 
 **Baixar:** pelo F-Droid (envio em andamento, ver [Publicar no F-Droid](#publicar-no-f-droid)) ou [APK assinado no GitHub](../../releases/latest) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
 
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
+- Acesso pela rede (uso, certificado, segurança): [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) · auditoria: [AUDITORIA-LAN.md](AUDITORIA-LAN.md)
 - Auditoria de outubro de 2026 e o que foi corrigido: [docs/AUDITORIA-2026-10.md](docs/AUDITORIA-2026-10.md)
 
 ## Como abrir e gerar o app
@@ -38,6 +39,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 | Ajustes | 6 temas (Sistema, Claro, Material You com cores do papel de parede no Android 12+, OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |
 | Relatório em PDF | Qualquer período (atalhos ou datas): resumo com comparação ao período anterior, gastos por categoria (gráfico e tabela com limites), evolução mensal, maiores despesas, contas, metas e lista de lançamentos, com páginas numeradas. Em *Relatórios* ou *Ajustes › Dados* |
 | Assistente | No aparelho, sem internet: sugestão de categoria pela descrição, resumo do mês, dicas (duplicados, aumento de preço, ritmo do limite, acima da média, pequenos gastos, gastos fixos) e perguntas rápidas. Cada resultado tem “Por quê?”. Detalhes em [ASSISTENTE.md](ASSISTENTE.md) |
+| Acesso pela rede | Opcional, em *Ajustes › Acesso pela rede*: o celular serve o Finan+ web completo para o navegador de outro aparelho **na mesma rede Wi-Fi**, por HTTPS com certificado próprio do celular. Código de 6 dígitos + "Permitir" no celular. Os dados continuam só no celular. Detalhes em [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) |
 | Widget | Saldo atual, previsto e próximo vencimento. Respeita "Ocultar valores" e a opção "Mostrar valores no widget" |
 | Notificações | Uma vez por dia (~9h): contas atrasadas ou vencendo, valores a receber e faturas a vencer. Com PIN, digital ou "Ocultar valores", mostra só "N lançamentos pedem atenção" |
 
@@ -51,6 +53,8 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 - **Backup do Android desativado** (`allowBackup=false`): a chave do Keystore não pode ser restaurada em outro aparelho. A cópia de segurança é o **Backup JSON** feito pelo usuário.
 - **Dados danificados**: se o arquivo não puder ser aberto, uma cópia (ainda cifrada) é guardada e nada é gravado por cima até o usuário decidir. Cada gravação guarda a versão anterior (`.bak`), usada se a atual não abrir. Um erro passageiro do Keystore oferece "Tentar de novo" em vez de tratar os dados como perdidos.
 - **Notificações e widget discretos**: com PIN ou digital, a notificação não mostra títulos nem valores, e o widget oculta os valores por padrão.
+
+- **Rede**: o app só abre uma porta quando você liga o *Acesso pela rede* em Ajustes, e só no IP privado do Wi-Fi. Não há nenhum servidor externo: o app não envia dados para a internet. HTTPS com uma autoridade (CA) do próprio celular, com chave no Keystore e válida só para IPs privados; cada navegador precisa do código e da sua permissão no celular. Desliga sozinho após 10 min sem uso. Ver [AUDITORIA-LAN.md](AUDITORIA-LAN.md).
 
 **Decisão de projeto:** a chave de dados *não* exige biometria a cada uso. Se exigisse, o widget e as notificações não conseguiriam ler os dados em segundo plano. A proteção contra quem está com o aparelho desbloqueado na mão é o PIN/biometria do app. A proteção contra cópia do arquivo, backups e leitura fora do app é a criptografia com chave no Keystore.
 
@@ -131,6 +135,7 @@ app/src/main/java/com/finanplus/
   security/    PIN (PBKDF2) e AppLock (bloqueio)
   notify/      canal, agendamento diário (WorkManager) e notificações
   widget/      widget de saldo (Glance)
+  lan/         acesso pela rede: servidor HTTPS local, pareamento, certificados (ver ACESSO-PELA-REDE.md)
   ui/          Compose: tema, componentes, telas e editores
 app/src/test/  testes das regras de negócio
 .github/       compilação, testes e APK assinado no GitHub (GitHub Actions)

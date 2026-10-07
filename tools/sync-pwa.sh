@@ -2,14 +2,14 @@
 # Finan+ — Copyright (C) 2026 Juscelino Be
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Copia o Finan+ web (PWA) para dentro do app Android, para o "Acesso pela rede (beta)".
+# Copia o Finan+ web (PWA) para dentro do app Android, para o "Acesso pela rede".
 # O navegador do computador abre exatamente esta versão do PWA, servida pelo celular.
 #
 # Uso: tools/sync-pwa.sh ../finan_plus        (pasta do repositório do PWA)
 # Antes, no PWA: npm install && npm run build   (gera js/app.bundle.js)
 set -eu
 PWA="${1:?informe a pasta do repositório do PWA (ex.: ../finan_plus)}"
-DEST="$(dirname "$0")/../app/src/beta/assets/lan/pwa"
+DEST="$(dirname "$0")/../app/src/main/assets/lan/pwa"
 [ -f "$PWA/js/app.bundle.js" ] || { echo "Falta $PWA/js/app.bundle.js: rode 'npm run build' no PWA."; exit 1; }
 grep -q "finanplus-remote" "$PWA/js/app.bundle.js" || { echo "Este PWA não tem o modo remoto (js/remote.js)."; exit 1; }
 rm -rf "$DEST"

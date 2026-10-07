@@ -1,58 +1,46 @@
-# Finan+ Beta · Acesso pela rede (servidor local)
+# Finan+ · Acesso pela rede (servidor local)
 
-> Versão de teste, **não publicada**. Não faça push deste código para o GitHub enquanto o beta estiver em teste.
+Desde a versão **1.2.0**. Opcional e desligado até você ligar em **Ajustes › Acesso pela rede**.
 
-Liga um pequeno servidor no celular para registrar lançamentos e exportar dados pelo navegador de
-outro aparelho (computador, tablet) **na mesma rede Wi-Fi**. Os dados continuam só no celular: o
+Liga um pequeno servidor no celular para usar o **Finan+ web (PWA) completo** — início, lançamentos,
+relatórios, assistente, metas, contas, cartões, recorrências, limites, PDF, CSV, backup — no navegador
+de outro aparelho (computador, tablet) **na mesma rede Wi-Fi**. Os dados continuam só no celular: o
 navegador lê e grava por ele, enquanto o servidor estiver ligado.
 
-Desde a versão 2 do beta, a conexão é **HTTPS** com uma **autoridade certificadora (CA) própria do
-celular**, e cada aparelho novo precisa do **código** e da sua **permissão no celular**.
-Desde a versão 3, o celular mostra **um endereço só** e o navegador usa **o mesmo tema do app**.
-Desde a versão 4, o navegador abre o **Finan+ web (PWA) completo** — início, lançamentos, relatórios,
-assistente, metas, contas, cartões, recorrências, limites, PDF, CSV, backup — lendo e gravando **no celular**.
+A conexão é **HTTPS** com uma **autoridade certificadora (CA) própria do celular**; cada aparelho novo
+precisa do **código** e da sua **permissão no celular**. O celular mostra **um endereço só** e o
+navegador usa **o mesmo tema do app**.
 
 ---
 
 ## Índice
 
-1. [Gerar e instalar o beta](#1-gerar-e-instalar-o-beta)
+1. [Instalar](#1-instalar)
 2. [Primeiro uso, passo a passo](#2-primeiro-uso-passo-a-passo)
 3. [Instalar o certificado no computador](#3-instalar-o-certificado-no-computador)
 4. [Como a segurança funciona](#4-como-a-segurança-funciona)
 5. [O que fica no celular](#5-o-que-fica-no-celular)
-6. [Permissões](#6-permissões-só-no-build-beta)
+6. [Permissões](#6-permissões)
 7. [Arquivos do projeto](#7-arquivos-do-projeto)
 8. [API](#8-api)
 9. [Testes](#9-testes)
 10. [Limitações conhecidas](#10-limitações-conhecidas)
-11. [Histórico do beta](#11-histórico-do-beta)
+11. [Histórico](#11-histórico)
 
 ---
 
-## 1. Gerar e instalar o beta
+## 1. Instalar
 
-No Debian (ou qualquer Linux) com JDK 17 e o Android SDK:
+Faz parte do app normal a partir da **1.2.0**: pelo F-Droid ou pelo
+[APK assinado no GitHub](https://github.com/finanplus-web/finan_plus_android/releases/latest).
+Nada a configurar: o recurso fica desligado até você ligar.
 
-```bash
-unzip finan_plus_android-beta-lan.zip
-cd finan_plus_android
-echo "sdk.dir=$HOME/Android/Sdk" > local.properties   # ou exporte ANDROID_HOME
-./gradlew assembleBeta
-adb install -r app/build/outputs/apk/beta/app-beta.apk
-```
-
-No Android Studio: **Build › Select Build Variant › beta** e **Run ▶**.
-
-- O APK sai assinado com a **chave de debug** desta máquina (`~/.android/debug.keystore`, criada sozinha).
-  Compilando em outro computador, a chave muda: desinstale o beta antes de instalar de novo.
-- Instala **ao lado** do app normal: nome **Finan+ Beta**, id `com.finanplus.beta`, dados separados.
-  Ele começa vazio; para testar com seus dados, faça **Backup JSON** no app normal e **Restaurar** no beta.
-- Não interfere no Finan+ do F-Droid (outro id, outra assinatura).
+Para compilar: `./gradlew assembleRelease` (ou **Run ▶** no Android Studio). Parâmetros opcionais
+na seção [8b](#8b-configuração-sem-segredos).
 
 ## 2. Primeiro uso, passo a passo
 
-1. **Celular:** Ajustes › **Acesso pela rede (beta)** › **Iniciar servidor**.
+1. **Celular:** Ajustes › **Acesso pela rede** › **Iniciar servidor**.
    Na primeira vez o celular cria a CA (leva alguns segundos).
 2. **Computador:** abra no navegador o **único endereço** mostrado no celular (ex.: `http://192.168.0.12:8090`).
    - **Primeira vez neste navegador:** a página mostra *“Primeiro acesso neste computador”* com o passo a
@@ -78,7 +66,7 @@ Também funciona com o **roteador (hotspot) do celular** ligado: o outro aparelh
 
 Feito **uma vez por computador/navegador**. A página `http://<ip>:8090` traz este passo a passo,
 com a impressão digital e os botões de download. Também dá para pegar o arquivo pelo próprio
-celular: **Ajustes › Acesso pela rede (beta) › Salvar certificado** (e levar por cabo/pendrive, sem rede).
+celular: **Ajustes › Acesso pela rede › Salvar certificado** (e levar por cabo/pendrive, sem rede).
 
 **Sempre confira a impressão digital SHA-256** mostrada no celular antes de confiar. A página de
 instalação chega sem criptografia; o celular é a fonte confiável.
@@ -210,7 +198,7 @@ Em Ajustes aparecem os **aparelhos conectados**, cada um com **Desconectar**. Li
 | Site malicioso aberto no computador | **Protegido**: Host/Origin conferidos, sem CORS |
 | Alguém trocar o `.crt` na página de instalação (HTTP) | **Mitigado**: confira a impressão digital no celular, ou use *Salvar certificado* e leve por cabo |
 | CA do celular usada para falsificar sites | **Bloqueado** pelas *Name Constraints* (só IPs privados e `.invalid`) |
-| Celular roubado | Fora do escopo do beta: o servidor só liga pelo app (que tem PIN/digital, se ativado) |
+| Celular roubado | Fora do escopo deste recurso: o servidor só liga pelo app (que tem PIN/digital, se ativado) |
 | Computador já comprometido (vírus) | **Não protegido**: quem controla o navegador vê o que você vê |
 
 ## 5. O que fica no celular
@@ -222,12 +210,14 @@ Em Ajustes aparecem os **aparelhos conectados**, cada um com **Desconectar**. Li
 | Certificado e chave do servidor | só memória | parar o servidor |
 | Tokens dos aparelhos (hash) | só memória | parar o servidor, *Desconectar* |
 
-## 6. Permissões (só no build beta)
+## 6. Permissões
 
-`INTERNET`, `ACCESS_NETWORK_STATE`, `FOREGROUND_SERVICE` e `FOREGROUND_SERVICE_SPECIAL_USE`,
-declaradas em `app/src/beta/AndroidManifest.xml`. Os builds **debug** e **release** (F-Droid) não
-mudam: continuam sem permissão de internet, e o código do servidor fica inativo
-(`BuildConfig.LAN_BETA = false`, removido pelo R8 no release).
+`INTERNET`, `ACCESS_NETWORK_STATE`, `FOREGROUND_SERVICE` e `FOREGROUND_SERVICE_SPECIAL_USE`, a partir da
+1.2.0, **só para este recurso**: abrir uma porta no IP privado do Wi-Fi, descobrir esse IP e manter o
+servidor num serviço em primeiro plano. Até a 1.1.3 o app não tinha permissão de rede.
+
+O app **não se conecta à internet**: não existe servidor externo, nenhuma requisição sai do celular.
+A porta só abre quando você liga o recurso, e fecha ao parar ou após 10 min sem uso.
 
 ## 7. Arquivos do projeto
 
@@ -245,14 +235,14 @@ mudam: continuam sem permissão de internet, e o código do servidor fica inativ
 | `app/src/main/java/com/finanplus/lan/Lan.kt` | Estado para a tela, comandos, configuração, log e descoberta do IP privado (`LocalNetwork`) |
 | `app/src/main/java/com/finanplus/lan/RepoBackend.kt` | Liga os dados do app (`Repo`) ao servidor; recusa gravar quando o app não está salvando |
 | `app/src/main/java/com/finanplus/lan/LanCompose.kt` | Seção em Ajustes e a janela “Permitir …?” |
-| `app/src/beta/assets/lan/pwa/` | Finan+ web (PWA) embutido: `index.html`, `style.css`, `js/app.bundle.js`, ícones (~750 KB, **só no APK beta**) |
-| `app/src/beta/assets/lan/setup.html` | Página de instalação do certificado, com passo a passo por navegador |
-| `tools/sync-pwa.sh` | Copia o PWA (já compilado) para `app/src/beta/assets/lan/pwa` |
+| `app/src/main/assets/lan/pwa/` | Finan+ web (PWA) embutido: `index.html`, `style.css`, `js/app.bundle.js`, ícones (~750 KB) |
+| `app/src/main/assets/lan/setup.html` | Página de instalação do certificado, com passo a passo por navegador |
+| `tools/sync-pwa.sh` | Copia o PWA (já compilado) para `app/src/main/assets/lan/pwa` |
 | `app/src/main/java/com/finanplus/ui/theme/Theme.kt` | `paletteFor()`: a escolha de cores de cada tema fora do Compose (o app e o navegador usam a mesma) |
-| `app/src/main/java/com/finanplus/ui/Root.kt` | Mostra “Permitir …?” em qualquer tela (só no beta, só desbloqueado) |
-| `app/src/main/java/com/finanplus/ui/screens/SettingsScreen.kt` | Chama a seção do beta; *Apagar tudo* também apaga a CA |
-| `app/src/beta/…` | Manifesto com as permissões e o serviço; nome “Finan+ Beta” |
-| `app/build.gradle.kts` | Build type `beta` e os campos `LAN_BETA` e `LAN_CONFIG` |
+| `app/src/main/java/com/finanplus/ui/Root.kt` | Mostra “Permitir …?” em qualquer tela (só com o app desbloqueado) |
+| `app/src/main/java/com/finanplus/ui/screens/SettingsScreen.kt` | Chama a seção *Acesso pela rede*; *Apagar tudo* também apaga a CA |
+| `app/src/main/AndroidManifest.xml` | Permissões de rede e o serviço `LanService` |
+| `app/build.gradle.kts` | Campo `LAN_CONFIG` (parâmetros opcionais do build) |
 | `app/src/test/java/com/finanplus/lan/*Test.kt` | 30 testes (pareamento, segurança, modo remoto, certificados) e `LanFixture` (servidor real em 127.0.0.1) |
 | `AUDITORIA-LAN.md` | Auditoria de segurança, resiliência e arquitetura deste recurso |
 
@@ -285,8 +275,8 @@ Não há segredos a configurar: a chave da CA nasce no Android Keystore e os tok
 Os parâmetros operacionais têm padrões seguros e podem ser trocados **no build**, sem mexer no código:
 
 ```bash
-./gradlew assembleBeta -PfinanLan="httpsPort=9443;httpPort=9090;idleMinutes=5"
-# ou: ORG_GRADLE_PROJECT_finanLan="httpsPort=9443" ./gradlew assembleBeta
+./gradlew assembleRelease -PfinanLan="httpsPort=9443;httpPort=9090;idleMinutes=5"
+# ou: ORG_GRADLE_PROJECT_finanLan="httpsPort=9443" ./gradlew assembleRelease
 ```
 
 Chaves: `httpPort`, `httpsPort`, `idleMinutes`, `maxDevices`, `workers`. Valores fora dos limites
@@ -302,7 +292,7 @@ Chaves: `httpPort`, `httpsPort`, `idleMinutes`, `maxDevices`, `workers`. Valores
 endereço, token uma vez, expiração, limites), segurança (só HTTPS com a CA, Host/Origin, 11 tipos de
 requisição mal formada, *path traversal*, corpo grande só com token, conexões lentas derrubadas),
 modo remoto (versão, conflito, item inválido, celular sem salvar → 503, inatividade) e certificados
-(*Name Constraints*). O CI do PR também compila o build beta.
+(*Name Constraints*). O CI roda esses testes e compila o release a cada envio.
 
 No PWA (`npm test` no repositório do Finan+ web): 85 testes, 8 deles do modo remoto.
 
@@ -337,7 +327,14 @@ de Ajustes e as cores reais do Material You. Erros de compilação ou de uso: an
 - Se a conexão cair, a alteração aparece no navegador mas não é gravada (há aviso); ao reconectar, a
   tela volta aos dados do celular.
 
-## 11. Histórico do beta
+## 11. Histórico
+
+### 1.2.0 — publicado no app
+- Sai do build `beta` e entra no app normal (F-Droid e APK assinado no GitHub), desligado até o
+  usuário ligar. Permissões de rede no manifesto principal; textos de privacidade e do F-Droid
+  atualizados (o app passa a ter permissão de rede, mas não se conecta à internet).
+
+As versões abaixo foram betas de desenvolvimento, nunca distribuídas.
 
 ### beta 5 — auditoria (segurança, resiliência, arquitetura)
 Relatório completo em `AUDITORIA-LAN.md`. Principais mudanças:

@@ -142,8 +142,10 @@ jobs:
           ./gradlew --no-daemon assembleRelease
           rm -f "$FINAN_KEYSTORE_FILE"
           cp app/build/outputs/apk/release/app-release.apk "finan-plus_${V}.apk"
+          # o runner tem várias versões do build-tools: usa só a mais nova (o glob direto passava todas como argumentos)
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)apksigner"
           echo "Certificado de assinatura:"
-          "$ANDROID_HOME"/build-tools/*/apksigner verify --print-certs "finan-plus_${V}.apk" | grep -E "SHA-256|DN"
+          "$APKSIGNER" verify --print-certs "finan-plus_${V}.apk"
 
       - name: Notas da versão
         if: steps.chave.outputs.ok == 'true'

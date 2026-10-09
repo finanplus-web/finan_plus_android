@@ -21,7 +21,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 
 Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
-> **Importante:** o projeto foi escrito num ambiente sem acesso aos repositórios do Android. A parte de **regras de negócio** (`core/`, incluindo o assistente em `core/assist/`) foi compilada e testada lá: 78 testes passando (fora os do acesso pela rede). A interface, o widget, as notificações e a criptografia foram revisados linha a linha, mas só compilam no Android Studio ou no GitHub Actions (ver abaixo). Se a compilação mostrar algum erro, copie a mensagem (aba *Build*) e envie para correção.
+> **Importante:** o projeto foi escrito num ambiente sem acesso aos repositórios do Android. A parte de **regras de negócio** (`core/`, incluindo o assistente em `core/assist/`) foi compilada e testada lá: 83 testes passando (fora os do acesso pela rede). A interface, o widget, as notificações e a criptografia foram revisados linha a linha, mas só compilam no Android Studio ou no GitHub Actions (ver abaixo). Se a compilação mostrar algum erro, copie a mensagem (aba *Build*) e envie para correção.
 
 ### Testes
 
@@ -38,8 +38,8 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 | Área | Recursos |
 |---|---|
 | Navegação | Barra inferior com Início, Lançamentos, Relatórios e Ajustes. Também dá para **deslizar para o lado** e passar à aba vizinha |
-| Início | Saldo atual (inclui saldo inicial das contas), saldo previsto no fim do mês, receitas/despesas do mês, contas e cartões com fatura atual e "Pagar fatura", limites do mês, metas com plano |
-| Lançamentos | **Lista**: período com atalhos (este mês, 30 dias, tudo), busca, filtros de tipo e situação, comparação receitas × despesas, marcar como pago. **Calendário**: o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, atrasos em destaque, totais do mês, lançamentos do dia escolhido, saldo previsto ao fim do dia e Receita/Despesa já com a data (ou tocar de novo no dia). Detalhes em [CALENDARIO.md](CALENDARIO.md) |
+| Início | Saldo atual (inclui saldo inicial das contas), saldo previsto no fim do mês, receitas/despesas do mês com o que falta receber e pagar, resumo do assistente em 2 frases, contas e cartões com fatura atual e "Pagar fatura", limites do mês e metas com plano (cada seção aparece quando existe algo; antes disso, um atalho em "Comece por aqui") |
+| Lançamentos | **Lista**: ‹ mês › com período livre e situação no botão de ajuste, busca, filtros de um toque (Todos, Receitas, Despesas, Pendentes), resumo do período com o que falta receber e pagar, lançamentos agrupados por dia com o saldo de cada dia, marcar como pago. **Calendário**: o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, atrasos em destaque, totais do mês, lançamentos do dia escolhido, saldo previsto ao fim do dia e Receita/Despesa já com a data (ou tocar de novo no dia). Detalhes em [CALENDARIO.md](CALENDARIO.md) |
 | Relatórios | Despesas por categoria (com limites), últimos 6 meses (com descrição para leitores de tela), este mês × anterior |
 | Editores | Lançamento (parcelas com divisão do total, repetir mensalmente, cartão), meta, conta, cartão, recorrência (com início, pausa e edição), limite, pagamento de fatura |
 | Ajustes | 6 temas (Sistema, Claro, Material You com cores do papel de parede no Android 12+, OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |

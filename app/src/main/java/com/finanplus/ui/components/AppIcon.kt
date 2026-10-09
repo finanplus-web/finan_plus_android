@@ -46,6 +46,8 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0) {
     LIST(R.drawable.ms_view_list),
     PREV(R.drawable.ms_chevron_left),
     NEXT(R.drawable.ms_chevron_right),
+    SEARCH(R.drawable.ms_search),
+    TUNE(R.drawable.ms_tune),
 
     // categorias
     FOOD(R.drawable.ms_shopping_cart),

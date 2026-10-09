@@ -37,7 +37,12 @@ data class Insight(
     val to: LocalDate? = null,
 )
 
-data class MonthReport(val title: String, val lines: List<String>, val why: String)
+/**
+ * Resumo do mês. [highlights]: as até 2 frases mais úteis para o cartão do Início, nesta ordem de prioridade:
+ * contas em atraso, contas a pagar, quanto já gastou, quanto falta receber, quanto entrou.
+ * "Ainda não há despesas" e o fechamento do mês anterior ficam só no resumo completo.
+ */
+data class MonthReport(val title: String, val lines: List<String>, val why: String, val highlights: List<String> = lines.take(2))
 
 /**
  * Resumo do mês e dicas de economia. Tudo é cálculo sobre os lançamentos (nada é "inventado"):
@@ -78,6 +83,8 @@ object Insights {
         val curInc = s.txs.filter { it.kind == Kind.INCOME && it.paid && inMonthUntil(it, ym, day) }
         val spent = sum(curExp); val before = sum(prevExp); val income = sum(curInc)
         val lines = ArrayList<String>()
+        var spentLine: String? = null; var incomeLine: String? = null; var pendingLine: String? = null
+        var receiveLine: String? = null; var lateLine: String? = null
 
         if (spent == 0L) lines.add("Ainda não há despesas realizadas em ${Br.month(ym)}.")
         else {
@@ -90,21 +97,31 @@ object Insights {
                     else -> " São ${Br.pct(c)} a menos que no mesmo período de ${Br.month(prev)} (${money(before)})."
                 }
             }
-            lines.add(l)
+            lines.add(l); spentLine = l
         }
-        if (income > 0) lines.add(
-            if (income >= spent) "Entraram ${money(income)}; sobram ${money(income - spent)} até agora."
+        if (income > 0) {
+            incomeLine = if (income >= spent) "Entraram ${money(income)}; sobram ${money(income - spent)} até agora."
             else "Entraram ${money(income)}; as despesas já passam as receitas em ${money(spent - income)}."
-        )
+            lines.add(incomeLine)
+        }
         curExp.groupBy { it.category }.mapValues { sum(it.value) }.maxByOrNull { it.value }?.let { (cat, v) ->
             if (spent > 0) lines.add("A maior categoria é $cat: ${money(v)} (${Br.pct(v * 100.0 / spent)} das despesas).")
         }
         val pending = exp.filter { !it.paid && !it.isCard && it.date.ym() == ym && !it.date.isBefore(today) }
-        if (pending.isNotEmpty()) lines.add("Ainda faltam ${money(sum(pending))} em ${Br.plural(pending.size, "conta", "contas")} a pagar até o fim do mês.")
+        if (pending.isNotEmpty()) {
+            pendingLine = "Ainda faltam ${money(sum(pending))} em ${Br.plural(pending.size, "conta", "contas")} a pagar até o fim do mês."
+            lines.add(pendingLine)
+        }
         val toReceive = s.txs.filter { it.kind == Kind.INCOME && !it.paid && it.date.ym() == ym }
-        if (toReceive.isNotEmpty()) lines.add("A receber neste mês: ${money(sum(toReceive))} em ${Br.plural(toReceive.size, "lançamento", "lançamentos")}.")
+        if (toReceive.isNotEmpty()) {
+            receiveLine = "A receber neste mês: ${money(sum(toReceive))} em ${Br.plural(toReceive.size, "lançamento", "lançamentos")}."
+            lines.add(receiveLine)
+        }
         val late = exp.filter { !it.paid && !it.isCard && it.date.isBefore(today) }
-        if (late.isNotEmpty()) lines.add("${Br.plural(late.size, "conta está", "contas estão")} em atraso (${money(sum(late))}).")
+        if (late.isNotEmpty()) {
+            lateLine = "${Br.plural(late.size, "conta está", "contas estão")} em atraso (${money(sum(late))})."
+            lines.add(lateLine)
+        }
         if (day <= 7) {
             val pe = sum(exp.filter { it.paid && it.date.ym() == prev })
             val pi = sum(s.txs.filter { it.kind == Kind.INCOME && it.paid && it.date.ym() == prev })
@@ -115,6 +132,7 @@ object Insights {
             lines,
             "Considera só lançamentos realizados (pagos ou recebidos) até hoje. Compras no cartão contam na data da compra; " +
                 "pagamentos de fatura não contam como despesa nova. A comparação usa os mesmos dias (1 a $day) do mês anterior, para ser justa.",
+            listOfNotNull(lateLine, pendingLine, spentLine, receiveLine, incomeLine).take(2),
         )
     }
 

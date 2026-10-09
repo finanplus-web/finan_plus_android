@@ -40,7 +40,16 @@ Testes: `app/src/test/java/com/finanplus/core/assist/AssistTest.kt`.
 
 ## 2. Resumo do mês
 
-**Onde aparece:** cartão "✦ Assistente" no Início e na folha do assistente.
+**Onde aparece:** completo na folha do assistente; no Início, só as **2 frases mais úteis** (desde a 1.3.0).
+
+**Quais frases vão para o Início** (`MonthReport.highlights`), nesta ordem de prioridade, pegando as 2 primeiras que existirem:
+1. contas em atraso;
+2. contas a pagar até o fim do mês;
+3. quanto já gastou no mês (com a comparação);
+4. quanto falta receber no mês;
+5. quanto entrou e quanto sobra.
+
+"Ainda não há despesas realizadas" e o fechamento do mês anterior ficam só no resumo completo. Se nenhuma das cinco existir, o Início mostra a primeira frase do resumo.
 
 Mostra, quando houver dados:
 - quanto foi gasto no mês até hoje, comparado com **os mesmos dias** do mês anterior (dia 1 ao dia de hoje), para a comparação ser justa;
@@ -55,7 +64,7 @@ Convenções (as mesmas dos Relatórios): conta só o que foi **realizado** (pag
 
 ## 3. Dicas de economia
 
-Aparecem só quando há algo fora do padrão. As duas mais importantes ficam no Início e todas ficam na folha do assistente. Cada dica pode ser **dispensada** (e restaurada depois) e, quando faz sentido, tem **"Ver lançamentos"**, que abre a lista já filtrada.
+Aparecem só quando há algo fora do padrão. A mais importante fica no Início (o link vira "Ver as N dicas" quando há mais de uma) e todas ficam na folha do assistente. Quando não há dica, o Início não mostra aviso nenhum. Cada dica pode ser **dispensada** (e restaurada depois) e, quando faz sentido, tem **"Ver lançamentos"**, que abre a lista já filtrada.
 
 | Dica | Regra exata | Limites (em `Insights.kt`) |
 |---|---|---|
@@ -73,7 +82,7 @@ As dicas dispensadas ficam só neste aparelho, nas configurações locais (não 
 
 ## 4. Perguntas rápidas
 
-**Onde:** folha do assistente ("Perguntar" no cartão do Início).
+**Onde:** folha do assistente ("Abrir assistente" no cartão do Início; com as dicas desligadas em Ajustes, o link do Início vira "Perguntar").
 
 É um **interpretador de palavras-chave em português**, não um chatbot. Toda resposta mostra uma linha **"Como entendi"**, com a intenção, o período e os filtros usados, para o usuário conferir.
 

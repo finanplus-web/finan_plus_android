@@ -15,6 +15,35 @@ Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da
 - **Privacidade e acessibilidade:** com "Ocultar valores" ficam só os pontinhos. O TalkBack lê cada dia como frase completa ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso"), sem valores quando estão ocultos. Alvos de toque de 48dp ou mais; o valor do dia nunca é cortado com "…".
 - **Dados:** nada mudou no modelo nem no formato do backup.
 
+**Também nesta versão — Início e Lista mais enxutos.** As duas telas tinham muita coisa repetida e cartões vazios ocupando espaço; agora o principal aparece logo de cara.
+
+*Início:*
+- **Topo:** saiu a engrenagem (a aba Ajustes faz o mesmo). Fica o nome, a data ("Quinta, 8 de outubro") e o selo "Privado".
+- **Saldo:** embaixo de Receitas e Despesas do mês aparece o que ainda falta, "a receber" e "a pagar" (contas pendentes fora do cartão e faturas em aberto que vencem no mês), para o R$ 0,00 não esconder o que vem. A barra de uso das receitas só aparece quando já entrou alguma receita.
+- **Botões Receita, Despesa e Meta:** saíram. O **+** da barra inferior faz o mesmo em qualquer aba, e o calendário tem Receita/Despesa no dia.
+- **Assistente:** cartão compacto, com as 2 frases mais úteis do mês, a dica principal (se houver) e um link só ("Abrir assistente" ou "Ver as N dicas"). O resumo completo, o "Por quê?" e as perguntas ficam na folha do assistente. Regra das frases em [ASSISTENTE.md](ASSISTENTE.md).
+- **Seções:** um título só em cada uma ("Contas e cartões", sem "Patrimônio"). Com uma conta só e nenhum cartão, ela ocupa a linha inteira.
+- **Limites e Metas:** cada seção só aparece quando existe algo, com "Novo"/"Nova" no título. Antes disso, o cartão **"Comece por aqui"** tem os atalhos "Definir um limite mensal" e "Criar uma meta"; cada linha some quando deixa de fazer sentido.
+
+*Lançamentos › Lista:*
+- **Período:** o cartão "De/Até" com três botões virou **‹ Outubro de 2026 ›**: as setas andam um mês inteiro. O botão de ajuste ao lado abre **Período e filtros** (datas livres, Este mês, 30 dias, Tudo e a situação, inclusive "Realizados"); ele fica destacado quando há período livre ou "Realizados" ligado. Um período livre aparece como "01/10/2026 a 15/10/2026".
+- **Filtros de um toque:** Todos, Receitas, Despesas e Pendentes (Receitas/Despesas combinam com Pendentes). A busca virou uma barra compacta com lupa.
+- **Resumo:** Receitas, Despesas e Saldo do período num cartão só, com "a receber", "a pagar" e o saldo "previsto" (com as pendências). A frase "As despesas são X% das receitas" continua quando há receita.
+- **Comparação Receitas × despesas:** saiu da Lista (a análise completa está em Relatórios).
+- **Lista por dia:** os lançamentos ficam agrupados por dia ("Quinta, 15 de outubro"), com o saldo do dia à direita, pela mesma regra do calendário.
+- **Título:** só "Lançamentos", sem "Movimentações" nem a frase de explicação.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Period.kt` (novo) | Título do período, setas de mês, pendências do mês e de uma lista, saldo do dia (mesma regra do calendário) |
+| `core/assist/Insights.kt` | `MonthReport.highlights`: as 2 frases do Início por prioridade |
+| `ui/screens/HomeScreen.kt` | Início enxuto (topo, saldo com pendências, seções condicionais, "Comece por aqui") |
+| `ui/screens/Assistant.kt` | Cartão compacto do assistente no Início |
+| `ui/screens/MovesScreen.kt` | Lista enxuta: barra do período, busca, filtros de um toque, resumo, grupos por dia e a folha "Período e filtros" |
+| `ui/Root.kt`, `ui/screens/Sheets.kt` | Nova folha `Sheet.MovesFilters` |
+| `ui/components/AppIcon.kt`, `res/drawable/ms_search.xml`, `ms_tune.xml` | Ícones `search` e `tune` (Material Symbols, Apache 2.0) |
+| `test/.../core/PeriodTest.kt` (novo), `assist/AssistTest.kt` | 5 testes novos; 83 no núcleo, todos passando |
+
 **Também nesta versão — trocar de aba deslizando:** deslizar o dedo para a esquerda ou para a direita passa para a aba vizinha, na ordem Início › Lançamentos › Relatórios › Ajustes (e de volta). Os botões da barra inferior continuam funcionando como antes. Com um formulário aberto, o gesto fica desligado; sobre o calendário, deslizar troca de mês; e a fileira de contas e cartões do Início rola primeiro e só passa de aba quando chega ao fim. (`ui/Root.kt`: as quatro telas ficam num `HorizontalPager` sincronizado com a barra inferior.)
 
 | Arquivo | Mudança |
@@ -31,10 +60,10 @@ Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da
 | `CALENDARIO.md` (novo), `README.md`, `fastlane/.../changelogs/9.txt` | Documentação e notas da versão |
 
 Como foi verificado:
-- **Núcleo:** compilado e os 78 testes rodados na JVM, todos passando.
+- **Núcleo:** compilado e os testes rodados na JVM, todos passando (78 com o calendário; 83 com o Início e a Lista enxutos).
 - **GitHub Actions (*Compilar e testar*), no PR #4:** compilação completa, testes, APK de teste e APK de release sem assinatura (o mesmo build do F-Droid) e conferência dos textos do F-Droid, tudo verde nos dois commits do branch.
 - **GitHub Actions (*Capturas de tela*), rodado no branch:** o app abriu com os dados de demonstração, trocou de aba e entrou no Calendário sem erro. As imagens não foram gravadas porque esse fluxo só grava na `main` (ver README › Testes); elas são gravadas no merge.
-- **No aparelho:** testado pelo autor no celular em 08/10/2026 (calendário, lançar num dia e troca de abas por gesto): funcionou bem.
+- **No aparelho:** testado pelo autor no celular em 08/10/2026 (calendário, lançar num dia e troca de abas por gesto): funcionou bem. O Início e a Lista enxutos vieram depois desse teste e ainda precisam ser testados no aparelho.
 
 ## 1.2.0 — Acesso pela rede (07/10/2026)
 

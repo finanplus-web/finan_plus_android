@@ -101,6 +101,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.PayInvoice -> PayInvoiceEditor(s, sheet.cardId, onClose)
                 is Sheet.Assistant -> AssistantSheet(s, onClose)
                 is Sheet.ReportPdf -> ReportExportSheet(s, sheet.from, sheet.to, onClose)
+                is Sheet.MovesFilters -> MovesFiltersSheet(s, onClose)
             }
         }
     }

@@ -116,6 +116,8 @@ sealed interface Sheet : java.io.Serializable {
     data object Assistant : Sheet
     /** exportar relatório em PDF (período inicial opcional) */
     data class ReportPdf(val from: java.time.LocalDate? = null, val to: java.time.LocalDate? = null) : Sheet
+    /** Lançamentos › Lista: período livre e situação (o ícone de ajuste ao lado do mês) */
+    data object MovesFilters : Sheet
 }
 
 /** Filtros da aba Lançamentos (o período também vale para Relatórios). */

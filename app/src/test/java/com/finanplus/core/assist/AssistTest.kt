@@ -143,6 +143,21 @@ class InsightsTest {
         assertTrue(r2.lines.any { it == "A receber neste mês: R$ 2.113,62 em 2 lançamentos." }, r2.lines.toString())
     }
 
+    @Test fun destaquesDoInicioPorPrioridade() {
+        // sem despesas realizadas: "Ainda não há despesas" fica de fora; contas a pagar vêm antes do que falta receber
+        val s = st(
+            ex("Aluguel", "Moradia", 700_00, "2026-10-20", paid = false), ex("Luz", "Moradia", 312_50, "2026-10-20", paid = false),
+            inc("Salário", "Salário", 1213_62, "2026-10-20", paid = false),
+        )
+        val r = Insights.report(s, today, money)
+        assertEquals(listOf("Ainda faltam R$ 1.012,50 em 2 contas a pagar até o fim do mês.", "A receber neste mês: R$ 1.213,62 em 1 lançamento."), r.highlights)
+        // conta em atraso vem primeiro
+        val late = Insights.report(st(ex("Internet", "Moradia", 119_90, "2026-10-06", paid = false), ex("Mercado", "Alimentação", 300_00, "2026-10-05")), today, money)
+        assertEquals(2, late.highlights.size)
+        assertTrue(late.highlights[0].contains("em atraso"), late.highlights.toString())
+        assertTrue(late.highlights[1].contains("você gastou R$ 300,00"), late.highlights.toString())
+    }
+
     @Test fun duplicado() {
         val s = st(ex("Padaria", "Alimentação", 12_50, "2026-10-10"), ex("padaria", "Alimentação", 12_50, "2026-10-10"), ex("Padaria", "Alimentação", 12_50, "2026-10-11"))
         val l = Insights.duplicates(s, today, money)

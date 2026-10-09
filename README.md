@@ -21,7 +21,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 
 Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
-> **Importante:** o projeto foi escrito num ambiente sem acesso aos repositórios do Android. A parte de **regras de negócio** (`core/`, incluindo o assistente em `core/assist/`) foi compilada e testada lá: 83 testes passando (fora os do acesso pela rede). A interface, o widget, as notificações e a criptografia foram revisados linha a linha, mas só compilam no Android Studio ou no GitHub Actions (ver abaixo). Se a compilação mostrar algum erro, copie a mensagem (aba *Build*) e envie para correção.
+> **Importante:** o projeto foi escrito num ambiente sem acesso aos repositórios do Android. A parte de **regras de negócio** (`core/`, incluindo o assistente em `core/assist/`) foi compilada e testada lá: 84 testes passando (fora os do acesso pela rede). A interface, o widget, as notificações e a criptografia foram revisados linha a linha, mas só compilam no Android Studio ou no GitHub Actions (ver abaixo). Se a compilação mostrar algum erro, copie a mensagem (aba *Build*) e envie para correção.
 
 ### Testes
 

@@ -60,6 +60,11 @@ object Insights {
     const val SPIKE_RATIO = 1.30
     const val SPIKE_MIN_DIFF: Cents = 50_00
     const val PACE_MIN_DAY = 7
+    /** ritmo: mínimo de despesas variáveis pagas no mês para projetar (mês inteiro / categoria com limite) */
+    const val PACE_MIN_COUNT = 5
+    const val PACE_MIN_COUNT_CAT = 3
+    /** uma despesa acima desta parte do gasto variável é "pontual": conta uma vez, não é multiplicada pelos dias */
+    const val ONE_OFF_SHARE = 0.5
     const val SUB_MIN_MONTHS = 3
     const val SUB_TOLERANCE = 0.30
     const val PRICE_UP_RATIO = 1.05
@@ -230,15 +235,33 @@ object Insights {
     }
 
     /** Projeção do mês: compromissos (recorrências, parcelas e contas agendadas) + gasto variável no ritmo diário atual. */
-    data class Projection(val committed: Cents, val variable: Cents, val projected: Cents)
+    data class Projection(val committed: Cents, val variable: Cents, val projected: Cents, val oneOff: Cents = 0, val count: Int = 0, val enough: Boolean = true)
 
-    fun project(list: List<Tx>, today: LocalDate): Projection {
+    /**
+     * Projeção das despesas até o fim do mês: compromissos (recorrências, parcelas e contas pendentes) pelo valor
+     * + gasto variável pago até hoje ÷ dias passados × dias do mês. Uma despesa que sozinha passa de metade do gasto
+     * variável é pontual: conta uma vez, sem ser multiplicada. Com menos de [minCount] despesas variáveis não há
+     * "ritmo" para projetar (enough = false) e as dicas não aparecem.
+     */
+    fun project(list: List<Tx>, today: LocalDate, minCount: Int = PACE_MIN_COUNT): Projection {
         val ym = today.ym(); val day = today.dayOfMonth; val len = ym.lengthOfMonth()
         val month = list.filter { it.date.ym() == ym }
         val committed = sum(month.filter { isFixed(it) || !it.paid })
-        val variable = sum(month.filter { !isFixed(it) && it.paid && it.date.dayOfMonth <= day })
-        return Projection(committed, variable, committed + Math.round(variable.toDouble() / day * len))
+        val vars = month.filter { !isFixed(it) && it.paid && it.date.dayOfMonth <= day }
+        val variable = sum(vars)
+        val biggest = vars.maxOfOrNull { it.value } ?: 0L
+        val oneOff = if (variable > 0 && biggest > variable * ONE_OFF_SHARE) biggest else 0L
+        val projected = committed + oneOff + Math.round((variable - oneOff).toDouble() / day * len)
+        return Projection(committed, variable, projected, oneOff, vars.size, vars.size >= minCount)
     }
+
+    /** texto do "Por quê?" com a conta da projeção */
+    fun projectionWhy(p: Projection, day: Int, len: Int, money: MoneyFmt, minCount: Int): String =
+        "Conta: compromissos do mês (recorrências, parcelas e contas agendadas) ${money(p.committed)}" +
+            (if (p.oneOff > 0) " + gasto pontual ${money(p.oneOff)} (conta uma vez) + resto do gasto variável até hoje ${money(p.variable - p.oneOff)}"
+            else " + gasto variável até hoje ${money(p.variable)}") + " ÷ $day dias × $len dias. " +
+            "Só é calculada a partir do dia $PACE_MIN_DAY e com pelo menos $minCount despesas variáveis pagas no mês."
+
 
     fun limitPace(s: AppState, today: LocalDate, money: MoneyFmt): List<Insight> {
         val ym = today.ym(); val day = today.dayOfMonth; val len = ym.lengthOfMonth()
@@ -248,16 +271,15 @@ object Insights {
             val l = exp.filter { it.category == cat }
             val used = sum(l.filter { it.date.ym() == ym })
             if (used >= lim) return@mapNotNull null // já ultrapassado: o Início já mostra
-            val p = project(l, today)
-            if (p.projected <= lim || p.projected - lim < 10_00) return@mapNotNull null
+            val p = project(l, today, PACE_MIN_COUNT_CAT)
+            if (!p.enough || p.projected <= lim || p.projected - lim < 10_00) return@mapNotNull null
             val left = len - day
             val perDay = maxOf(0L, lim - used) / left
             Insight(
                 "pace:$ym:$cat", InsightType.LIMIT_PACE, "$cat pode passar do limite",
                 "No ritmo atual, $cat deve fechar ${Br.month(ym)} em cerca de ${money(p.projected)}, acima do limite de ${money(lim)}. " +
                     "Para ficar dentro, gaste até ${money(perDay)} por dia nos $left dias restantes.",
-                "Conta: compromissos do mês (recorrências, parcelas e contas agendadas) ${money(p.committed)} + gasto variável até hoje " +
-                    "${money(p.variable)} ÷ $day dias × $len dias. Já usado: ${money(used)} de ${money(lim)}.",
+                projectionWhy(p, day, len, money, PACE_MIN_COUNT_CAT) + " Já usado: ${money(used)} de ${money(lim)}.",
                 8, query = cat, from = ym.atDay(1), to = today,
             )
         }
@@ -268,14 +290,13 @@ object Insights {
         if (day < PACE_MIN_DAY || day >= len) return null
         val income = sum(s.txs.filter { it.kind == Kind.INCOME && it.date.ym() == ym }) // inclui receitas previstas
         if (income <= 0) return null
-        val p = project(expenses(s), today)
-        if (p.projected <= income) return null
+        val p = project(expenses(s), today, PACE_MIN_COUNT)
+        if (!p.enough || p.projected <= income) return null
         return Insight(
             "over:$ym", InsightType.OVER_INCOME, "Despesas podem passar das receitas",
             "No ritmo atual, as despesas de ${Br.month(ym)} chegam a cerca de ${money(p.projected)}, acima das receitas previstas para o mês (${money(income)}). " +
                 "Diferença estimada: ${money(p.projected - income)}.",
-            "Conta: compromissos do mês ${money(p.committed)} + gasto variável até hoje ${money(p.variable)} ÷ $day dias × $len dias. " +
-                "Receitas previstas = recebidas + a receber neste mês.",
+            projectionWhy(p, day, len, money, PACE_MIN_COUNT) + " Receitas previstas = recebidas + a receber neste mês.",
             8, from = ym.atDay(1), to = today,
         )
     }

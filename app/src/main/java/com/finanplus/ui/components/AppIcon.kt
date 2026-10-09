@@ -42,6 +42,12 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0) {
     DROPDOWN(R.drawable.ms_arrow_drop_down),
     WARNING(R.drawable.ms_warning),
     SHIELD(R.drawable.ms_shield),
+    CALENDAR(R.drawable.ms_calendar_month),
+    LIST(R.drawable.ms_view_list),
+    PREV(R.drawable.ms_chevron_left),
+    NEXT(R.drawable.ms_chevron_right),
+    SEARCH(R.drawable.ms_search),
+    TUNE(R.drawable.ms_tune),
 
     // categorias
     FOOD(R.drawable.ms_shopping_cart),

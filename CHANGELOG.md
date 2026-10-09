@@ -1,5 +1,74 @@
 # Changelog
 
+## 1.3.0 — Calendário de lançamentos (08/10/2026, ainda não publicada)
+
+> **Situação:** pronta e testada, mas **não publicada**. Está no branch `calendario` ([PR #4](https://github.com/finanplus-web/finan_plus_android/pull/4)); a `main`, as Releases e o F-Droid não mudaram. Para publicar: merge do PR #4 e tag `v1.3.0`.
+
+Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).
+
+- **Cada dia** mostra o saldo do dia, abreviado para caber ("+5,2 mil", "−120"), e pontinhos de receita (verde), despesa (vermelho) e cartão (roxo). Contas pendentes com data passada e faturas vencidas ganham o ícone de alerta. Hoje tem contorno; o dia escolhido fica preenchido.
+- **Faturas no vencimento:** a fatura em aberto aparece no dia em que vence, com o valor que falta pagar. Tocar nela abre **Pagar fatura**. Compras no cartão aparecem no dia da compra, mas só contam no saldo pela fatura, para nada ser contado duas vezes.
+- **Dia escolhido:** os lançamentos do dia (tocar edita, o círculo marca como pago), o saldo do dia e, de hoje em diante, o **saldo previsto ao fim do dia**.
+- **Lançar num dia:** tocar de novo no dia escolhido ou tocar e segurar qualquer dia abre o formulário já com a data; os botões **Receita** e **Despesa** do dia abrem já no tipo certo. Numa data futura, o lançamento começa como pendente.
+- **Totais do mês:** Entradas, Saídas e Resultado, incluindo pendências e faturas.
+- **Navegação:** setas ou deslizar para o lado trocam de mês; "Voltar para hoje" fora do mês atual. A visão, o mês e o dia sobrevivem a girar a tela e ao bloqueio, e acompanham a virada do dia com o app aberto.
+- **Privacidade e acessibilidade:** com "Ocultar valores" ficam só os pontinhos. O TalkBack lê cada dia como frase completa ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso"), sem valores quando estão ocultos. Alvos de toque de 48dp ou mais; o valor do dia nunca é cortado com "…".
+- **Dados:** nada mudou no modelo nem no formato do backup.
+
+**Também nesta versão — Início e Lista mais enxutos.** As duas telas tinham muita coisa repetida e cartões vazios ocupando espaço; agora o principal aparece logo de cara.
+
+*Início:*
+- **Topo:** saiu a engrenagem (a aba Ajustes faz o mesmo). Fica o nome, a data ("Quinta, 8 de outubro") e o selo "Privado".
+- **Saldo:** embaixo de Receitas e Despesas do mês aparece o que ainda falta, "a receber" e "a pagar" (contas pendentes fora do cartão e faturas em aberto que vencem no mês), para o R$ 0,00 não esconder o que vem. A barra de uso das receitas só aparece quando já entrou alguma receita.
+- **Botões Receita, Despesa e Meta:** saíram. O **+** da barra inferior faz o mesmo em qualquer aba, e o calendário tem Receita/Despesa no dia.
+- **Assistente:** cartão compacto, com as 2 frases mais úteis do mês, a dica principal (se houver) e um link só ("Abrir assistente" ou "Ver as N dicas"). O resumo completo, o "Por quê?" e as perguntas ficam na folha do assistente. Regra das frases em [ASSISTENTE.md](ASSISTENTE.md).
+- **Seções:** um título só em cada uma ("Contas e cartões", sem "Patrimônio"). Com uma conta só e nenhum cartão, ela ocupa a linha inteira.
+- **Limites e Metas:** cada seção só aparece quando existe algo, com "Novo"/"Nova" no título. Antes disso, o cartão **"Comece por aqui"** tem os atalhos "Definir um limite mensal" e "Criar uma meta"; cada linha some quando deixa de fazer sentido.
+
+*Lançamentos › Lista:*
+- **Período:** o cartão "De/Até" com três botões virou **‹ Outubro de 2026 ›**: as setas andam um mês inteiro. O botão de ajuste ao lado abre **Período e filtros** (datas livres, Este mês, 30 dias, Tudo e a situação, inclusive "Realizados"); ele fica destacado quando há período livre ou "Realizados" ligado. Um período livre aparece como "01/10/2026 a 15/10/2026".
+- **Filtros de um toque:** Todos, Receitas, Despesas e Pendentes (Receitas/Despesas combinam com Pendentes). A busca virou uma barra compacta com lupa.
+- **Resumo:** Receitas, Despesas e Saldo do período num cartão só, com "a receber", "a pagar" e o saldo "previsto" (com as pendências). A frase "As despesas são X% das receitas" continua quando há receita.
+- **Comparação Receitas × despesas:** saiu da Lista (a análise completa está em Relatórios).
+- **Lista por dia:** os lançamentos ficam agrupados por dia ("Quinta, 15 de outubro"), com o saldo do dia à direita, pela mesma regra do calendário.
+- **Título:** só "Lançamentos", sem "Movimentações" nem a frase de explicação.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Period.kt` (novo) | Título do período, setas de mês, pendências do mês e de uma lista, saldo do dia (mesma regra do calendário) |
+| `core/assist/Insights.kt` | `MonthReport.highlights`: as 2 frases do Início por prioridade |
+| `ui/screens/HomeScreen.kt` | Início enxuto (topo, saldo com pendências, seções condicionais, "Comece por aqui") |
+| `ui/screens/Assistant.kt` | Cartão compacto do assistente no Início |
+| `ui/screens/MovesScreen.kt` | Lista enxuta: barra do período, busca, filtros de um toque, resumo, grupos por dia e a folha "Período e filtros" |
+| `ui/Root.kt`, `ui/screens/Sheets.kt` | Nova folha `Sheet.MovesFilters` |
+| `ui/components/AppIcon.kt`, `res/drawable/ms_search.xml`, `ms_tune.xml` | Ícones `search` e `tune` (Material Symbols, Apache 2.0) |
+| `test/.../core/PeriodTest.kt` (novo), `assist/AssistTest.kt` | 5 testes novos; 83 no núcleo, todos passando |
+
+**Também nesta versão — correção das dicas de ritmo do assistente.** No dia 8, com R$ 500 de receita e uma única despesa de R$ 200, o assistente avisava "Despesas podem passar das receitas" com R$ 775 previstos: a conta multiplicava aquela compra pelos dias do mês (R$ 200 ÷ 8 × 31). Agora a projeção (`Insights.project`) só é feita com **pelo menos 5 despesas variáveis pagas no mês** ("Ritmo do mês") ou **3 na categoria** ("Ritmo do limite"), e uma despesa que sozinha passa de **metade** do gasto variável é **pontual**: conta uma vez, sem ser multiplicada. O "Por quê?" mostra o gasto pontual e o mínimo. Os testes antigos de ritmo usavam uma ou duas despesas (o padrão do problema) e passaram a usar dados suficientes; um teste novo cobre o caso relatado e o gasto pontual (84 no núcleo). Mesma correção no Finan+ web 1.2.1 e no Linux 1.1.8. Regra em [ASSISTENTE.md](ASSISTENTE.md).
+
+**Também nesta versão — Acesso pela rede com o Finan+ web 1.2.0:** a cópia do PWA dentro do app (`app/src/main/assets/lan/pwa`, usada pelo navegador do computador no "Acesso pela rede") foi atualizada com `tools/sync-pwa.sh` a partir do Finan+ web 1.2.1 ([PR #4 do finan_plus](https://github.com/finanplus-web/finan_plus/pull/4)), que traz as mesmas mudanças desta versão: calendário, Início e Lista enxutos e, no celular, deslizar para trocar de aba.
+
+**Também nesta versão — trocar de aba deslizando:** deslizar o dedo para a esquerda ou para a direita passa para a aba vizinha, na ordem Início › Lançamentos › Relatórios › Ajustes (e de volta). Os botões da barra inferior continuam funcionando como antes. Com um formulário aberto, o gesto fica desligado; sobre o calendário, deslizar troca de mês; e a fileira de contas e cartões do Início rola primeiro e só passa de aba quando chega ao fim. (`ui/Root.kt`: as quatro telas ficam num `HorizontalPager` sincronizado com a barra inferior.)
+
+| Arquivo | Mudança |
+|---|---|
+| `core/MonthCalendar.kt` (novo) | Regras do calendário, sem Android (grade, dias, faturas, atrasos, totais, valor abreviado, textos) |
+| `ui/screens/CalendarView.kt` (novo) | Desenho do calendário em Compose |
+| `ui/screens/MovesScreen.kt` | Chave Lista/Calendário e visão Calendário |
+| `ui/Root.kt` | `MovesView`, mês e dia do calendário na navegação; `Sheet.TxEdit(date)`; virada do dia; abas num `HorizontalPager` (deslizar troca de aba) |
+| `ui/screens/Sheets.kt` | Editor usa a data recebida; data futura começa pendente |
+| `ui/components/AppIcon.kt`, `res/drawable/ms_*.xml` | Ícones `calendar_month`, `view_list`, `chevron_left`, `chevron_right` (Material Symbols, Apache 2.0) |
+| `test/.../core/CalendarTest.kt` (novo) | 7 testes; 78 no total no núcleo, todos passando |
+| `test/.../screenshots/ScreenshotTest.kt` | Nova captura `calendario.png` |
+| `app/build.gradle.kts` | versionCode 9, versionName 1.3.0 |
+| `CALENDARIO.md` (novo), `README.md`, `fastlane/.../changelogs/9.txt` | Documentação e notas da versão |
+
+Como foi verificado:
+- **Núcleo:** compilado e os testes rodados na JVM, todos passando (78 com o calendário; 83 com o Início e a Lista enxutos).
+- **GitHub Actions (*Compilar e testar*), no PR #4:** compilação completa, testes, APK de teste e APK de release sem assinatura (o mesmo build do F-Droid) e conferência dos textos do F-Droid, tudo verde nos dois commits do branch.
+- **GitHub Actions (*Capturas de tela*), rodado no branch:** o app abriu com os dados de demonstração, trocou de aba e entrou no Calendário sem erro. As imagens não foram gravadas porque esse fluxo só grava na `main` (ver README › Testes); elas são gravadas no merge.
+- **No aparelho:** testado pelo autor no celular em 08/10/2026 (calendário, lançar num dia e troca de abas por gesto): funcionou bem. O Início e a Lista enxutos vieram depois desse teste e ainda precisam ser testados no aparelho.
+
 ## 1.2.0 — Acesso pela rede (07/10/2026)
 
 Recurso novo, opcional e desligado por padrão: **usar o Finan+ pelo navegador de outro aparelho na mesma rede Wi-Fi**, com os dados continuando só no celular.

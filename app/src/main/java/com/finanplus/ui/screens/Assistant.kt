@@ -133,36 +133,39 @@ fun HomeAssistantCard(s: AppState) {
     val tips = remember(s, money, today, dev.dismissedTips) { visibleTips(s, dev, money, today) }
     val p = Fin.c
 
-    Glass(Modifier.padding(top = 14.dp), radius = 26.dp) {
+    // cartão compacto: as 2 frases mais úteis do mês (Insights.highlights), a dica principal e um único link.
+    // O resumo completo, todas as dicas, "Por quê?" e as perguntas ficam na folha do assistente.
+    Glass(Modifier.padding(top = 12.dp), radius = 26.dp, padding = 16.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ASSIST, p.muted, size = 14.dp)
-                    Spacer(Modifier.width(4.dp))
-                    Eyebrow("Assistente · no aparelho")
-                }
-                Text(if (dev.assistTips) report.title else "Pergunte sobre seus gastos", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            }
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ASSIST, p.muted, size = 14.dp)
+            Spacer(Modifier.width(4.dp))
+            Text("Assistente", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.semantics { heading() })
         }
         if (dev.assistTips) {
-            Spacer(Modifier.height(6.dp))
-            report.lines.forEach { Text("• $it", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(vertical = 2.dp)) }
-            WhyToggle(report.why)
-            tips.take(2).forEach { t ->
+            val lines = report.highlights.ifEmpty { report.lines.take(1) }
+            Spacer(Modifier.height(4.dp))
+            lines.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp)) }
+            tips.firstOrNull()?.let { t ->
                 TipItem(
                     t,
                     onDismiss = { prefs.update { it.copy(dismissedTips = it.dismissedTips + t.id) } },
                     onOpen = if (t.query != null || t.from != null) ({ openMoves(nav, t.query, t.from, t.to) }) else null,
                 )
             }
+        } else Text("Pergunte sobre seus gastos.", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+        val link = when {
+            dev.assistTips && tips.size > 1 -> "Ver as ${tips.size} dicas"
+            dev.assistTips -> "Abrir assistente"
+            else -> "Perguntar"
         }
-        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (dev.assistTips) Pill(if (tips.size > 2) "Ver as ${tips.size} dicas" else "Abrir assistente", Modifier.weight(1f)) { nav.open(Sheet.Assistant) }
-            if (dev.assistAsk) Pill("Perguntar", Modifier.weight(1f)) { nav.open(Sheet.Assistant) }
+        Row(
+            Modifier.padding(top = 4.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { nav.open(Sheet.Assistant) }
+                .padding(vertical = 8.dp, horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(link, color = p.accent, fontWeight = FontWeight.Bold)
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.NEXT, p.accent, size = 18.dp)
         }
-        if (dev.assistTips && tips.isEmpty() && s.txs.isNotEmpty()) Text(
-            "Nenhuma dica no momento: nada fora do padrão.", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 6.dp),
-        )
     }
 }
 

@@ -101,6 +101,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.PayInvoice -> PayInvoiceEditor(s, sheet.cardId, onClose)
                 is Sheet.Assistant -> AssistantSheet(s, onClose)
                 is Sheet.ReportPdf -> ReportExportSheet(s, sheet.from, sheet.to, onClose)
+                is Sheet.MovesFilters -> MovesFiltersSheet(s, onClose)
             }
         }
     }
@@ -153,8 +154,9 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     var desc by rememberSaveable { mutableStateOf(tx?.desc ?: "") }
     var value by rememberSaveable { mutableStateOf(tx?.let { Money.input(it.value) } ?: "") }
     var category by rememberSaveable { mutableStateOf(tx?.category ?: s.cats.of(kind)[0]) }
-    var date by rememberSaveable { mutableStateOf<LocalDate?>(tx?.date ?: LocalDate.now()) }
-    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: true) }
+    var date by rememberSaveable { mutableStateOf<LocalDate?>(tx?.date ?: sheet.date ?: LocalDate.now()) }
+    // novo lançamento numa data futura (ex.: escolhida no calendário) começa como pendente
+    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: (sheet.date?.isAfter(LocalDate.now()) != true)) }
     var useCard by rememberSaveable { mutableStateOf(tx?.isCard == true) }
     var accountId by rememberSaveable { mutableStateOf(tx?.accountId ?: s.accounts[0].id) }
     var cardId by rememberSaveable { mutableStateOf(tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: "") }

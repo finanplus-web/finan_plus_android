@@ -104,7 +104,8 @@ enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
 
 /** Folhas (formulários) abertas. Serializable para sobreviver a girar a tela e ao bloqueio. */
 sealed interface Sheet : java.io.Serializable {
-    data class TxEdit(val kind: Kind, val id: String? = null) : Sheet
+    /** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário) */
+    data class TxEdit(val kind: Kind, val id: String? = null, val date: LocalDate? = null) : Sheet
     data class GoalEdit(val id: String? = null) : Sheet
     data class AccountEdit(val id: String? = null) : Sheet
     data class CardEdit(val id: String? = null) : Sheet
@@ -115,6 +116,8 @@ sealed interface Sheet : java.io.Serializable {
     data object Assistant : Sheet
     /** exportar relatório em PDF (período inicial opcional) */
     data class ReportPdf(val from: java.time.LocalDate? = null, val to: java.time.LocalDate? = null) : Sheet
+    /** Lançamentos › Lista: período livre e situação (o ícone de ajuste ao lado do mês) */
+    data object MovesFilters : Sheet
 }
 
 /** Filtros da aba Lançamentos (o período também vale para Relatórios). */
@@ -129,16 +132,24 @@ class Filters {
     fun thisMonth() { val n = LocalDate.now(); from = n.withDayOfMonth(1); to = n.withDayOfMonth(n.lengthOfMonth()) }
 }
 
+/** Modo de exibição da aba Lançamentos. */
+enum class MovesView { LIST, CALENDAR }
+
 class Nav {
     var tab by mutableStateOf(Tab.HOME)
     var sheet by mutableStateOf<Sheet?>(null)
     val filters = Filters()
+    /** Lançamentos: lista ou calendário */
+    var movesView by mutableStateOf(MovesView.LIST)
+    /** calendário: mês mostrado e dia escolhido (null = nenhum) */
+    var calMonth by mutableStateOf(java.time.YearMonth.now())
+    var calDay by mutableStateOf<LocalDate?>(LocalDate.now())
     fun open(s: Sheet) { sheet = s }
 
     companion object {
         /** Aba, folha aberta e filtros sobrevivem a girar a tela, mudar a fonte e ao bloqueio do app. */
         val Saver = listSaver<Nav, Any?>(
-            save = { n -> listOf(n.tab.name, n.sheet, n.filters.from, n.filters.to, n.filters.query, n.filters.kind?.name, n.filters.paid) },
+            save = { n -> listOf(n.tab.name, n.sheet, n.filters.from, n.filters.to, n.filters.query, n.filters.kind?.name, n.filters.paid, n.movesView.name, n.calMonth, n.calDay) },
             restore = { l ->
                 Nav().apply {
                     tab = runCatching { Tab.valueOf(l[0] as String) }.getOrDefault(Tab.HOME)
@@ -148,6 +159,9 @@ class Nav {
                     filters.query = l[4] as String? ?: ""
                     filters.kind = (l[5] as String?)?.let { runCatching { Kind.valueOf(it) }.getOrNull() }
                     filters.paid = l[6] as Boolean?
+                    movesView = runCatching { MovesView.valueOf(l.getOrNull(7) as String) }.getOrDefault(MovesView.LIST)
+                    calMonth = l.getOrNull(8) as java.time.YearMonth? ?: java.time.YearMonth.now()
+                    calDay = if (l.size > 9) l[9] as LocalDate? else LocalDate.now()
                 }
             },
         )
@@ -220,15 +234,39 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
         val prev = today.minusMonths(1)
         val f = nav.filters
         if (f.from == prev.withDayOfMonth(1) && f.to == prev.withDayOfMonth(prev.lengthOfMonth())) f.thisMonth()
+        // calendário parado em "hoje" (ontem): acompanha a virada do dia e do mês
+        val yesterday = today.minusDays(1)
+        if (nav.calDay == yesterday && nav.calMonth == java.time.YearMonth.from(yesterday)) {
+            nav.calDay = today; nav.calMonth = java.time.YearMonth.from(today)
+        }
     }
     var reaskProblem by remember { mutableIntStateOf(0) }
+    // Abas lado a lado: deslizar para o lado passa para a vizinha (Início › Lançamentos › Relatórios › Ajustes).
+    // Os botões da barra inferior continuam funcionando; os dois caminhos mudam o mesmo nav.tab.
+    val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = nav.tab.ordinal) { Tab.entries.size }
+    // tocou num botão da barra (ou "Voltar" para o Início): leva o pager até a aba
+    LaunchedEffect(nav.tab) { if (pager.targetPage != nav.tab.ordinal) pager.animateScrollToPage(nav.tab.ordinal) }
+    // deslizou e parou numa aba: ela vira a aba atual
+    LaunchedEffect(pager) {
+        androidx.compose.runtime.snapshotFlow { pager.settledPage }.collect { page ->
+            if (!pager.isScrollInProgress && nav.tab.ordinal != page) nav.tab = Tab.entries[page]
+        }
+    }
     CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            when (nav.tab) {
-                Tab.HOME -> HomeScreen(s)
-                Tab.MOVES -> MovesScreen(s)
-                Tab.REPORTS -> ReportsScreen(s)
-                Tab.PREFS -> SettingsScreen(s, dev, activity)
+            androidx.compose.foundation.pager.HorizontalPager(
+                pager, Modifier.fillMaxSize(), key = { Tab.entries[it].name },
+                // folha (formulário) aberta: sem troca de aba por gesto por trás dela
+                userScrollEnabled = nav.sheet == null,
+            ) { page ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    when (Tab.entries[page]) {
+                        Tab.HOME -> HomeScreen(s)
+                        Tab.MOVES -> MovesScreen(s)
+                        Tab.REPORTS -> ReportsScreen(s)
+                        Tab.PREFS -> SettingsScreen(s, dev, activity)
+                    }
+                }
             }
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))

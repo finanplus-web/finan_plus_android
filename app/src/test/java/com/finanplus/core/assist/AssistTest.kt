@@ -143,6 +143,21 @@ class InsightsTest {
         assertTrue(r2.lines.any { it == "A receber neste mês: R$ 2.113,62 em 2 lançamentos." }, r2.lines.toString())
     }
 
+    @Test fun destaquesDoInicioPorPrioridade() {
+        // sem despesas realizadas: "Ainda não há despesas" fica de fora; contas a pagar vêm antes do que falta receber
+        val s = st(
+            ex("Aluguel", "Moradia", 700_00, "2026-10-20", paid = false), ex("Luz", "Moradia", 312_50, "2026-10-20", paid = false),
+            inc("Salário", "Salário", 1213_62, "2026-10-20", paid = false),
+        )
+        val r = Insights.report(s, today, money)
+        assertEquals(listOf("Ainda faltam R$ 1.012,50 em 2 contas a pagar até o fim do mês.", "A receber neste mês: R$ 1.213,62 em 1 lançamento."), r.highlights)
+        // conta em atraso vem primeiro
+        val late = Insights.report(st(ex("Internet", "Moradia", 119_90, "2026-10-06", paid = false), ex("Mercado", "Alimentação", 300_00, "2026-10-05")), today, money)
+        assertEquals(2, late.highlights.size)
+        assertTrue(late.highlights[0].contains("em atraso"), late.highlights.toString())
+        assertTrue(late.highlights[1].contains("você gastou R$ 300,00"), late.highlights.toString())
+    }
+
     @Test fun duplicado() {
         val s = st(ex("Padaria", "Alimentação", 12_50, "2026-10-10"), ex("padaria", "Alimentação", 12_50, "2026-10-10"), ex("Padaria", "Alimentação", 12_50, "2026-10-11"))
         val l = Insights.duplicates(s, today, money)
@@ -182,9 +197,9 @@ class InsightsTest {
     }
 
     @Test fun ritmoDoLimiteConsideraCompromissos() {
-        // dia 15 de 31: aluguel fixo (recorrência) não é extrapolado, só o variável
+        // dia 15 de 31: 3 despesas variáveis (600) + compromisso fixo (100, recorrência, não é extrapolado)
         val s = st(
-            ex("Restaurante", "Alimentação", 300_00, "2026-10-08"), ex("Mercado", "Alimentação", 300_00, "2026-10-12"),
+            ex("Feira", "Alimentação", 200_00, "2026-10-03"), ex("Restaurante", "Alimentação", 200_00, "2026-10-08"), ex("Mercado", "Alimentação", 200_00, "2026-10-12"),
             ex("Assinatura comida", "Alimentação", 100_00, "2026-10-01", rec = "r1"),
             limits = mapOf("Alimentação" to 1000_00),
         )
@@ -193,12 +208,31 @@ class InsightsTest {
         // projeção = 100 + 600/15*31 = 1340
         assertTrue(l[0].text.contains("R$ 1.340,00") && l[0].text.contains("R$ 18,75 por dia") && l[0].text.contains("16 dias"), l[0].text)
         assertTrue(Insights.limitPace(s, d("2026-10-05"), money).isEmpty()) // antes do dia 7 não projeta
+        // só 2 despesas variáveis na categoria: não há ritmo para projetar
+        val s2 = st(ex("Restaurante", "Alimentação", 300_00, "2026-10-08"), ex("Mercado", "Alimentação", 300_00, "2026-10-12"), limits = mapOf("Alimentação" to 1000_00))
+        assertTrue(Insights.limitPace(s2, today, money).isEmpty())
     }
 
     @Test fun despesasAcimaDasReceitasPrevistas() {
-        val s = st(inc("Salário", "Salário", 1000_00, "2026-10-05"), ex("Gastos", "Outros", 800_00, "2026-10-10"))
-        val i = Insights.overIncome(s, today, money)
+        // 5 despesas variáveis de R$ 160 até o dia 15: 800/15*31 = 1653,33
+        val gastos = listOf("01", "03", "06", "09", "10").map { ex("Gasto $it", "Outros", 160_00, "2026-10-$it") }.toTypedArray()
+        val i = Insights.overIncome(st(inc("Salário", "Salário", 1000_00, "2026-10-05"), *gastos), today, money)
         assertNotNull(i); assertTrue(i.text.contains("R$ 1.653,33"), i.text)
+    }
+
+    @Test fun ritmoNaoDisparaComPoucosDadosNemMultiplicaGastoPontual() {
+        // o caso relatado: dia 8, R$ 500 de receita e uma despesa só de R$ 200 → antes projetava R$ 775
+        val caso = st(inc("Salário", "Salário", 500_00, "2026-10-05"), ex("Mercado", "Alimentação", 200_00, "2026-10-06"))
+        assertNull(Insights.overIncome(caso, d("2026-10-08"), money))
+        // uma despesa grande isolada (R$ 600 de R$ 800) conta uma vez: 600 + 200/15*31 = 1013,33
+        val cafes = listOf("03", "06", "09", "10").map { ex("Café $it", "Alimentação", 50_00, "2026-10-$it") }.toTypedArray()
+        val s = st(inc("Salário", "Salário", 1000_00, "2026-10-05"), ex("Notebook", "Outros", 600_00, "2026-10-02"), *cafes)
+        val i = Insights.overIncome(s, today, money)
+        assertNotNull(i); assertTrue(i.text.contains("R$ 1.013,33"), i.text)
+        assertTrue(i.why.contains("gasto pontual R$ 600,00 (conta uma vez)"), i.why)
+        val p = Insights.project(s.txs.filter { it.kind == Kind.EXPENSE }, today)
+        assertEquals(listOf(600_00L, 5L), listOf(p.oneOff, p.count.toLong()))
+        assertTrue(p.enough)
     }
 
     @Test fun pequenosGastos() {

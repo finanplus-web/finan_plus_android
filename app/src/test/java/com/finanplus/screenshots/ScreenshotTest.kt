@@ -63,6 +63,8 @@ class ScreenshotTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             shot("inicio")
             tab("Lançamentos"); shot("lancamentos")
+            tab("Calendário"); shot("calendario")
+            tab("Lista")
             tab("Relatórios"); shot("relatorios")
             tab("Ajustes"); shot("ajustes")
             compose.onNode(hasContentDescription("Novo lançamento")).performClick()

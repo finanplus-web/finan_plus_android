@@ -104,7 +104,8 @@ enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
 
 /** Folhas (formulários) abertas. Serializable para sobreviver a girar a tela e ao bloqueio. */
 sealed interface Sheet : java.io.Serializable {
-    data class TxEdit(val kind: Kind, val id: String? = null) : Sheet
+    /** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário) */
+    data class TxEdit(val kind: Kind, val id: String? = null, val date: LocalDate? = null) : Sheet
     data class GoalEdit(val id: String? = null) : Sheet
     data class AccountEdit(val id: String? = null) : Sheet
     data class CardEdit(val id: String? = null) : Sheet
@@ -129,16 +130,24 @@ class Filters {
     fun thisMonth() { val n = LocalDate.now(); from = n.withDayOfMonth(1); to = n.withDayOfMonth(n.lengthOfMonth()) }
 }
 
+/** Modo de exibição da aba Lançamentos. */
+enum class MovesView { LIST, CALENDAR }
+
 class Nav {
     var tab by mutableStateOf(Tab.HOME)
     var sheet by mutableStateOf<Sheet?>(null)
     val filters = Filters()
+    /** Lançamentos: lista ou calendário */
+    var movesView by mutableStateOf(MovesView.LIST)
+    /** calendário: mês mostrado e dia escolhido (null = nenhum) */
+    var calMonth by mutableStateOf(java.time.YearMonth.now())
+    var calDay by mutableStateOf<LocalDate?>(LocalDate.now())
     fun open(s: Sheet) { sheet = s }
 
     companion object {
         /** Aba, folha aberta e filtros sobrevivem a girar a tela, mudar a fonte e ao bloqueio do app. */
         val Saver = listSaver<Nav, Any?>(
-            save = { n -> listOf(n.tab.name, n.sheet, n.filters.from, n.filters.to, n.filters.query, n.filters.kind?.name, n.filters.paid) },
+            save = { n -> listOf(n.tab.name, n.sheet, n.filters.from, n.filters.to, n.filters.query, n.filters.kind?.name, n.filters.paid, n.movesView.name, n.calMonth, n.calDay) },
             restore = { l ->
                 Nav().apply {
                     tab = runCatching { Tab.valueOf(l[0] as String) }.getOrDefault(Tab.HOME)
@@ -148,6 +157,9 @@ class Nav {
                     filters.query = l[4] as String? ?: ""
                     filters.kind = (l[5] as String?)?.let { runCatching { Kind.valueOf(it) }.getOrNull() }
                     filters.paid = l[6] as Boolean?
+                    movesView = runCatching { MovesView.valueOf(l.getOrNull(7) as String) }.getOrDefault(MovesView.LIST)
+                    calMonth = l.getOrNull(8) as java.time.YearMonth? ?: java.time.YearMonth.now()
+                    calDay = if (l.size > 9) l[9] as LocalDate? else LocalDate.now()
                 }
             },
         )
@@ -220,6 +232,11 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
         val prev = today.minusMonths(1)
         val f = nav.filters
         if (f.from == prev.withDayOfMonth(1) && f.to == prev.withDayOfMonth(prev.lengthOfMonth())) f.thisMonth()
+        // calendário parado em "hoje" (ontem): acompanha a virada do dia e do mês
+        val yesterday = today.minusDays(1)
+        if (nav.calDay == yesterday && nav.calMonth == java.time.YearMonth.from(yesterday)) {
+            nav.calDay = today; nav.calMonth = java.time.YearMonth.from(today)
+        }
     }
     var reaskProblem by remember { mutableIntStateOf(0) }
     CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {

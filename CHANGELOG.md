@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.3.0 — Calendário de lançamentos (08/10/2026)
+
+Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).
+
+- **Cada dia** mostra o saldo do dia, abreviado para caber ("+5,2 mil", "−120"), e pontinhos de receita (verde), despesa (vermelho) e cartão (roxo). Contas pendentes com data passada e faturas vencidas ganham o ícone de alerta. Hoje tem contorno; o dia escolhido fica preenchido.
+- **Faturas no vencimento:** a fatura em aberto aparece no dia em que vence, com o valor que falta pagar. Tocar nela abre **Pagar fatura**. Compras no cartão aparecem no dia da compra, mas só contam no saldo pela fatura, para nada ser contado duas vezes.
+- **Dia escolhido:** os lançamentos do dia (tocar edita, o círculo marca como pago), o saldo do dia e, de hoje em diante, o **saldo previsto ao fim do dia**. **Novo** abre o editor já com a data do dia; numa data futura, o lançamento começa como pendente.
+- **Totais do mês:** Entradas, Saídas e Resultado, incluindo pendências e faturas.
+- **Navegação:** setas ou deslizar para o lado trocam de mês; "Voltar para hoje" fora do mês atual. A visão, o mês e o dia sobrevivem a girar a tela e ao bloqueio, e acompanham a virada do dia com o app aberto.
+- **Privacidade e acessibilidade:** com "Ocultar valores" ficam só os pontinhos. O TalkBack lê cada dia como frase completa ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso"), sem valores quando estão ocultos. Alvos de toque de 48dp ou mais; o valor do dia nunca é cortado com "…".
+- **Dados:** nada mudou no modelo nem no formato do backup.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/MonthCalendar.kt` (novo) | Regras do calendário, sem Android (grade, dias, faturas, atrasos, totais, valor abreviado, textos) |
+| `ui/screens/CalendarView.kt` (novo) | Desenho do calendário em Compose |
+| `ui/screens/MovesScreen.kt` | Chave Lista/Calendário e visão Calendário |
+| `ui/Root.kt` | `MovesView`, mês e dia do calendário na navegação; `Sheet.TxEdit(date)`; virada do dia |
+| `ui/screens/Sheets.kt` | Editor usa a data recebida; data futura começa pendente |
+| `ui/components/AppIcon.kt`, `res/drawable/ms_*.xml` | Ícones `calendar_month`, `view_list`, `chevron_left`, `chevron_right` (Material Symbols, Apache 2.0) |
+| `test/.../core/CalendarTest.kt` (novo) | 7 testes; 78 no total no núcleo, todos passando |
+| `test/.../screenshots/ScreenshotTest.kt` | Nova captura `calendario.png` |
+| `app/build.gradle.kts` | versionCode 9, versionName 1.3.0 |
+| `CALENDARIO.md` (novo), `README.md`, `fastlane/.../changelogs/9.txt` | Documentação e notas da versão |
+
+Como foi verificado: o núcleo (com os testes novos) foi compilado e os 78 testes rodados na JVM. A interface não foi compilada neste ambiente (sem Android SDK); passou por revisão linha a linha. Compile no Android Studio ou deixe o GitHub Actions compilar antes de criar a tag.
+
 ## 1.2.0 — Acesso pela rede (07/10/2026)
 
 Recurso novo, opcional e desligado por padrão: **usar o Finan+ pelo navegador de outro aparelho na mesma rede Wi-Fi**, com os dados continuando só no celular.

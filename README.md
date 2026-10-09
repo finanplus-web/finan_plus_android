@@ -1,4 +1,4 @@
-# Finan+ para Android — v1.2.0
+# Finan+ para Android — v1.3.0
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
@@ -7,6 +7,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 **Baixar:** pelo F-Droid (envio em andamento, ver [Publicar no F-Droid](#publicar-no-f-droid)) ou [APK assinado no GitHub](../../releases/latest) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
 
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
+- Calendário de lançamentos (como ler e o que entra na conta): [CALENDARIO.md](CALENDARIO.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - Acesso pela rede (uso, certificado, segurança): [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) · auditoria: [AUDITORIA-LAN.md](AUDITORIA-LAN.md)
 - Auditoria de outubro de 2026 e o que foi corrigido: [docs/AUDITORIA-2026-10.md](docs/AUDITORIA-2026-10.md)
@@ -20,7 +21,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 
 Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
-> **Importante:** o projeto foi escrito num ambiente sem acesso aos repositórios do Android. A parte de **regras de negócio** (`core/`, incluindo o assistente em `core/assist/`) foi compilada e testada lá: 71 testes passando. A interface, o widget, as notificações e a criptografia foram revisados linha a linha, mas só compilam no Android Studio ou no GitHub Actions (ver abaixo). Se a compilação mostrar algum erro, copie a mensagem (aba *Build*) e envie para correção.
+> **Importante:** o projeto foi escrito num ambiente sem acesso aos repositórios do Android. A parte de **regras de negócio** (`core/`, incluindo o assistente em `core/assist/`) foi compilada e testada lá: 78 testes passando (fora os do acesso pela rede). A interface, o widget, as notificações e a criptografia foram revisados linha a linha, mas só compilam no Android Studio ou no GitHub Actions (ver abaixo). Se a compilação mostrar algum erro, copie a mensagem (aba *Build*) e envie para correção.
 
 ### Testes
 
@@ -33,7 +34,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 | Área | Recursos |
 |---|---|
 | Início | Saldo atual (inclui saldo inicial das contas), saldo previsto no fim do mês, receitas/despesas do mês, contas e cartões com fatura atual e "Pagar fatura", limites do mês, metas com plano |
-| Lançamentos | Período com atalhos (este mês, 30 dias, tudo), busca, filtros de tipo e situação, comparação receitas × despesas, lista com marcar como pago |
+| Lançamentos | **Lista**: período com atalhos (este mês, 30 dias, tudo), busca, filtros de tipo e situação, comparação receitas × despesas, marcar como pago. **Calendário**: o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, atrasos em destaque, totais do mês, lançamentos do dia escolhido, saldo previsto ao fim do dia e "Novo" já com a data. Detalhes em [CALENDARIO.md](CALENDARIO.md) |
 | Relatórios | Despesas por categoria (com limites), últimos 6 meses (com descrição para leitores de tela), este mês × anterior |
 | Editores | Lançamento (parcelas com divisão do total, repetir mensalmente, cartão), meta, conta, cartão, recorrência (com início, pausa e edição), limite, pagamento de fatura |
 | Ajustes | 6 temas (Sistema, Claro, Material You com cores do papel de parede no Android 12+, OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |
@@ -130,7 +131,8 @@ app/src/main/java/com/finanplus/
   core/report/ relatório em PDF: cálculo dos números (o desenho fica em export/)
   core/assist/ assistente: categorias, resumo, dicas e perguntas (ver ASSISTENTE.md)
   core/        regras de negócio puras (sem Android): modelo em centavos, JSON, backup,
-               saldos, faturas, recorrências, parcelas, metas, lembretes, CSV, operações
+               saldos, faturas, recorrências, parcelas, metas, lembretes, CSV, operações,
+               calendário (MonthCalendar.kt, ver CALENDARIO.md)
   data/        SecureStore (criptografia), Repo (fonte única dos dados), DevicePrefs
   security/    PIN (PBKDF2) e AppLock (bloqueio)
   notify/      canal, agendamento diário (WorkManager) e notificações

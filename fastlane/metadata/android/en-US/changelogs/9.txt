@@ -1,0 +1,1 @@
+New: Calendar in the Transactions tab. See the month as a grid with each day's balance, income, expenses and card bills on their due date, with overdue bills highlighted. Tap a day to see its transactions, the expected balance at the end of that day, and add a new one already set to that date. Respects "Hide values" and works with TalkBack.

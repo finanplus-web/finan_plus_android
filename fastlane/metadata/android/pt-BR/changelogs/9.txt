@@ -1,0 +1,1 @@
+Novo: Calendário na aba Lançamentos. Veja o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, e as contas em atraso em destaque. Toque num dia para ver os lançamentos dele, o saldo previsto ao fim do dia e criar um lançamento já com essa data. Respeita "Ocultar valores" e funciona com o TalkBack.

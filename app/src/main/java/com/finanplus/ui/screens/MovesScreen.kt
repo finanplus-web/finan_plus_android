@@ -74,9 +74,18 @@ fun MovesScreen(s: AppState) {
     val flow = androidx.compose.runtime.remember(list) { Finance.flow(list) }
     val total = flow.income + flow.expense
     val pending = list.filter { it.isFlow && !it.paid }
+    val calendar = nav.movesView == com.finanplus.ui.MovesView.CALENDAR
+    val today = com.finanplus.ui.components.LocalToday.current
+    // calendário: dias do mês mostrado (calculado só nessa visão)
+    val days = if (calendar) androidx.compose.runtime.remember(s, nav.calMonth, today) { com.finanplus.core.MonthCalendar.build(s, nav.calMonth, today) } else emptyMap()
 
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
-        item { PageTitle("Movimentações", "Lançamentos", "Compare suas receitas e despesas em qualquer período.") }
+        item { PageTitle("Movimentações", "Lançamentos", if (calendar) "Veja em que dia o dinheiro entra e sai." else "Compare suas receitas e despesas em qualquer período.") }
+        item { MovesViewSwitch(nav) }
+        if (calendar) {
+            calendarItems(s, nav, days, today, hide)
+            return@LazyColumn
+        }
         item {
             Glass(radius = 26.dp, padding = 15.dp) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

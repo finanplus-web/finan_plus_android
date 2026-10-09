@@ -5,7 +5,9 @@ package com.finanplus.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +48,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -134,7 +137,7 @@ fun LazyListScope.calendarItems(s: AppState, nav: Nav, days: Map<LocalDate, CalD
     if (day == null || day.count == 0) item(key = "cal-day-empty") {
         Glass(Modifier.fillMaxWidth(), radius = 22.dp, padding = 16.dp) {
             Text("Nada neste dia", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-            Text("Toque em Novo para lançar algo com esta data.", color = Fin.c.muted, style = MaterialTheme.typography.bodySmall,
+            Text("Use Receita ou Despesa para lançar algo com esta data.", color = Fin.c.muted, style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 2.dp))
         }
     } else {
@@ -165,7 +168,7 @@ private fun CalendarCard(nav: Nav, days: Map<LocalDate, CalDay>, today: LocalDat
             detectHorizontalDragGestures(
                 onDragStart = { dx = 0f },
                 onDragEnd = { if (dx > 120f) go(-1) else if (dx < -120f) go(1) },
-            ) { _, amount -> dx += amount }
+            ) { change, amount -> change.consume(); dx += amount } // consome: o gesto não troca de aba
         },
         radius = 26.dp, padding = 10.dp,
     ) {
@@ -196,7 +199,13 @@ private fun CalendarCard(nav: Nav, days: Map<LocalDate, CalDay>, today: LocalDat
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     for (d in week) {
                         Box(Modifier.weight(1f)) {
-                            if (d != null) DayCell(d, days[d], today, selected = d == nav.calDay, hide = hide) { nav.calDay = d }
+                            if (d != null) DayCell(
+                                d, days[d], today, selected = d == nav.calDay, hide = hide,
+                                // 1º toque: mostra o dia; tocar de novo no dia escolhido: novo lançamento nessa data
+                                onClick = { if (nav.calDay == d) nav.open(Sheet.TxEdit(Kind.EXPENSE, date = d)) else nav.calDay = d },
+                                // tocar e segurar: novo lançamento direto, em qualquer dia
+                                onLongClick = { nav.calDay = d; nav.open(Sheet.TxEdit(Kind.EXPENSE, date = d)) },
+                            )
                         }
                     }
                 }
@@ -242,8 +251,9 @@ private fun LegendDot(color: Color, label: String) {
  * Um dia da grade: número, saldo do dia (sem "R$") e os pontinhos de receita/despesa/cartão.
  * Hoje tem contorno; o dia escolhido fica preenchido. Com "Ocultar valores", só os pontinhos.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun DayCell(d: LocalDate, day: CalDay?, today: LocalDate, selected: Boolean, hide: Boolean, onClick: () -> Unit) {
+private fun DayCell(d: LocalDate, day: CalDay?, today: LocalDate, selected: Boolean, hide: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val p = Fin.c
     val shape = RoundedCornerShape(14.dp)
     val isToday = d == today
@@ -257,8 +267,13 @@ private fun DayCell(d: LocalDate, day: CalDay?, today: LocalDate, selected: Bool
         Modifier.fillMaxWidth().heightIn(min = 54.dp).clip(shape)
             .background(if (selected) p.accent else Color.Transparent)
             .then(if (isToday && !selected) Modifier.border(1.5.dp, p.accent, shape) else Modifier)
-            .selectable(selected = selected, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = MonthCalendar.describe(d, day, today, hide) },
+            .combinedClickable(
+                role = Role.Button,
+                onClickLabel = if (selected) "novo lançamento neste dia" else "ver lançamentos do dia",
+                onLongClickLabel = "novo lançamento neste dia",
+                onLongClick = onLongClick, onClick = onClick,
+            )
+            .semantics { contentDescription = MonthCalendar.describe(d, day, today, hide); this.selected = selected },
     ) {
         Column(
             Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 5.dp).clearAndSetSemantics { },
@@ -278,10 +293,10 @@ private fun DayCell(d: LocalDate, day: CalDay?, today: LocalDate, selected: Bool
             }
             if (day != null && day.marks.isNotEmpty()) Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 day.marks.forEach { m ->
-                    Box(
-                        Modifier.size(6.dp).clip(CircleShape).background(markColor(m))
-                            .then(if (selected) Modifier.border(1.dp, p.onAccent, CircleShape) else Modifier),
-                    )
+                    // no dia escolhido (fundo azul) o pontinho ganha um aro branco por fora, sem perder a cor
+                    if (selected) Box(Modifier.size(9.dp).clip(CircleShape).background(p.onAccent), contentAlignment = Alignment.Center) {
+                        Box(Modifier.size(6.dp).clip(CircleShape).background(markColor(m)))
+                    } else Box(Modifier.size(6.dp).clip(CircleShape).background(markColor(m)))
                 }
             }
         }
@@ -348,7 +363,11 @@ private fun DayHeader(s: AppState, nav: Nav, d: LocalDate, day: CalDay?, today: 
                 " · saldo do dia " + (if (net > 0) "+ " else if (net < 0) "− " else "") + Money.format(kotlin.math.abs(net))
             Text(countText + netText, style = MaterialTheme.typography.bodySmall, color = p.muted)
         }
-        Pill("Novo", icon = Ico.ADD) { nav.open(Sheet.TxEdit(Kind.EXPENSE, date = d)) }
+    }
+    // lançar direto nesta data, já como receita ou despesa
+    Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Pill("Receita", Modifier.weight(1f), icon = Ico.ADD) { nav.open(Sheet.TxEdit(Kind.INCOME, date = d)) }
+        Pill("Despesa", Modifier.weight(1f), icon = Ico.REMOVE) { nav.open(Sheet.TxEdit(Kind.EXPENSE, date = d)) }
     }
     // hoje ou depois: quanto deve sobrar nas contas ao fim do dia (mesma conta do "Saldo previsto" do Início)
     if (!d.isBefore(today)) {

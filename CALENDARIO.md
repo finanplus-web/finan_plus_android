@@ -13,11 +13,18 @@ O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. E
 1. Abra a aba **Lançamentos** e toque em **Calendário** no alto da tela. Para voltar à lista, toque em **Lista**.
 2. Troque de mês pelas setas **‹ ›** ou deslizando o calendário para o lado. Fora do mês atual aparece **Voltar para hoje**.
 3. Toque num dia para ver os lançamentos dele logo abaixo do calendário.
-4. Na lista do dia:
+4. Para lançar algo num dia, há três caminhos, todos com a data já preenchida:
+   - toque **de novo** no dia que já está escolhido;
+   - **toque e segure** qualquer dia;
+   - use os botões **Receita** ou **Despesa** abaixo do nome do dia.
+
+   Os dois primeiros abrem o formulário como despesa; dá para trocar para receita no próprio formulário. Se a data for futura, o lançamento começa como pendente.
+5. Na lista do dia:
    - toque num lançamento para editá-lo;
    - toque no círculo para marcar como pago ou recebido, como na lista normal;
-   - toque numa fatura para abrir **Pagar fatura**;
-   - toque em **Novo** para criar um lançamento já com a data desse dia. Se a data for futura, o lançamento começa como pendente.
+   - toque numa fatura para abrir **Pagar fatura**.
+
+Deslizar o dedo **sobre o calendário** troca de mês. Deslizar em qualquer outra parte da tela troca de aba (veja o CHANGELOG, versão 1.3.0).
 
 A escolha entre Lista e Calendário, o mês e o dia escolhido continuam iguais ao girar a tela e depois do bloqueio automático. Com o app aberto na virada do dia, o calendário acompanha a nova data se estava em "hoje".
 
@@ -65,7 +72,7 @@ O calendário mostra todos os lançamentos do mês. A busca e os filtros de tipo
 
 - **Ocultar valores:** com essa opção ligada, os valores somem de dentro dos dias e ficam só os pontinhos. Os totais do mês e os lançamentos do dia aparecem como "R$ ••••", como no resto do app.
 - **Leitor de tela (TalkBack):** cada dia é lido como uma frase completa, por exemplo "6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso". Com "Ocultar valores", o valor não é falado. O nome do mês é anunciado ao trocar de mês, e as setas têm os nomes "Mês anterior" e "Próximo mês". O cabeçalho dos dias da semana e a legenda são decorativos e não são lidos.
-- **Toque:** cada dia tem pelo menos 54dp de altura. As setas e a chave Lista/Calendário têm 48dp.
+- **Toque:** cada dia tem pelo menos 54dp de altura. As setas e a chave Lista/Calendário têm 48dp. O TalkBack anuncia as ações de cada dia: "ver lançamentos do dia" e, no dia escolhido ou ao tocar e segurar, "novo lançamento neste dia".
 - **Fonte grande:** o número do dia acompanha o tamanho de fonte do sistema. O valor pequeno cresce até 1,15× e, se ainda não couber, diminui até caber, sem ser cortado com "…".
 
 ## Como foi feito
@@ -73,7 +80,7 @@ O calendário mostra todos os lançamentos do mês. A busca e os filtros de tipo
 | Arquivo | O quê |
 |---|---|
 | `core/MonthCalendar.kt` (novo) | Regras do calendário, sem Android: grade do mês começando no domingo, lançamentos e faturas de cada dia, saldo do dia, atrasos, totais, valor abreviado, títulos ("Quinta, 15 de outubro") e o texto do leitor de tela. Não depende do idioma do aparelho. |
-| `ui/screens/CalendarView.kt` (novo) | Desenho em Compose: chave Lista/Calendário, grade, legenda, totais, cabeçalho do dia e linha de fatura. Reaproveita `TxRow`, `Glass`, `Pill` e `MoneyText`. |
+| `ui/screens/CalendarView.kt` (novo) | Desenho em Compose: chave Lista/Calendário, grade, legenda, totais, cabeçalho do dia com Receita/Despesa e linha de fatura. Dia: toque, toque de novo e tocar e segurar. O arrasto sobre o calendário troca de mês e não passa para a troca de abas. Reaproveita `TxRow`, `Glass`, `Pill` e `MoneyText`. |
 | `ui/screens/MovesScreen.kt` | Mostra a chave no topo e, no modo Calendário, os itens do calendário no lugar da lista. |
 | `ui/Root.kt` | `MovesView` (Lista/Calendário), mês e dia do calendário guardados na navegação (sobrevivem a girar a tela e ao bloqueio). `Sheet.TxEdit` ganhou `date`, a data inicial de um lançamento novo. O calendário acompanha a virada do dia. |
 | `ui/screens/Sheets.kt` | O editor usa a data recebida. Data futura começa como pendente. |

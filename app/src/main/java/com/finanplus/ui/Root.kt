@@ -239,13 +239,32 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
         }
     }
     var reaskProblem by remember { mutableIntStateOf(0) }
+    // Abas lado a lado: deslizar para o lado passa para a vizinha (Início › Lançamentos › Relatórios › Ajustes).
+    // Os botões da barra inferior continuam funcionando; os dois caminhos mudam o mesmo nav.tab.
+    val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = nav.tab.ordinal) { Tab.entries.size }
+    // tocou num botão da barra (ou "Voltar" para o Início): leva o pager até a aba
+    LaunchedEffect(nav.tab) { if (pager.targetPage != nav.tab.ordinal) pager.animateScrollToPage(nav.tab.ordinal) }
+    // deslizou e parou numa aba: ela vira a aba atual
+    LaunchedEffect(pager) {
+        androidx.compose.runtime.snapshotFlow { pager.settledPage }.collect { page ->
+            if (!pager.isScrollInProgress && nav.tab.ordinal != page) nav.tab = Tab.entries[page]
+        }
+    }
     CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            when (nav.tab) {
-                Tab.HOME -> HomeScreen(s)
-                Tab.MOVES -> MovesScreen(s)
-                Tab.REPORTS -> ReportsScreen(s)
-                Tab.PREFS -> SettingsScreen(s, dev, activity)
+            androidx.compose.foundation.pager.HorizontalPager(
+                pager, Modifier.fillMaxSize(), key = { Tab.entries[it].name },
+                // folha (formulário) aberta: sem troca de aba por gesto por trás dela
+                userScrollEnabled = nav.sheet == null,
+            ) { page ->
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    when (Tab.entries[page]) {
+                        Tab.HOME -> HomeScreen(s)
+                        Tab.MOVES -> MovesScreen(s)
+                        Tab.REPORTS -> ReportsScreen(s)
+                        Tab.PREFS -> SettingsScreen(s, dev, activity)
+                    }
+                }
             }
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))

@@ -29,6 +29,10 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 ./gradlew test        # testes das regras de negócio (JUnit)
 ```
 
+**No GitHub Actions:**
+- *Compilar e testar* roda em todo envio para a `main`, em todo pull request e nas tags. Para testar uma mudança sem publicar, abra um pull request: o APK de teste fica em *Artifacts* na página da execução.
+- *Capturas de tela* roda sozinho quando a interface muda na `main`, ou manualmente em *Actions › Capturas de tela › Run workflow*. Ele só grava as imagens na `main`. Rodado em outro branch, ele desenha as telas (o que já serve de teste de que o app abre e navega), mas a etapa "Gravar no repositório" falha de propósito; as imagens ficam no artefato `capturas-de-tela` da execução.
+
 ## O que tem
 
 | Área | Recursos |

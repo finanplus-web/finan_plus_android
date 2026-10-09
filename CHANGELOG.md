@@ -1,6 +1,8 @@
 # Changelog
 
-## 1.3.0 — Calendário de lançamentos (08/10/2026)
+## 1.3.0 — Calendário de lançamentos (08/10/2026, ainda não publicada)
+
+> **Situação:** pronta e testada, mas **não publicada**. Está no branch `calendario` ([PR #4](https://github.com/finanplus-web/finan_plus_android/pull/4)); a `main`, as Releases e o F-Droid não mudaram. Para publicar: merge do PR #4 e tag `v1.3.0`.
 
 Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).
 
@@ -28,7 +30,11 @@ Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da
 | `app/build.gradle.kts` | versionCode 9, versionName 1.3.0 |
 | `CALENDARIO.md` (novo), `README.md`, `fastlane/.../changelogs/9.txt` | Documentação e notas da versão |
 
-Como foi verificado: o núcleo (com os testes novos) foi compilado e os 78 testes rodados na JVM. A interface não foi compilada neste ambiente (sem Android SDK); passou por revisão linha a linha. Compile no Android Studio ou deixe o GitHub Actions compilar antes de criar a tag.
+Como foi verificado:
+- **Núcleo:** compilado e os 78 testes rodados na JVM, todos passando.
+- **GitHub Actions (*Compilar e testar*), no PR #4:** compilação completa, testes, APK de teste e APK de release sem assinatura (o mesmo build do F-Droid) e conferência dos textos do F-Droid, tudo verde nos dois commits do branch.
+- **GitHub Actions (*Capturas de tela*), rodado no branch:** o app abriu com os dados de demonstração, trocou de aba e entrou no Calendário sem erro. As imagens não foram gravadas porque esse fluxo só grava na `main` (ver README › Testes); elas são gravadas no merge.
+- **No aparelho:** testado pelo autor no celular em 08/10/2026 (calendário, lançar num dia e troca de abas por gesto): funcionou bem.
 
 ## 1.2.0 — Acesso pela rede (07/10/2026)
 

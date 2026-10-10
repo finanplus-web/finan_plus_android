@@ -1,8 +1,8 @@
 # Changelog
 
-## 1.4.0 — Simulador "E se…?" e Relatórios renovados (10/10/2026, ainda não publicada)
+## 1.4.0 — Simulador "E se…?", Relatórios renovados e correção das abas (10/10/2026)
 
-> **Situação:** na `main`, mas **ainda não publicada**: sem a tag `v1.4.0`, o F-Droid e as Releases continuam na 1.3.0. Para publicar: criar e enviar a tag `v1.4.0`. Estas mudanças eram para a 1.3.0, mas ficaram de fora dela.
+> Estas mudanças eram para a 1.3.0, mas ficaram de fora dela.
 
 Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
 

@@ -93,7 +93,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
             when (sheet) {
                 is Sheet.TxEdit -> TxEditor(s, sheet, onClose)
-                is Sheet.GoalEdit -> GoalEditor(s, sheet.id, onClose)
+                is Sheet.GoalEdit -> GoalEditor(s, sheet, onClose)
                 is Sheet.AccountEdit -> AccountEditor(s, sheet.id, onClose)
                 is Sheet.CardEdit -> CardEditor(s, sheet.id, onClose)
                 is Sheet.RecurringEdit -> RecurringEditor(s, sheet.id, onClose)
@@ -102,6 +102,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.Assistant -> AssistantSheet(s, onClose)
                 is Sheet.ReportPdf -> ReportExportSheet(s, sheet.from, sheet.to, onClose)
                 is Sheet.MovesFilters -> MovesFiltersSheet(s, onClose)
+                is Sheet.Simulator -> SimulatorSheet(s, sheet, onClose)
             }
         }
     }
@@ -214,14 +215,15 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
 
 // ------------------------------------------------------------------ meta
 @Composable
-private fun GoalEditor(s: AppState, id: String?, close: () -> Unit) {
+private fun GoalEditor(s: AppState, sheet: Sheet.GoalEdit, close: () -> Unit) {
     val dialogs = LocalDialogs.current
-    val g = id?.let { x -> s.goals.firstOrNull { it.id == x } }
-    var name by rememberSaveable { mutableStateOf(g?.name ?: "") }
-    var target by rememberSaveable { mutableStateOf(g?.let { Money.input(it.target) } ?: "") }
+    val g = sheet.id?.let { x -> s.goals.firstOrNull { it.id == x } }
+    // meta nova pode vir preenchida (simulador "E se…?" › Transformar em meta)
+    var name by rememberSaveable { mutableStateOf(g?.name ?: sheet.name) }
+    var target by rememberSaveable { mutableStateOf(g?.let { Money.input(it.target) } ?: sheet.target.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
     var move by rememberSaveable { mutableStateOf("") }
     var deadline by rememberSaveable { mutableStateOf(g?.deadline) }
-    var monthly by rememberSaveable { mutableStateOf(g?.monthly?.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
+    var monthly by rememberSaveable { mutableStateOf(g?.monthly?.takeIf { it > 0 }?.let { Money.input(it) } ?: sheet.monthly.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
     Header(if (g == null) "Nova meta" else "Editar meta", if (g == null) "Dê um nome e um valor ao seu objetivo." else "Guardado até agora: ${Money.format(g.saved)}")
     Field("Nome", name, { name = it }, maxLength = 60)
     MoneyField("Valor da meta (R$)", target, { target = it })

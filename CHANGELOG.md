@@ -15,6 +15,21 @@ Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da
 - **Privacidade e acessibilidade:** com "Ocultar valores" ficam só os pontinhos. O TalkBack lê cada dia como frase completa ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso"), sem valores quando estão ocultos. Alvos de toque de 48dp ou mais; o valor do dia nunca é cortado com "…".
 - **Dados:** nada mudou no modelo nem no formato do backup.
 
+**Também nesta versão — Simulador "E se…?" e Relatórios renovados.** Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
+
+- **E se…?** (em Relatórios): quatro perguntas — economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida parcelada. Parte da média dos 3 meses completos anteriores (só realizados), que dá para ajustar. **Nada é gravado.** "Transformar em meta" abre o formulário de meta já preenchido.
+- **Relatórios:** mesmo ‹ mês › da aba Lançamentos (período compartilhado), botão **PDF** no título, resumo de Receitas e Despesas com comparação justa (mês atual contra os mesmos dias do mês anterior), cartão "Nada realizado… ainda" com o que falta receber e pagar e o link para o calendário, e texto no lugar do gráfico vazio. Saiu o cartão "Este mês × mês anterior".
+- **Tema:** nada mudou nas cores; tudo usa a paleta do tema escolhido.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Simulator.kt` (novo) | Base, economizar, comprar, renda, dívidas e quitação |
+| `core/Period.kt` | `PeriodCompare`: período de referência e texto da variação |
+| `ui/screens/SimulatorSheet.kt` (novo) | Folha "E se…?" |
+| `ui/screens/ReportsScreen.kt` | Relatórios renovados |
+| `ui/Root.kt`, `ui/screens/Sheets.kt` | `Sheet.Simulator`; formulário de meta aceita valores iniciais |
+| `test/.../SimulatorTest.kt` (novo) | Testes das contas e da comparação |
+
 **Também nesta versão — Início e Lista mais enxutos.** As duas telas tinham muita coisa repetida e cartões vazios ocupando espaço; agora o principal aparece logo de cara.
 
 *Início:*

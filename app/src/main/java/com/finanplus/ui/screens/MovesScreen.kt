@@ -74,10 +74,13 @@ fun MovesScreen(s: AppState) {
     val q = com.finanplus.core.assist.Text.fold(f.query)
     // texto de busca já normalizado, calculado uma vez por versão dos dados (não a cada tecla, para cada lançamento)
     val folded = androidx.compose.runtime.remember(s.txs) { s.txs.associate { it.id to com.finanplus.core.assist.Text.fold(it.desc + " " + it.category) } }
-    val list = androidx.compose.runtime.remember(s.txs, f.from, f.to, f.paid, f.kind, q) {
-        s.txs.filter {
+    val today0 = com.finanplus.ui.components.LocalToday.current
+    val list = androidx.compose.runtime.remember(s, f.from, f.to, f.paid, f.kind, q, today0) {
+        // recorrências previstas dos meses que ainda não chegaram (só com fim de período definido; não são gravadas)
+        val projected = f.to?.let { to -> com.finanplus.core.Projection.between(s, f.from ?: today0, to, today0) } ?: emptyList()
+        (s.txs + projected).filter {
             f.inRange(it) && (f.paid == null || it.paid == f.paid) && (f.kind == null || it.kind == f.kind) &&
-                (q.isEmpty() || folded[it.id]?.contains(q) == true)
+                (q.isEmpty() || (folded[it.id] ?: com.finanplus.core.assist.Text.fold(it.desc + " " + it.category)).contains(q))
         }.sortedWith(compareByDescending<com.finanplus.core.Tx> { it.date }.thenByDescending { it.id })
     }
     val flow = androidx.compose.runtime.remember(list) { Finance.flow(list) }

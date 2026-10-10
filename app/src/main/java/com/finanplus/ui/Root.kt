@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.finanplus.MainActivity
+import com.finanplus.core.isProjected
 import com.finanplus.core.AppState
 import com.finanplus.core.Kind
 import com.finanplus.core.Ops
@@ -328,7 +329,12 @@ private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
 fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val p = Fin.c
     val today = com.finanplus.ui.components.LocalToday.current
+    val nav = LocalNav.current
+    // recorrência prevista (mês que ainda não chegou): não existe no estado; tocar abre a recorrência
+    val projected = t.isProjected
+    val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
     val status = when {
+        projected -> "Previsto · recorrência"
         t.isCard -> "Cartão"
         t.paid -> if (t.kind == Kind.INCOME) "Recebido" else "Pago"
         t.date.isBefore(today) -> "Em atraso"
@@ -340,7 +346,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier.weight(1f).clickable(role = Role.Button, onClick = onOpen).padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 6.dp),
+            Modifier.weight(1f).clickable(role = Role.Button, onClick = open).padding(start = 14.dp, top = 12.dp, bottom = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(p.accent2), contentAlignment = Alignment.Center) {
@@ -357,7 +363,10 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
         }
         // compra no cartão e pagamento de fatura não alternam pago/pendente (ver Ops.canTogglePaid)
-        if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
+        if (projected) Box(Modifier.size(48.dp).semantics { contentDescription = "Previsto: lançamento criado quando o mês chegar" }, contentAlignment = Alignment.Center) {
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.REPEAT, p.muted, size = 20.dp)
+        }
+        else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
         else {
             val label = (if (t.kind == Kind.INCOME) "Recebida" else "Paga") + ": ${t.desc}"
             Box(

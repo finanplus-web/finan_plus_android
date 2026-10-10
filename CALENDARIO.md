@@ -60,6 +60,7 @@ O calendário mostra **dinheiro entrando e saindo das contas**, o que inclui o q
 - **Receitas e despesas fora do cartão**, realizadas ou pendentes, na data do lançamento.
 - **Pagamentos de fatura**, na data em que foram feitos (o dinheiro sai da conta nesse dia).
 - **Faturas em aberto**, no dia do vencimento, com o valor que ainda falta pagar.
+- **Recorrências previstas** (desde a 1.4.1), nos meses que ainda não chegaram: aparecem como "Previsto" no dia em que vão cair e entram no saldo do dia e nos totais. Não são gravadas; o lançamento real é criado quando o mês chega. Veja [RECORRENCIAS.md](RECORRENCIAS.md).
 - **Compras no cartão** aparecem na lista do dia em que foram feitas, com o pontinho roxo, mas **não entram no saldo do dia**. Esse dinheiro só sai da conta quando a fatura é paga, e já é contado na fatura. Assim nada é contado duas vezes.
 
 Abaixo do calendário ficam os totais do mês: **Entradas**, **Saídas** e **Resultado**. Eles são exatamente a soma dos dias. Por incluir pendências e faturas, podem ser diferentes dos totais da Lista, que somam só o que já foi realizado no período.

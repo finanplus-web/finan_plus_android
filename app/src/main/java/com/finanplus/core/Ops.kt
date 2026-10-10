@@ -97,7 +97,7 @@ object Ops {
 
     /** Pago/pendente. Compra no cartão e pagamento de fatura não alternam: desmarcar um pagamento de fatura
      *  reabria a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes. */
-    fun canTogglePaid(t: Tx) = !t.isCard && t.isFlow
+    fun canTogglePaid(t: Tx) = !t.isCard && t.isFlow && !t.isProjected
 
     fun togglePaid(s: AppState, id: String): AppState =
         s.copy(txs = s.txs.map { if (it.id == id && canTogglePaid(it)) it.copy(paid = !it.paid) else it })

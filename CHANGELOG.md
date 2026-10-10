@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.1 — Recorrências aparecem nos próximos meses (10/10/2026, ainda não publicada)
+
+> **Situação:** pronta para publicar; sem a tag `v1.4.1`, o F-Droid e as Releases continuam na 1.4.0.
+
+**Problema (relatado pelo autor, 10/10/2026):** a receita fixa "Adiantamento Quinzenal" (todo dia 15) não aparecia em novembro e dezembro no calendário, enquanto uma despesa parcelada aparecia. Causa: toda recorrência (receita ou despesa) só vira lançamento quando o mês chega; as parcelas são criadas todas de uma vez, por isso pareciam "fixar".
+
+**Agora:** nos meses que ainda não chegaram, as recorrências ativas aparecem como **Previsto** no calendário, na Lista (quando o período chega lá), nas pendências do mês e no saldo previsto ao fim do dia. Tocar num previsto abre a recorrência; mudar ou pausar a recorrência muda os previstos na hora. **Nada é gravado**: o lançamento real continua sendo criado quando o mês chega. Mês atual, Relatórios, PDF e backup não mudam. Detalhes em [RECORRENCIAS.md](RECORRENCIAS.md).
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Projection.kt` (novo) | Ocorrências previstas das recorrências (`Projection.between`, `Tx.isProjected`) |
+| `core/MonthCalendar.kt`, `core/Period.kt`, `core/Finance.kt` | Calendário, pendências do mês e `futureBalance` contam os previstos |
+| `core/Ops.kt` | Previsto não alterna pago/pendente |
+| `ui/Root.kt` (`TxRow`) | "Previsto · recorrência", ícone de repetir, toque abre a recorrência |
+| `ui/screens/MovesScreen.kt`, `CalendarView.kt` | Lista inclui os previstos do período; nota dos totais do calendário |
+| `test/.../ProjectionTest.kt` (novo) | 4 testes (93 no núcleo) |
+
 ## 1.4.0 — Simulador "E se…?", Relatórios renovados e correção das abas (10/10/2026)
 
 > Estas mudanças eram para a 1.3.0, mas ficaram de fora dela.

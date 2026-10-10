@@ -72,6 +72,7 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0) {
     GIFTS(R.drawable.ms_redeem),
     BANK(R.drawable.ms_account_balance),
     WORK(R.drawable.ms_work),
+    REPEAT(R.drawable.ms_repeat),
 }
 
 /** Ícone com a cor do tema. Com [description] nulo o ícone é decorativo (o texto ao lado já descreve). */

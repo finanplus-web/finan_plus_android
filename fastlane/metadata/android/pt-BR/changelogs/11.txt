@@ -1,0 +1,1 @@
+Correção: receitas e despesas fixas (recorrências) agora aparecem nos próximos meses como "Previsto" no calendário, na Lista e no saldo previsto. Tocar num previsto abre a recorrência; mudar o valor atualiza todos os meses. Nada é gravado antes da hora: o lançamento real é criado quando o mês chega.

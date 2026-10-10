@@ -1,0 +1,1 @@
+Fix: recurring income and expenses now show in the coming months as "Planned" in the calendar, the list and the projected balance. Tap one to open the recurrence; changing the amount updates every month. Nothing is saved early: the real entry is still created when the month arrives.

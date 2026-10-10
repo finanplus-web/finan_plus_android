@@ -1,4 +1,4 @@
-# Finan+ para Android — v1.3.0
+# Finan+ para Android — v1.4.0
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
@@ -157,7 +157,6 @@ Todo valor em dinheiro é `Long` em centavos: nada de ponto flutuante. Toda alte
 
 ## Próximos passos sugeridos
 
-- Ícone monocromático para o "ícone temático" do Android 13+ (requer um desenho vetorial da marca).
 - Testes instrumentados de interface (Compose UI Test) depois da primeira compilação.
 
 ## Licença
@@ -171,7 +170,9 @@ Na prática:
 - Quem distribuir o app ou uma versão modificada precisa manter a mesma licença e **disponibilizar o código-fonte**, incluindo as modificações.
 - O programa é fornecido **sem garantia**.
 
-**Componente de terceiros:** os ícones do app são do conjunto Material Symbols, © Google, sob a Licença Apache 2.0, compatível com a GPL v3. Detalhes em `third_party/material-symbols/`.
+**Componente de terceiros:** os ícones da interface são do conjunto Material Symbols, © Google, sob a Licença Apache 2.0, compatível com a GPL v3. Detalhes em `third_party/material-symbols/`.
+
+**Ícone do app (F+):** desenho próprio do Finan+, sob a mesma licença GPL-3.0-or-later. Fontes em vetor em [`docs/icone/`](docs/icone/).
 
 Cada arquivo de código traz no topo o aviso de copyright e o identificador `SPDX-License-Identifier: GPL-3.0-or-later`.
 

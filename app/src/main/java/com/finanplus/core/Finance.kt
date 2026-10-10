@@ -93,6 +93,8 @@ object Finance {
             c += if (t.kind == Kind.INCOME) t.value else -t.value
         }
         for (card in s.cards) for (inv in cardStatus(s, card, today).invoices) if (inv.open > 0 && !inv.due.isAfter(until)) c -= inv.open
+        // recorrências previstas até [until] (só nos meses que ainda não chegaram; fora do cartão)
+        for (t in Projection.between(s, today, until, today)) if (!t.isCard) c += if (t.kind == Kind.INCOME) t.value else -t.value
         return c
     }
 

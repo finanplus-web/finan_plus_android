@@ -9,6 +9,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
 - Calendário de lançamentos (como ler e o que entra na conta): [CALENDARIO.md](CALENDARIO.md)
 - Simulador "E se…?" (as contas e o que não considera): [SIMULADOR.md](SIMULADOR.md)
+- Recorrências nos próximos meses ("Previsto"): [RECORRENCIAS.md](RECORRENCIAS.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - Acesso pela rede (uso, certificado, segurança): [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) · auditoria: [AUDITORIA-LAN.md](AUDITORIA-LAN.md)
 - Auditoria de outubro de 2026 e o que foi corrigido: [docs/AUDITORIA-2026-10.md](docs/AUDITORIA-2026-10.md)
@@ -40,7 +41,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 |---|---|
 | Navegação | Barra inferior com Início, Lançamentos, Relatórios e Ajustes. Também dá para **deslizar para o lado** e passar à aba vizinha |
 | Início | Saldo atual (inclui saldo inicial das contas), saldo previsto no fim do mês, receitas/despesas do mês com o que falta receber e pagar, resumo do assistente em 2 frases, contas e cartões com fatura atual e "Pagar fatura", limites do mês e metas com plano (cada seção aparece quando existe algo; antes disso, um atalho em "Comece por aqui") |
-| Lançamentos | **Lista**: ‹ mês › com período livre e situação no botão de ajuste, busca, filtros de um toque (Todos, Receitas, Despesas, Pendentes), resumo do período com o que falta receber e pagar, lançamentos agrupados por dia com o saldo de cada dia, marcar como pago. **Calendário**: o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, atrasos em destaque, totais do mês, lançamentos do dia escolhido, saldo previsto ao fim do dia e Receita/Despesa já com a data (ou tocar de novo no dia). Detalhes em [CALENDARIO.md](CALENDARIO.md) |
+| Lançamentos | **Lista**: ‹ mês › com período livre e situação no botão de ajuste, busca, filtros de um toque (Todos, Receitas, Despesas, Pendentes), resumo do período com o que falta receber e pagar, lançamentos agrupados por dia com o saldo de cada dia, marcar como pago. **Calendário**: o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, atrasos em destaque, totais do mês, lançamentos do dia escolhido, saldo previsto ao fim do dia e Receita/Despesa já com a data (ou tocar de novo no dia). Nos próximos meses, as recorrências aparecem como **Previsto** ([RECORRENCIAS.md](RECORRENCIAS.md)). Detalhes em [CALENDARIO.md](CALENDARIO.md) |
 | Relatórios | Mesmo ‹ mês › da aba Lançamentos, Receitas e Despesas realizadas com comparação justa (mês atual contra os mesmos dias do mês anterior), despesas por categoria (com limites), últimos 6 meses (com descrição para leitores de tela), botão PDF |
 | Simulador "E se…?" | Economizar por mês, quanto tempo para comprar, mudança na renda e antecipar dívida parcelada, a partir da média dos últimos 3 meses. Nada é gravado; dá para transformar em meta. Detalhes em [SIMULADOR.md](SIMULADOR.md) |
 | Editores | Lançamento (parcelas com divisão do total, repetir mensalmente, cartão), meta, conta, cartão, recorrência (com início, pausa e edição), limite, pagamento de fatura |

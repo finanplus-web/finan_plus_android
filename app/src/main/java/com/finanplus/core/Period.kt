@@ -55,6 +55,11 @@ object Period {
             if (t.kind == Kind.INCOME) inc += t.value else exp += t.value
         }
         exp += MonthCalendar.invoicesDue(s, ym, today).sumOf { it.amount }
+        // num mês que ainda não chegou, as recorrências previstas também faltam entrar ou sair
+        for (t in Projection.between(s, ym.atDay(1), ym.atEndOfMonth(), today)) {
+            if (t.isCard) continue
+            if (t.kind == Kind.INCOME) inc += t.value else exp += t.value
+        }
         return Pending(inc, exp)
     }
 

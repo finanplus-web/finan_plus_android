@@ -335,7 +335,7 @@ private fun MonthTotals(days: Map<LocalDate, CalDay>) {
         TotalTile("Resultado", t.net, if (t.net < 0) p.red else p.accent, Modifier.weight(1f))
     }
     Text(
-        "Inclui o que ainda está pendente e as faturas no dia do vencimento. Compras no cartão aparecem no dia, mas só contam na fatura.",
+        "Inclui o que ainda está pendente, as faturas no dia do vencimento e, nos próximos meses, as recorrências previstas. Compras no cartão aparecem no dia, mas só contam na fatura.",
         style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 6.dp, start = 4.dp, end = 4.dp),
     )
 }

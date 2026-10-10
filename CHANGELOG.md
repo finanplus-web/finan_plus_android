@@ -15,6 +15,13 @@ Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da
 - **Privacidade e acessibilidade:** com "Ocultar valores" ficam só os pontinhos. O TalkBack lê cada dia como frase completa ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso"), sem valores quando estão ocultos. Alvos de toque de 48dp ou mais; o valor do dia nunca é cortado com "…".
 - **Dados:** nada mudou no modelo nem no formato do backup.
 
+**Também nesta versão — ícone novo (F+).** O ícone do app passou a ser o monograma **F+**: o F em azul (`#4269d8`) com o "+" num círculo, sobre o fundo claro do app (`#eef4ff`, com os brilhos azul e rosa). É o mesmo ícone do Finan+ web e do Finan+ para Linux.
+- **Ícone adaptável** (Android 8+): camadas de fundo e de primeiro plano em todas as densidades (`mipmap-*`), com o símbolo dentro da zona segura, então qualquer formato de ícone do aparelho (círculo, gota, squircle) mostra o F+ inteiro.
+- **Ícone temático** (Android 13+): camada `monochrome` em vetor (`drawable/ic_launcher_monochrome.xml`), que o sistema pinta com as cores do papel de parede.
+- **Notificações:** o ícone pequeno (`ic_stat_finan`) virou a silhueta do F+.
+- **F-Droid e Acesso pela rede:** `fastlane/.../icon.png` e os ícones do PWA servido pelo celular foram trocados também.
+- **Fontes:** os SVGs (com e sem sombra, só o símbolo e uma cor) estão em [`docs/icone/`](docs/icone/).
+
 **Também nesta versão — Início e Lista mais enxutos.** As duas telas tinham muita coisa repetida e cartões vazios ocupando espaço; agora o principal aparece logo de cara.
 
 *Início:*

@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Ícone monocromático da notificação: cartão com "+" -->
+<!-- Ícone monocromático da notificação: o símbolo F+ do Finan+ -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24">
-    <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd"
-        android:pathData="M4,5h16a2,2 0,0 1,2 2v10a2,2 0,0 1,-2 2H4a2,2 0,0 1,-2 -2V7a2,2 0,0 1,2 -2zM4,8v2h16V8H4zM15,12v2h-2v1.5h2v2h1.5v-2h2V14h-2v-2H15z" />
+    <group android:translateX="12" android:translateY="12" android:scaleX="0.06711" android:scaleY="0.06711">
+        <group android:translateX="-281" android:translateY="-258">
+            <path android:fillColor="#FFFFFFFF" android:pathData="M156,128 H178 A24,24 0 0 1 202,152 V360 A24,24 0 0 1 178,384 H156 A24,24 0 0 1 132,360 V152 A24,24 0 0 1 156,128 Z M156,128 H274 A24,24 0 0 1 298,152 V172 A24,24 0 0 1 274,196 H156 A24,24 0 0 1 132,172 V152 A24,24 0 0 1 156,128 Z M154,232 H238 A22,22 0 0 1 260,254 V270 A22,22 0 0 1 238,292 H154 A22,22 0 0 1 132,270 V254 A22,22 0 0 1 154,232 Z"/>
+            <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M290,318 A70,70 0 1 1 430,318 A70,70 0 1 1 290,318 Z M348,290 A12,12 0 0 1 372,290 V306 H388 A12,12 0 0 1 388,330 H372 V346 A12,12 0 0 1 348,346 V330 H332 A12,12 0 0 1 332,306 H348 Z"/>
+        </group>
+    </group>
 </vector>

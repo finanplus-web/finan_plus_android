@@ -1,1 +1,2 @@
 New: Calendar in Transactions, with each day's balance, card bills and overdue bills; tap a day again to add one on that date. Swipe to switch tabs. Cleaner Home and List: what is still to receive and pay, a 2-line assistant summary, one-tap filters, a month switcher and transactions grouped by day. The assistant no longer warns that expenses will exceed income based on just one or two purchases.
+ New icon: F+.

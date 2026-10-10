@@ -1,8 +1,26 @@
 # Changelog
 
-## 1.3.0 — Calendário de lançamentos (08/10/2026, ainda não publicada)
+## 1.4.0 — Simulador "E se…?" e Relatórios renovados (10/10/2026, ainda não publicada)
 
-> **Situação:** na `main` desde 08/10/2026 ([PR #4](https://github.com/finanplus-web/finan_plus_android/pull/4)), mas **ainda não publicada**: sem a tag `v1.3.0`, o F-Droid e as Releases continuam na versão anterior. Para publicar: criar e enviar a tag `v1.3.0`.
+> **Situação:** na `main`, mas **ainda não publicada**: sem a tag `v1.4.0`, o F-Droid e as Releases continuam na 1.3.0. Para publicar: criar e enviar a tag `v1.4.0`. Estas mudanças eram para a 1.3.0, mas ficaram de fora dela.
+
+Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
+
+- **E se…?** (em Relatórios): quatro perguntas — economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida parcelada. Parte da média dos 3 meses completos anteriores (só realizados), que dá para ajustar. **Nada é gravado.** "Transformar em meta" abre o formulário de meta já preenchido.
+- **Relatórios:** mesmo ‹ mês › da aba Lançamentos (período compartilhado), botão **PDF** no título, resumo de Receitas e Despesas com comparação justa (mês atual contra os mesmos dias do mês anterior), cartão "Nada realizado… ainda" com o que falta receber e pagar e o link para o calendário, e texto no lugar do gráfico vazio. Saiu o cartão "Este mês × mês anterior".
+- **Tema:** nada mudou nas cores; tudo usa a paleta do tema escolhido.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Simulator.kt` (novo) | Base, economizar, comprar, renda, dívidas e quitação |
+| `core/Period.kt` | `PeriodCompare`: período de referência e texto da variação |
+| `ui/screens/SimulatorSheet.kt` (novo) | Folha "E se…?" |
+| `ui/screens/ReportsScreen.kt` | Relatórios renovados |
+| `ui/Root.kt`, `ui/screens/Sheets.kt` | `Sheet.Simulator`; formulário de meta aceita valores iniciais |
+| `test/.../SimulatorTest.kt` (novo) | Testes das contas e da comparação |
+- **Acesso pela rede:** o PWA servido pelo celular foi atualizado para o Finan+ web 1.3.0, que já tem o simulador.
+
+## 1.3.0 — Calendário de lançamentos e ícone novo (10/10/2026)
 
 Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).
 
@@ -14,6 +32,13 @@ Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da
 - **Navegação:** setas ou deslizar para o lado trocam de mês; "Voltar para hoje" fora do mês atual. A visão, o mês e o dia sobrevivem a girar a tela e ao bloqueio, e acompanham a virada do dia com o app aberto.
 - **Privacidade e acessibilidade:** com "Ocultar valores" ficam só os pontinhos. O TalkBack lê cada dia como frase completa ("6 de outubro, terça-feira, 1 lançamento, saldo do dia menos R$ 119,90, em atraso"), sem valores quando estão ocultos. Alvos de toque de 48dp ou mais; o valor do dia nunca é cortado com "…".
 - **Dados:** nada mudou no modelo nem no formato do backup.
+
+**Também nesta versão — ícone novo (F+).** O ícone do app passou a ser o monograma **F+**: o F em azul (`#4269d8`) com o "+" num círculo, sobre o fundo claro do app (`#eef4ff`, com os brilhos azul e rosa). É o mesmo ícone do Finan+ web e do Finan+ para Linux.
+- **Ícone adaptável** (Android 8+): camadas de fundo e de primeiro plano em todas as densidades (`mipmap-*`), com o símbolo dentro da zona segura, então qualquer formato de ícone do aparelho (círculo, gota, squircle) mostra o F+ inteiro.
+- **Ícone temático** (Android 13+): camada `monochrome` em vetor (`drawable/ic_launcher_monochrome.xml`), que o sistema pinta com as cores do papel de parede.
+- **Notificações:** o ícone pequeno (`ic_stat_finan`) virou a silhueta do F+.
+- **F-Droid e Acesso pela rede:** `fastlane/.../icon.png` e os ícones do PWA servido pelo celular foram trocados também.
+- **Fontes:** os SVGs (com e sem sombra, só o símbolo e uma cor) estão em [`docs/icone/`](docs/icone/).
 
 **Também nesta versão — Início e Lista mais enxutos.** As duas telas tinham muita coisa repetida e cartões vazios ocupando espaço; agora o principal aparece logo de cara.
 

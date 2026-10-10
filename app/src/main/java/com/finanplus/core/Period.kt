@@ -81,3 +81,35 @@ object Period {
         }
     }
 }
+
+/** Comparação dos Relatórios: o período de referência e como chamá-lo ("vs. set (mesmos dias)"). */
+data class Compare(val from: LocalDate, val to: LocalDate, val label: String)
+
+object PeriodCompare {
+    private val SHORT = listOf("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+
+    /**
+     * - mês atual inteiro: o mês anterior **até o mesmo dia** (comparar o começo de um mês com o mês anterior inteiro seria injusto);
+     * - outro mês inteiro: o mês anterior inteiro;
+     * - período livre com início e fim: o período do mesmo tamanho logo antes;
+     * - sem início ou sem fim: sem comparação (null).
+     */
+    fun of(from: LocalDate?, to: LocalDate?, today: LocalDate): Compare? {
+        val ym = Period.fullMonth(from, to)
+        if (ym != null) {
+            val prev = ym.minusMonths(1)
+            return if (ym == today.ym()) Compare(prev.atDay(1), prev.atDay(minOf(today.dayOfMonth, prev.lengthOfMonth())), "vs. ${SHORT[prev.monthValue - 1]} (mesmos dias)")
+            else Compare(prev.atDay(1), prev.atEndOfMonth(), "vs. ${MonthCalendar.monthName(prev)}")
+        }
+        if (from == null || to == null || to.isBefore(from)) return null
+        val days = java.time.temporal.ChronoUnit.DAYS.between(from, to) + 1
+        return Compare(from.minusDays(days), from.minusDays(1), "vs. período anterior")
+    }
+
+    /** "+12% vs. …", "−9% vs. …"; sem valor na referência: "Sem base para comparar" */
+    fun text(cur: Cents, prev: Cents, c: Compare): String {
+        if (prev <= 0) return "Sem base para comparar"
+        val pct = Math.round((cur - prev) * 100.0 / prev)
+        return (if (pct > 0) "+" else if (pct < 0) "−" else "") + kotlin.math.abs(pct) + "% " + c.label
+    }
+}

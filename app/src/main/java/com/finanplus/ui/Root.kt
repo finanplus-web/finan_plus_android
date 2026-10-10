@@ -106,7 +106,8 @@ enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
 sealed interface Sheet : java.io.Serializable {
     /** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário) */
     data class TxEdit(val kind: Kind, val id: String? = null, val date: LocalDate? = null) : Sheet
-    data class GoalEdit(val id: String? = null) : Sheet
+    /** [name]/[target]/[monthly]: valores iniciais de uma meta nova (ex.: vindos do simulador) */
+    data class GoalEdit(val id: String? = null, val name: String = "", val target: Long = 0, val monthly: Long = 0) : Sheet
     data class AccountEdit(val id: String? = null) : Sheet
     data class CardEdit(val id: String? = null) : Sheet
     data class RecurringEdit(val id: String? = null) : Sheet
@@ -118,6 +119,8 @@ sealed interface Sheet : java.io.Serializable {
     data class ReportPdf(val from: java.time.LocalDate? = null, val to: java.time.LocalDate? = null) : Sheet
     /** Lançamentos › Lista: período livre e situação (o ícone de ajuste ao lado do mês) */
     data object MovesFilters : Sheet
+    /** simulador "E se…?" ([scenario]: save, buy, income, debt; null = escolher) */
+    data class Simulator(val scenario: String? = null) : Sheet
 }
 
 /** Filtros da aba Lançamentos (o período também vale para Relatórios). */

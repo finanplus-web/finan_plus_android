@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Finan+ — ícone monocromático (Android 13+). O sistema aplica a cor do tema. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+  <group android:translateX="54" android:translateY="54" android:scaleX="0.16203" android:scaleY="0.16203"><group android:translateX="-281" android:translateY="-256">
+    <path android:fillColor="#FF000000" android:pathData="M156,128 H178 A24,24 0 0 1 202,152 V360 A24,24 0 0 1 178,384 H156 A24,24 0 0 1 132,360 V152 A24,24 0 0 1 156,128 Z M156,128 H274 A24,24 0 0 1 298,152 V172 A24,24 0 0 1 274,196 H156 A24,24 0 0 1 132,172 V152 A24,24 0 0 1 156,128 Z M154,232 H238 A22,22 0 0 1 260,254 V270 A22,22 0 0 1 238,292 H154 A22,22 0 0 1 132,270 V254 A22,22 0 0 1 154,232 Z"/>
+    <path android:fillColor="#FF000000" android:fillType="evenOdd" android:pathData="M290,318 A70,70 0 1 1 430,318 A70,70 0 1 1 290,318 Z M348,290 A12,12 0 0 1 372,290 V306 H388 A12,12 0 0 1 388,330 H372 V346 A12,12 0 0 1 348,346 V330 H332 A12,12 0 0 1 332,306 H348 Z"/>
+  </group></group>
+</vector>

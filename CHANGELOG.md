@@ -1,8 +1,6 @@
 # Changelog
 
-## 1.3.0 — Calendário de lançamentos (08/10/2026, ainda não publicada)
-
-> **Situação:** na `main` desde 08/10/2026 ([PR #4](https://github.com/finanplus-web/finan_plus_android/pull/4)), mas **ainda não publicada**: sem a tag `v1.3.0`, o F-Droid e as Releases continuam na versão anterior. Para publicar: criar e enviar a tag `v1.3.0`.
+## 1.3.0 — Calendário de lançamentos e ícone novo (10/10/2026)
 
 Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).
 

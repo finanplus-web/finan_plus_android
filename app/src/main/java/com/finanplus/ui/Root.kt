@@ -245,13 +245,18 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
     // Os botões da barra inferior continuam funcionando; os dois caminhos mudam o mesmo nav.tab.
     val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = nav.tab.ordinal) { Tab.entries.size }
     // tocou num botão da barra (ou "Voltar" para o Início): leva o pager até a aba
-    LaunchedEffect(nav.tab) { if (pager.targetPage != nav.tab.ordinal) pager.animateScrollToPage(nav.tab.ordinal) }
-    // deslizou e parou numa aba: ela vira a aba atual
+    LaunchedEffect(nav.tab) { if (pager.currentPage != nav.tab.ordinal) pager.animateScrollToPage(nav.tab.ordinal) }
+    // O pager parou: a aba atual passa a ser a página em que ele parou.
+    // Observa o PAR (rolando?, página onde parou): com gestos rápidos em sequência, a página pode mudar
+    // ainda durante o próximo gesto; observando só a página, essa parada final se perdia e a barra
+    // ficava marcando outra aba (e o app tentava voltar para ela, brigando com o dedo).
     LaunchedEffect(pager) {
-        androidx.compose.runtime.snapshotFlow { pager.settledPage }.collect { page ->
-            if (!pager.isScrollInProgress && nav.tab.ordinal != page) nav.tab = Tab.entries[page]
+        androidx.compose.runtime.snapshotFlow { pager.isScrollInProgress to pager.settledPage }.collect { (moving, page) ->
+            if (!moving && nav.tab.ordinal != page) nav.tab = Tab.entries[page]
         }
     }
+    // a barra acompanha o gesto na hora: marca a página para onde o pager está indo
+    val shownTab = Tab.entries[pager.targetPage]
     CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             androidx.compose.foundation.pager.HorizontalPager(
@@ -270,7 +275,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             }
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
-            BottomNav(nav, Modifier.align(Alignment.BottomCenter))
+            BottomNav(nav, shownTab, Modifier.align(Alignment.BottomCenter))
             SaveErrorBanner(Modifier.align(Alignment.TopCenter)) { reaskProblem++ }
         }
         nav.sheet?.let { sh -> key(sh) { SheetHost(s, sh) { nav.sheet = null } } }
@@ -279,7 +284,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
 }
 
 @Composable
-private fun BottomNav(nav: Nav, modifier: Modifier) {
+private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
     Row(
         modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
@@ -288,22 +293,22 @@ private fun BottomNav(nav: Nav, modifier: Modifier) {
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        NavItem(Tab.HOME, nav, Modifier.weight(1f))
-        NavItem(Tab.MOVES, nav, Modifier.weight(1f))
+        NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
+        NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
         Box(
             Modifier.padding(horizontal = 4.dp).size(54.dp).shadow(8.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(p.accent)
                 .clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }.semantics { contentDescription = "Novo lançamento" },
             contentAlignment = Alignment.Center,
         ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 28.dp) }
-        NavItem(Tab.REPORTS, nav, Modifier.weight(1f))
-        NavItem(Tab.PREFS, nav, Modifier.weight(1f))
+        NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
+        NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun NavItem(t: Tab, nav: Nav, modifier: Modifier) {
+private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
-    val on = nav.tab == t
+    val on = shown == t
     Column(
         modifier.height(58.dp).clip(RoundedCornerShape(20.dp)).background(if (on) p.accent.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
             .clickable(role = Role.Tab) { nav.tab = t }.semantics { selected = on },

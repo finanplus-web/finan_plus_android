@@ -20,6 +20,8 @@ Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
 | `test/.../SimulatorTest.kt` (novo) | Testes das contas e da comparação |
 - **Acesso pela rede:** o PWA servido pelo celular foi atualizado para o Finan+ web 1.3.0, que já tem o simulador.
 
+**Também nesta versão — correção ao trocar de aba deslizando rápido** (relatada pelo autor no aparelho, 09/10/2026; o gesto de trocar de aba chegou na 1.3.0): com gestos muito rápidos em sequência, o conteúdo ficava numa aba e a barra inferior marcava outra (ex.: Início na tela e Ajustes marcado), e o app às vezes tentava voltar para a aba antiga. Causa: a aba atual só era atualizada quando a página "parava", mas observando só a página essa parada se perdia quando o próximo gesto já tinha começado. Agora o app observa juntos "está rolando?" e "em que página parou" (nunca perde a parada final), só leva o pager até a aba quando ele está parado numa página diferente, e a barra marca na hora a página para onde o gesto está indo. Movendo devagar, nada muda. (`ui/Root.kt`)
+
 ## 1.3.0 — Calendário de lançamentos e ícone novo (10/10/2026)
 
 Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).

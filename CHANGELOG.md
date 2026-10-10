@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.4.0 — Simulador "E se…?" e Relatórios renovados (10/10/2026, ainda não publicada)
+
+> **Situação:** na `main`, mas **ainda não publicada**: sem a tag `v1.4.0`, o F-Droid e as Releases continuam na 1.3.0. Para publicar: criar e enviar a tag `v1.4.0`. Estas mudanças eram para a 1.3.0, mas ficaram de fora dela.
+
+Detalhes e contas em [SIMULADOR.md](SIMULADOR.md).
+
+- **E se…?** (em Relatórios): quatro perguntas — economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida parcelada. Parte da média dos 3 meses completos anteriores (só realizados), que dá para ajustar. **Nada é gravado.** "Transformar em meta" abre o formulário de meta já preenchido.
+- **Relatórios:** mesmo ‹ mês › da aba Lançamentos (período compartilhado), botão **PDF** no título, resumo de Receitas e Despesas com comparação justa (mês atual contra os mesmos dias do mês anterior), cartão "Nada realizado… ainda" com o que falta receber e pagar e o link para o calendário, e texto no lugar do gráfico vazio. Saiu o cartão "Este mês × mês anterior".
+- **Tema:** nada mudou nas cores; tudo usa a paleta do tema escolhido.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Simulator.kt` (novo) | Base, economizar, comprar, renda, dívidas e quitação |
+| `core/Period.kt` | `PeriodCompare`: período de referência e texto da variação |
+| `ui/screens/SimulatorSheet.kt` (novo) | Folha "E se…?" |
+| `ui/screens/ReportsScreen.kt` | Relatórios renovados |
+| `ui/Root.kt`, `ui/screens/Sheets.kt` | `Sheet.Simulator`; formulário de meta aceita valores iniciais |
+| `test/.../SimulatorTest.kt` (novo) | Testes das contas e da comparação |
+- **Acesso pela rede:** o PWA servido pelo celular foi atualizado para o Finan+ web 1.3.0, que já tem o simulador.
+
 ## 1.3.0 — Calendário de lançamentos e ícone novo (10/10/2026)
 
 Recurso novo na aba **Lançamentos**: a chave **Lista | Calendário** no alto da tela. O calendário mostra o mês em grade, com o que entra e o que sai em cada dia. Como ler e o que entra na conta: [CALENDARIO.md](CALENDARIO.md).

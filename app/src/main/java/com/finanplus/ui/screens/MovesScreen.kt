@@ -117,9 +117,9 @@ fun MovesScreen(s: AppState) {
     }
 }
 
-/** ‹ Outubro de 2026 › + botão de período livre e situação. As setas andam um mês inteiro. */
+/** ‹ Outubro de 2026 › + botão de período livre e situação. As setas andam um mês inteiro. Usado em Lançamentos e Relatórios. */
 @Composable
-private fun PeriodBar(nav: com.finanplus.ui.Nav, today: LocalDate) {
+internal fun PeriodBar(nav: com.finanplus.ui.Nav, today: LocalDate) {
     val f = nav.filters
     val p = Fin.c
     val shift: (Long) -> Unit = { d -> val (a, b) = com.finanplus.core.Period.shift(f.from, f.to, d, today); f.from = a; f.to = b }

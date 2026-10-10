@@ -1,0 +1,1 @@
+New: "What if…?" simulator in Reports: saving per month, how long to afford something, an income change and paying off a debt early, without changing your data ("Turn into goal" creates the goal for you). Renewed Reports: the same ‹ month › as Transactions, PDF in the title, a fair comparison with the previous month and what is still to receive and pay.

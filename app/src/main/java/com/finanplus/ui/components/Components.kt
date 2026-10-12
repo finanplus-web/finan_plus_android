@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -149,13 +150,21 @@ fun Eyebrow(text: String, modifier: Modifier = Modifier) =
     Text(text.uppercase(BR), modifier, style = MaterialTheme.typography.labelSmall, color = Fin.c.muted)
 
 @Composable
-fun SectionHead(eyebrow: String?, title: String, action: String? = null, onAction: (() -> Unit)? = null) {
+fun SectionHead(eyebrow: String?, title: String, action: String? = null, actionIcon: Ico? = null, onAction: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 10.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             if (eyebrow != null) Eyebrow(eyebrow)
             Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
         }
-        if (action != null && onAction != null) Pill(action, onClick = onAction)
+        if (action != null && onAction != null) Pill(action, icon = actionIcon, onClick = onAction)
+    }
+}
+
+/** Quadradinho arredondado com ícone (cabeçalhos de cartão, atalhos). */
+@Composable
+fun IconTile(icon: Ico, tint: Color, bg: Color, size: Dp = 40.dp, iconSize: Dp = 20.dp) {
+    Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.32f)).background(bg), contentAlignment = Alignment.Center) {
+        AppIcon(icon, tint, size = iconSize)
     }
 }
 

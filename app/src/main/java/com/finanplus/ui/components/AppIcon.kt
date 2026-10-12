@@ -49,6 +49,11 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0) {
     SEARCH(R.drawable.ms_search),
     RECEIPT(R.drawable.ms_receipt_long),
     TUNE(R.drawable.ms_tune),
+    WALLET(R.drawable.ms_account_balance_wallet),
+    FORECAST(R.drawable.ms_bar_chart),
+    INCOME(R.drawable.ms_south_west),
+    EXPENSE(R.drawable.ms_north_east),
+    LIMIT(R.drawable.ms_track_changes),
 
     // categorias
     FOOD(R.drawable.ms_shopping_cart),

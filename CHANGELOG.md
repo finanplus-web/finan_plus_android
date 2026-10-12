@@ -1,5 +1,27 @@
 # Changelog
 
+## Novo visual da tela Início (12/10/2026, ainda não publicado)
+
+Só aparência: os dados, os cálculos e as ações da tela são os mesmos. O mesmo visual foi aplicado ao Finan+ web (PWA).
+
+- **Saldo atual** em destaque, com o ícone de carteira; o **saldo previsto no fim do mês** virou uma faixa logo abaixo, com ícone de gráfico.
+- **Receitas** e **Despesas do mês** saíram do cartão do saldo e viraram dois cartões próprios (`FlowCard`), em verde e vermelho claros. Quando há algo pendente, mostram "a receber/a pagar" e uma barra com quanto do total do mês já entrou ou saiu ("X% recebido", "X% pago"); a porcentagem some com "Ocultar valores" e a barra fica desfocada.
+- **Assistente**: título maior e cada frase numa faixa com ícone; tocar na faixa abre o assistente (o mesmo que o link de baixo).
+- **Contas e cartões**: o botão "Gerenciar" ganhou o ícone de engrenagem (`SectionHead` aceita `actionIcon`).
+- **Comece por aqui**: quando os dois atalhos aparecem, ficam lado a lado em cartões (`StartCard`); com um só, a linha de antes.
+- **Botão +** da barra inferior: redondo, um pouco mais alto, com um anel da cor do fundo.
+- Novo componente `IconTile` (quadradinho arredondado com ícone) em `Components.kt`.
+- Ícones novos (Material Symbols Rounded, peso 300): `ms_account_balance_wallet`, `ms_bar_chart`, `ms_south_west`, `ms_north_east`, `ms_track_changes` (`Ico.WALLET`, `FORECAST`, `INCOME`, `EXPENSE`, `LIMIT`).
+
+| Arquivo | Mudança |
+|---|---|
+| `ui/screens/HomeScreen.kt` | Cartão do saldo, `FlowCard`, `StartCard`; `StatBox` removido |
+| `ui/screens/Assistant.kt` | Cabeçalho e frases do cartão do assistente na Início |
+| `ui/components/Components.kt` | `IconTile`; `SectionHead(actionIcon)` |
+| `ui/components/AppIcon.kt` | 5 ícones novos |
+| `ui/Root.kt` | Botão + redondo |
+| `res/drawable/ms_*.xml` | 5 ícones novos |
+
 ## 1.4.1 — Recorrências aparecem nos próximos meses (10/10/2026, ainda não publicada)
 
 > **Situação:** pronta para publicar; sem a tag `v1.4.1`, o F-Droid e as Releases continuam na 1.4.0.

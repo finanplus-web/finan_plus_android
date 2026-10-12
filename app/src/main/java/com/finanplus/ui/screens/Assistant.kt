@@ -137,14 +137,28 @@ fun HomeAssistantCard(s: AppState) {
     // O resumo completo, todas as dicas, "Por quê?" e as perguntas ficam na folha do assistente.
     Glass(Modifier.padding(top = 12.dp), radius = 26.dp, padding = 16.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ASSIST, p.muted, size = 14.dp)
-            Spacer(Modifier.width(4.dp))
-            Text("Assistente", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.semantics { heading() })
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ASSIST, p.accent, size = 22.dp, filled = true)
+            Spacer(Modifier.width(8.dp))
+            Text("Assistente", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold), modifier = Modifier.semantics { heading() })
         }
         if (dev.assistTips) {
             val lines = report.highlights.ifEmpty { report.lines.take(1) }
-            Spacer(Modifier.height(4.dp))
-            lines.forEach { Text("• $it", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp)) }
+            Spacer(Modifier.height(8.dp))
+            // cada frase numa faixa com ícone; tocar abre o assistente (o mesmo que o link abaixo)
+            lines.forEachIndexed { i, line ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(18.dp)).background(innerBg())
+                        .clickable(role = Role.Button) { nav.open(Sheet.Assistant) }.padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    com.finanplus.ui.components.IconTile(
+                        if (i == 0) com.finanplus.ui.components.Ico.RECEIPT else com.finanplus.ui.components.Ico.CALENDAR,
+                        p.accent, p.accent2, size = 36.dp, iconSize = 19.dp,
+                    )
+                    Text(line, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(horizontal = 10.dp))
+                    com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.NEXT, p.muted, size = 18.dp)
+                }
+            }
             tips.firstOrNull()?.let { t ->
                 TipItem(
                     t,

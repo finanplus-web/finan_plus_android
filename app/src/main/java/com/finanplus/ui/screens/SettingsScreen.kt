@@ -86,8 +86,8 @@ import java.time.LocalDate
 private const val MAX_BACKUP_BYTES = 30_000_000
 
 private val THEME_SWATCH = mapOf(
-    ThemeId.AUTO to (0xFFD9E5FF to 0xFF181A1F), ThemeId.LIGHT to (0xFFEEF4FF to 0xFF3A5FC8), ThemeId.MATERIAL_YOU to (0xFFDBE7FF to 0xFF0B57D0),
-    ThemeId.OLED to (0xFF181A1F to 0xFF8AA8FF), ThemeId.TOKYO to (0xFF1A1B26 to 0xFF7AA2F7), ThemeId.NORD to (0xFF2E3440 to 0xFF88C0D0),
+    ThemeId.AUTO to (0xFFD9E5FF to 0xFF181A1F), ThemeId.LIGHT to (0xFFEEF4FF to 0xFF3A5FC8), ThemeId.GRUVBOX to (0xFF282828 to 0xFF83A598),
+    ThemeId.OLED to (0xFF181A1F to 0xFF8AA8FF), ThemeId.TOKYO to (0xFF1A1B26 to 0xFF7AA2F7), ThemeId.NORD to (0xFF2E3440 to 0xFF88C0D0), ThemeId.GRUVBOX_OLED to (0xFF000000 to 0xFF83A598),
 )
 
 @Composable

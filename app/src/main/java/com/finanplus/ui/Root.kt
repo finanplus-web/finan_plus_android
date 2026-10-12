@@ -301,9 +301,9 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
         NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
         NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
         Box(
-            // botão redondo, um pouco acima da barra (conceito de outubro/2026)
-            Modifier.padding(horizontal = 4.dp).offset(y = (-14).dp).size(58.dp)
-                .shadow(10.dp, CircleShape).clip(CircleShape).background(p.accent).border(4.dp, p.bg, CircleShape)
+            // botão redondo, centralizado na barra (nada fica para fora dela)
+            Modifier.padding(horizontal = 4.dp).size(56.dp)
+                .shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
                 .clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }.semantics { contentDescription = "Novo lançamento" },
             contentAlignment = Alignment.Center,
         ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 28.dp) }

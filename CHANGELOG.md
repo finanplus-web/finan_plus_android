@@ -9,8 +9,8 @@ Só aparência: os dados, os cálculos e as ações da tela são os mesmos. O me
 - **Assistente**: título maior e cada frase numa faixa com ícone; tocar na faixa abre o assistente (o mesmo que o link de baixo).
 - **Contas e cartões**: o botão "Gerenciar" ganhou o ícone de engrenagem (`SectionHead` aceita `actionIcon`).
 - **Comece por aqui**: quando os dois atalhos aparecem, ficam lado a lado em cartões (`StartCard`); com um só, a linha de antes.
-- **Botão +** da barra inferior: redondo, um pouco mais alto, com um anel da cor do fundo.
-  - Correção (12/10/2026): a barra recortava (`clip`) tudo que passava da borda dela, então a parte de cima do botão aparecia cortada. A barra agora desenha o fundo e a sombra com o formato arredondado, sem recortar (`shadow(clip = false)`).
+- **Botão +** da barra inferior: redondo e centralizado na barra.
+  - Correção (12/10/2026): na primeira versão ele subia 14dp acima da barra e aparecia cortado em cima. Agora fica centralizado (sem deslocamento e sem anel), então nada passa da borda. A barra também deixou de recortar o conteúdo (`shadow(clip = false)`).
 - Novo componente `IconTile` (quadradinho arredondado com ícone) em `Components.kt`.
 - Ícones novos (Material Symbols Rounded, peso 300): `ms_account_balance_wallet`, `ms_bar_chart`, `ms_south_west`, `ms_north_east`, `ms_track_changes` (`Ico.WALLET`, `FORECAST`, `INCOME`, `EXPENSE`, `LIMIT`).
 

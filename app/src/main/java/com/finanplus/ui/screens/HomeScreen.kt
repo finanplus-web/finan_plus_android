@@ -17,6 +17,8 @@ import com.finanplus.ui.components.IconTile
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,6 +82,16 @@ fun HomeScreen(s: AppState) {
     val balance = Finance.currentBalance(s)
     val future = Finance.futureBalance(s, ym.atEndOfMonth(), today)
     val pending = androidx.compose.runtime.remember(s, ym, today) { com.finanplus.core.Period.monthPending(s, ym, today) }
+    // saldo no fim do mês anterior = saldo atual sem o que foi realizado nas contas a partir deste mês
+    // (mesma regra de Finance.accountBalance); null quando ainda não há lançamentos antes deste mês
+    val prevEnd: Long? = androidx.compose.runtime.remember(s, ym, balance) {
+        if (s.txs.none { it.date.isBefore(ym.atDay(1)) }) null
+        else {
+            val ids = s.accounts.map { it.id }.toSet()
+            balance - s.txs.filter { it.accountId in ids && !it.isCard && it.paid && !it.date.isBefore(ym.atDay(1)) }
+                .fold(0L) { n, t -> if (t.kind == Kind.INCOME) n + t.value else n - t.value }
+        }
+    }
 
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         // topo: nome e data; a engrenagem saiu (a aba Ajustes faz o mesmo)
@@ -102,17 +114,22 @@ fun HomeScreen(s: AppState) {
         }
         item {
             Glass(radius = 30.dp, padding = 16.dp) {
-                // saldo atual em destaque
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconTile(Ico.WALLET, p.accent, p.accent2, size = 44.dp, iconSize = 22.dp)
-                    Spacer(Modifier.width(10.dp))
-                    Text("Saldo atual", style = MaterialTheme.typography.bodyMedium, color = p.muted, fontWeight = FontWeight.SemiBold)
+                // saldo atual em destaque, com as ondas (decorativas) ao lado
+                Box(Modifier.fillMaxWidth()) {
+                    BalanceWaves(Modifier.align(Alignment.CenterEnd).offset(x = 16.dp).width(190.dp).height(96.dp))
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconTile(Ico.WALLET, p.accent, p.accent2, size = 44.dp, iconSize = 22.dp)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Saldo atual", style = MaterialTheme.typography.bodyMedium, color = p.muted, fontWeight = FontWeight.SemiBold)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        MoneyText(
+                            balance, color = if (balance < 0) p.red else p.text,
+                            style = MaterialTheme.typography.headlineMedium.copy(fontSize = 34.sp, fontWeight = FontWeight.ExtraBold),
+                        )
+                    }
                 }
-                Spacer(Modifier.height(10.dp))
-                MoneyText(
-                    balance, color = if (balance < 0) p.red else p.text,
-                    style = MaterialTheme.typography.headlineMedium.copy(fontSize = 34.sp, fontWeight = FontWeight.ExtraBold),
-                )
                 Spacer(Modifier.height(12.dp))
                 // saldo previsto: faixa interna, como no conceito
                 Row(
@@ -123,7 +140,30 @@ fun HomeScreen(s: AppState) {
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
                         Text("Saldo previsto no fim do mês", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         MoneyText(future, color = if (future < 0) p.red else p.accent, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold))
+                        // comparação com o fim do mês anterior; no primeiro mês não há com o que comparar
+                        if (!hide) {
+                            Spacer(Modifier.height(6.dp))
+                            val (chipText, chipColor) = when {
+                                prevEnd == null -> "1º mês · sem comparação" to p.muted
+                                else -> {
+                                    val d = future - prevEnd
+                                    val sign = if (d >= 0) "+" else "−"
+                                    "$sign${com.finanplus.core.Money.format(kotlin.math.abs(d))} vs. fim de ${com.finanplus.core.MonthCalendar.monthName(ym.minusMonths(1))}" to (if (d >= 0) p.green else p.red)
+                                }
+                            }
+                            Box(Modifier.clip(RoundedCornerShape(99.dp)).background(chipColor.copy(alpha = 0.12f)).padding(horizontal = 9.dp, vertical = 4.dp)) {
+                                Text(chipText, color = chipColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
                     }
+                }
+                // como o previsto foi calculado (só quando a conta fecha com os números da tela)
+                if (!hide && (pending.toReceive > 0 || pending.toPay > 0) && balance + pending.toReceive - pending.toPay == future) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Hoje ${com.finanplus.core.Money.format(balance)} + ${com.finanplus.core.Money.format(pending.toReceive)} a receber − ${com.finanplus.core.Money.format(pending.toPay)} a pagar",
+                        style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(horizontal = 4.dp),
+                    )
                 }
                 // uso das receitas: só quando já entrou alguma receita no mês
                 if (flow.income > 0) {
@@ -276,6 +316,42 @@ fun HomeScreen(s: AppState) {
     }
 }
 
+/**
+ * Ondas ao lado do saldo. São só decoração (não representam dados), por isso ficam suaves
+ * e não têm ponto, eixo nem valor. Mesmas curvas do conceito (viewBox 230×120).
+ */
+@Composable
+private fun BalanceWaves(modifier: Modifier) {
+    val accent = Fin.c.accent
+    val dark = Fin.c.dark
+    androidx.compose.foundation.Canvas(modifier.clearAndSetSemantics { }) {
+        val sx = size.width / 230f
+        val sy = size.height / 120f
+        fun main() = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, 78f * sy)
+            cubicTo(30f * sx, 70f * sy, 45f * sx, 40f * sy, 75f * sx, 46f * sy)
+            cubicTo(105f * sx, 52f * sy, 112f * sx, 92f * sy, 142f * sx, 88f * sy)
+            cubicTo(170f * sx, 84f * sy, 178f * sx, 50f * sy, 200f * sx, 44f * sy)
+            cubicTo(214f * sx, 40f * sy, 222f * sx, 48f * sy, 230f * sx, 54f * sy)
+        }
+        // preenchimento em degradê embaixo da curva principal
+        val fill = main().apply { lineTo(size.width, size.height); lineTo(0f, size.height); close() }
+        drawPath(fill, androidx.compose.ui.graphics.Brush.verticalGradient(listOf(accent.copy(alpha = if (dark) 0.16f else 0.20f), accent.copy(alpha = 0f))))
+        // onda de fundo, mais fina
+        val back = androidx.compose.ui.graphics.Path().apply {
+            moveTo(0f, 92f * sy)
+            cubicTo(35f * sx, 86f * sy, 55f * sx, 66f * sy, 85f * sx, 70f * sy)
+            cubicTo(115f * sx, 74f * sy, 125f * sx, 100f * sy, 155f * sx, 98f * sy)
+            cubicTo(185f * sx, 96f * sy, 195f * sx, 74f * sy, 230f * sx, 72f * sy)
+        }
+        drawPath(back, accent.copy(alpha = 0.22f), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.5.dp.toPx()))
+        drawPath(
+            main(), accent.copy(alpha = 0.55f),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round),
+        )
+    }
+}
+
 /** Fundo das faixas internas dos cartões de vidro. */
 @Composable
 internal fun innerBg(): Color = if (Fin.c.dark) Color.White.copy(alpha = 0.06f) else Color.White.copy(alpha = 0.55f)
@@ -324,12 +400,18 @@ private fun FlowCard(
 ) {
     val p = Fin.c
     val hide = LocalPrivacy.current
+    val nav = LocalNav.current
     val shape = RoundedCornerShape(22.dp)
     Column(
         modifier.fillMaxHeight().clip(shape).background(p.surface, shape).background(color.copy(alpha = if (p.dark) 0.10f else 0.07f), shape)
-            .border(1.dp, p.border, shape).padding(14.dp),
+            .border(1.dp, p.border, shape).clickable(role = Role.Button) { nav.tab = Tab.MOVES }.padding(14.dp),
     ) {
-        IconTile(icon, color, color.copy(alpha = 0.14f), size = 36.dp)
+        // toque leva aos lançamentos; a seta indica isso
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconTile(icon, color, color.copy(alpha = 0.14f), size = 36.dp)
+            Spacer(Modifier.weight(1f))
+            com.finanplus.ui.components.AppIcon(Ico.NEXT, p.muted, size = 20.dp)
+        }
         Spacer(Modifier.height(10.dp))
         Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         MoneyText(done, color = color, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold, fontSize = 19.sp))

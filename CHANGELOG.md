@@ -25,6 +25,13 @@ Só aparência: os dados, os cálculos e as ações da tela são os mesmos. O me
 - **Comece por aqui**: quando os dois atalhos aparecem, ficam lado a lado em cartões (`StartCard`); com um só, a linha de antes.
 - **Botão +** da barra inferior: redondo e centralizado na barra.
   - Correção (12/10/2026): na primeira versão ele subia 14dp acima da barra e aparecia cortado em cima. Agora fica centralizado (sem deslocamento e sem anel), então nada passa da borda. A barra também deixou de recortar o conteúdo (`shadow(clip = false)`).
+- Segunda etapa (12/10/2026), a partir do novo conceito:
+  - **Ondas** ao lado do saldo atual (`BalanceWaves`, desenhadas em `Canvas`). São decoração: suaves, sem ponto, eixo ou valor, e ignoradas pelo leitor de tela.
+  - **Saldo previsto no fim do mês** continua, agora com a comparação com o fim do mês anterior ("+R$ X vs. fim de setembro", verde ou vermelho). Sem lançamentos antes do mês atual, mostra "1º mês · sem comparação". O saldo do fim do mês anterior é o saldo atual menos o que foi realizado nas contas a partir do dia 1º.
+  - Abaixo da faixa do previsto, a conta que leva a ele ("Hoje R$ X + R$ Y a receber − R$ Z a pagar"). Só aparece quando a soma bate exatamente com o previsto (por exemplo, não aparece com pendências de meses anteriores).
+  - A comparação e a conta somem com "Ocultar valores".
+  - **Receitas** e **Despesas do mês**: ícones de seta para cima (receitas) e para baixo (despesas), no lugar das setas diagonais, iguais aos de Relatórios; os cartões ganharam a seta › e, ao tocar, abrem a aba Lançamentos.
+  - **Botão +**: ocupa a coluna do meio da barra, com a mesma largura das abas (`weight(1f)`), então fica sempre no centro exato.
 - Novo componente `IconTile` (quadradinho arredondado com ícone) em `Components.kt`.
 - Ícones novos (Material Symbols Rounded, peso 300): `ms_account_balance_wallet`, `ms_bar_chart`, `ms_south_west`, `ms_north_east`, `ms_track_changes` (`Ico.WALLET`, `FORECAST`, `INCOME`, `EXPENSE`, `LIMIT`).
 

@@ -51,8 +51,8 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0) {
     TUNE(R.drawable.ms_tune),
     WALLET(R.drawable.ms_account_balance_wallet),
     FORECAST(R.drawable.ms_bar_chart),
-    INCOME(R.drawable.ms_south_west),
-    EXPENSE(R.drawable.ms_north_east),
+    INCOME(R.drawable.ms_arrow_upward),
+    EXPENSE(R.drawable.ms_arrow_downward),
     LIMIT(R.drawable.ms_track_changes),
 
     // categorias

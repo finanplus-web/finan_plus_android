@@ -300,13 +300,16 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     ) {
         NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
         NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
-        Box(
-            // botão redondo, centralizado na barra (nada fica para fora dela)
-            Modifier.padding(horizontal = 4.dp).size(56.dp)
-                .shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
-                .clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }.semantics { contentDescription = "Novo lançamento" },
-            contentAlignment = Alignment.Center,
-        ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 28.dp) }
+        // O + ocupa a coluna do meio, com a mesma largura (weight 1f) das quatro abas:
+        // fica sempre no centro exato da barra, qualquer que seja o tamanho dos rótulos.
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier.size(56.dp)
+                    .shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
+                    .clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }.semantics { contentDescription = "Novo lançamento" },
+                contentAlignment = Alignment.Center,
+            ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 28.dp) }
+        }
         NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
         NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
     }

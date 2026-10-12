@@ -292,8 +292,9 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
     Row(
         modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
-            .shadow(16.dp, RoundedCornerShape(28.dp)).clip(RoundedCornerShape(28.dp))
-            .background(p.surface.compositeOver(p.bg)).border(1.dp, p.border, RoundedCornerShape(28.dp))
+            // sem recorte (clip): o botão + sobe um pouco acima da barra e não pode ser cortado
+            .shadow(16.dp, RoundedCornerShape(28.dp), clip = false)
+            .background(p.surface.compositeOver(p.bg), RoundedCornerShape(28.dp)).border(1.dp, p.border, RoundedCornerShape(28.dp))
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

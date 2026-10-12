@@ -17,12 +17,19 @@ enum class Kind(val json: String) {
 enum class ThemeId(val json: String, val label: String) {
     AUTO("auto", "Sistema"),
     LIGHT("light", "Claro"),
-    MATERIAL_YOU("materialBlue", "Material You"),
+    GRUVBOX("gruvbox", "Gruvbox"),
     OLED("oledGray", "OLED Cinza"),
+    GRUVBOX_OLED("gruvboxOled", "Gruvbox OLED"),
     TOKYO("tokyo", "Tokyo Night"),
     NORD("nord", "Nord");
     companion object {
-        fun of(s: Any?): ThemeId = if (s == "dark") OLED else entries.firstOrNull { it.json == s } ?: AUTO
+        // "dark" (versões antigas) vira OLED Cinza; o Material You ("materialBlue") saiu e vira Claro,
+        // o tema mais parecido (sem isso cairia em Sistema e poderia ficar escuro de repente)
+        fun of(s: Any?): ThemeId = when (s) {
+            "dark" -> OLED
+            "materialBlue" -> LIGHT
+            else -> entries.firstOrNull { it.json == s } ?: AUTO
+        }
     }
 }
 

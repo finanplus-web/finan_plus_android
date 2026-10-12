@@ -1,5 +1,19 @@
 # Changelog
 
+## Temas Gruvbox e Gruvbox OLED no lugar do Material You (12/10/2026, ainda não publicado)
+
+- **Novos temas:** **Gruvbox** (fundo `#282828`, cartões `#32302F`, texto creme `#EBDBB2`, destaque azul `#83A598`, verde `#B8BB26`, vermelho `#FB4934`) e **Gruvbox OLED** (as mesmas cores sobre preto puro, com cartões quase pretos e borda fina, para economizar bateria em telas OLED).
+- **Material You removido.** Quem usava o tema (`materialBlue`), ou restaura um backup antigo com ele, passa para **Claro**, o mais parecido, em vez de cair em "Sistema" e poder ficar escuro de repente.
+- Ordem no seletor: Sistema, Claro, Gruvbox, OLED Cinza, Gruvbox OLED, Tokyo Night, Nord.
+- O mesmo foi feito no Finan+ web (PWA).
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Model.kt` | `ThemeId.GRUVBOX` e `GRUVBOX_OLED`; `MATERIAL_YOU` removido; `"materialBlue"` → `LIGHT` |
+| `ui/theme/Theme.kt` | Paletas `Gruvbox` e `GruvboxOled`; removidos `MaterialBlue` e as cores dinâmicas (`fromScheme`) |
+| `ui/screens/SettingsScreen.kt` | Amostras de cor dos novos temas no seletor |
+| `CoreTest.kt` | Teste da troca de Material You para Claro |
+
 ## Novo visual da tela Início (12/10/2026, ainda não publicado)
 
 Só aparência: os dados, os cálculos e as ações da tela são os mesmos. O mesmo visual foi aplicado ao Finan+ web (PWA).

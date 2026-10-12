@@ -86,6 +86,12 @@ class BackupTest {
         assertEquals("main", s.txs[0].accountId); assertEquals("", s.txs[0].cardId)
         assertEquals("", s.txs[1].cardId, "receita não vai para cartão")
     }
+    @Test fun materialYouAntigoViraClaroEGruvboxEhLido() {
+        // o Material You saiu: quem usava (ou restaura backup antigo) vai para Claro, não para Sistema
+        assertEquals(ThemeId.LIGHT, Backup.parse("""{"txs":[],"theme":"materialBlue"}""").state.theme)
+        assertEquals(ThemeId.GRUVBOX, ThemeId.of("gruvbox"))
+        assertEquals(ThemeId.GRUVBOX_OLED, ThemeId.of("gruvboxOled"))
+    }
     @Test fun readsPwaIdsAndExportsCompatibleJson() {
         val (s, _) = Backup.parse("""{"txs":[{"id":1696000000000.1234,"kind":"expense","value":0.1,"date":"2026-10-01","parcel":{"n":1,"total":3},"groupId":"g1"}],"theme":"dark","pin":"p1234"}""")
         assertTrue(s.txs[0].id.startsWith("1696000000000.123"))

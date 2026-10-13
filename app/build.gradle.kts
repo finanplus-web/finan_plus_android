@@ -12,8 +12,8 @@ android {
         applicationId = "com.finanplus"
         minSdk = 26
         targetSdk = 35
-        versionCode = 13
-        versionName = "1.5.1"
+        versionCode = 14
+        versionName = "1.5.2"
         // Parâmetros do "Acesso pela rede", sem mexer no código (sem segredos: só portas e tempos).
         // Ex.: ./gradlew assembleRelease -PfinanLan="httpsPort=9443;idleMinutes=5"
         // ou a variável de ambiente ORG_GRADLE_PROJECT_finanLan. Vazio (F-Droid, Releases) = padrões de LanConfig.
@@ -75,6 +75,8 @@ android {
                     test.systemProperty("roborazzi.test.record", "true")
                     test.systemProperty("finan.screenshots.dir", rootProject.file("docs/screenshots").absolutePath)
                     test.filter.includeTestsMatching("com.finanplus.screenshots.*")
+                    // falhas com a mensagem completa no log (o CI mostra as linhas de erro como avisos)
+                    test.testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
                 } else {
                     test.exclude("**/screenshots/**")
                 }
@@ -94,6 +96,13 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
     implementation(libs.pdfbox.android)
+    // O PdfBox-Android traz o Bouncy Castle 1.72; a restrição sobe para uma versão com as correções de
+    // segurança publicadas depois (mesma API; licença MIT). Teste: BillPdfTest (com -PfinanScreenshots=true).
+    constraints {
+        implementation(libs.bouncycastle.bcprov) { because("correções de segurança posteriores à 1.72") }
+        implementation(libs.bouncycastle.bcpkix) { because("correções de segurança posteriores à 1.72") }
+        implementation(libs.bouncycastle.bcutil) { because("correções de segurança posteriores à 1.72") }
+    }
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)

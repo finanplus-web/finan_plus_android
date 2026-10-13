@@ -27,32 +27,36 @@ jobs:
   screenshots:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
           distribution: temurin
           java-version: '17'
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+        with:
+          cache-provider: basic   # cache open source (MIT); o padrão da v6 é proprietário
 
       - name: Desenhar as telas
         run: |
           set -o pipefail
           # erros de compilação e de teste também como avisos da execução (visíveis sem abrir o log)
           ./gradlew --no-daemon testDebugUnitTest -PfinanScreenshots=true 2>&1 | tee gradle.log || {
-            grep -E "^e: |What went wrong|> .*FAILED|Could not resolve|Exception|expected:" gradle.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done
+            grep -E "^e: |What went wrong|> .*FAILED|Could not resolve|Exception|Error:|Error at|expected:" gradle.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done
             exit 1; }
 
       - name: Guardar as imagens (artefato da execução)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: capturas-de-tela
           path: docs/screenshots/*.png
           if-no-files-found: warn
 
+      # só na main: rodado à mão em outro branch, desenha e testa as telas, mas não grava nada
       - name: Gravar no repositório
+        if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

@@ -1,4 +1,4 @@
-# Finan+ para Android — v1.4.0
+# Finan+ para Android — v1.5.2
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
@@ -14,6 +14,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - Acesso pela rede (uso, certificado, segurança): [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) · auditoria: [AUDITORIA-LAN.md](AUDITORIA-LAN.md)
 - Auditoria de outubro de 2026 e o que foi corrigido: [docs/AUDITORIA-2026-10.md](docs/AUDITORIA-2026-10.md)
+- Componentes de terceiros e licenças: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) · auditoria de licenças: [docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md](docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md)
 
 ## Como abrir e gerar o app
 
@@ -34,7 +35,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
 **No GitHub Actions:**
 - *Compilar e testar* roda em todo envio para a `main`, em todo pull request e nas tags. Para testar uma mudança sem publicar, abra um pull request: o APK de teste fica em *Artifacts* na página da execução.
-- *Capturas de tela* roda sozinho quando a interface muda na `main`, ou manualmente em *Actions › Capturas de tela › Run workflow*. Ele só grava as imagens na `main`. Rodado em outro branch, ele desenha as telas (o que já serve de teste de que o app abre e navega), mas a etapa "Gravar no repositório" falha de propósito; as imagens ficam no artefato `capturas-de-tela` da execução.
+- *Capturas de tela* roda sozinho quando a interface muda na `main`, ou manualmente em *Actions › Capturas de tela › Run workflow*. Ele só grava as imagens na `main`. Rodado em outro branch, ele desenha as telas e roda os testes que usam o Robolectric (abas, tela de licenças e leitura de faturas em PDF, inclusive com senha), mas pula a etapa "Gravar no repositório"; as imagens ficam no artefato `capturas-de-tela` da execução.
 
 ## O que tem
 
@@ -47,7 +48,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 | Simulador "E se…?" | Economizar por mês, quanto tempo para comprar, mudança na renda e antecipar dívida parcelada, a partir da média dos últimos 3 meses. Nada é gravado; dá para transformar em meta. Detalhes em [SIMULADOR.md](SIMULADOR.md) |
 | Editores | Lançamento (parcelas com divisão do total, repetir mensalmente, cartão), meta, conta, cartão, recorrência (com início, pausa e edição), limite, pagamento de fatura |
 | Ler fatura ou boleto | Valor e vencimento de uma fatura em PDF (inclusive com senha, que pode ser lembrada por cartão), da linha digitável do boleto ou do Pix copia e cola. Também por **Compartilhar › Finan+**. Fatura de cartão é comparada com a calculada pelo app. Tudo no aparelho; você confere antes de salvar. Detalhes em [FATURAS.md](FATURAS.md) |
-| Ajustes | 6 temas (Sistema, Claro, Material You com cores do papel de parede no Android 12+, OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |
+| Ajustes | 7 temas (Sistema, Claro, Gruvbox, OLED Cinza, Gruvbox OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |
 | Relatório em PDF | Qualquer período (atalhos ou datas): resumo com comparação ao período anterior, gastos por categoria (gráfico e tabela com limites), evolução mensal, maiores despesas, contas, metas e lista de lançamentos, com páginas numeradas. Em *Relatórios* ou *Ajustes › Dados* |
 | Assistente | No aparelho, sem internet: sugestão de categoria pela descrição, resumo do mês, dicas (duplicados, aumento de preço, ritmo do limite, acima da média, pequenos gastos, gastos fixos) e perguntas rápidas. Cada resultado tem “Por quê?”. Detalhes em [ASSISTENTE.md](ASSISTENTE.md) |
 | Acesso pela rede | Opcional, em *Ajustes › Acesso pela rede*: o celular serve o Finan+ web completo para o navegador de outro aparelho **na mesma rede Wi-Fi**, por HTTPS com certificado próprio do celular. Código de 6 dígitos + "Permitir" no celular. Os dados continuam só no celular. Detalhes em [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) |
@@ -71,7 +72,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
 ## Publicar no F-Droid
 
-O Finan+ para Android é distribuído **só pelo F-Droid**. O F-Droid baixa o código deste repositório, compila e assina o APK com a chave dele. Nenhuma chave de assinatura fica no projeto ou no GitHub, e não é preciso configurar Secrets.
+O F-Droid baixa o código deste repositório, compila e assina o APK com a chave dele. Nenhuma chave de assinatura fica no projeto. (O APK assinado pelo autor no GitHub Releases é opcional e usa os Secrets do repositório: ver [Publicar no GitHub](#publicar-no-github-opcional).)
 
 O que já está pronto no repositório:
 
@@ -173,12 +174,37 @@ Na prática:
 - Quem distribuir o app ou uma versão modificada precisa manter a mesma licença e **disponibilizar o código-fonte**, incluindo as modificações.
 - O programa é fornecido **sem garantia**.
 
-**Componentes de terceiros** (Licença Apache 2.0, compatível com a GPL v3):
-- Ícones da interface: Material Symbols, © Google. Detalhes em `third_party/material-symbols/`.
-- Leitura de faturas em PDF: [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android) (port do Apache PDFBox), dependência `com.tom-roush:pdfbox-android`. Detalhes em [FATURAS.md](FATURAS.md).
-
-**Ícone do app (F+):** desenho próprio do Finan+, sob a mesma licença GPL-3.0-or-later. Fontes em vetor em [`docs/icone/`](docs/icone/).
-
 Cada arquivo de código traz no topo o aviso de copyright e o identificador `SPDX-License-Identifier: GPL-3.0-or-later`.
 
 > **Ao publicar** (Play Store, F-Droid ou APK em site), informe onde está o código-fonte, por exemplo o link de um repositório público. É uma exigência da GPL para quem distribui o app.
+
+### Componentes de terceiros e atribuições
+
+O app inclui bibliotecas de terceiros, todas software livre e compatíveis com a GPL-3.0-or-later:
+
+- **AndroidX / Jetpack** (Compose, Glance, WorkManager, Biometric e outras) e **Kotlin** (biblioteca padrão, kotlinx.coroutines): Apache 2.0. O Glance traz uma cópia do Protocol Buffers (BSD-3-Clause).
+- **Leitura de faturas em PDF:** [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android) (adaptação do Apache PDFBox por Tom Roush), Apache 2.0, que traz **Bouncy Castle** (MIT), métricas de fontes e CMaps da Adobe, a fonte Liberation Sans (SIL OFL 1.1) e dados Unicode.
+- **Ícones:** Material Symbols Rounded, © Google, Apache 2.0 (convertidos para VectorDrawable, ver [`third_party/material-symbols/`](third_party/material-symbols/)).
+
+Lista completa, com versões, origens e obrigações: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Textos originais das licenças e NOTICE: [`third_party/licenses/`](third_party/licenses/). Os testes usam ainda JUnit (EPL 1.0), Robolectric e Roborazzi, que não entram no APK.
+
+**Ícone do app (F+):** desenho próprio do Finan+, sob a mesma licença GPL-3.0-or-later. Fontes em vetor em [`docs/icone/`](docs/icone/).
+
+### Como consultar as licenças
+
+- **No app (sem internet):** *Ajustes › Sobre* › *Ver licença completa (GNU GPL v3)*, *Ver avisos de terceiros* e *Ver licença Apache 2.0*.
+- **No código:** [`LICENSE`](LICENSE), [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) e [`third_party/`](third_party/).
+- **SBOM:** cada execução de *Actions › Auditoria de licenças* gera o `sbom.json` (CycloneDX) com as dependências resolvidas, no artefato `auditoria-licencas`.
+
+### Contribuições
+
+Contribuições são bem-vindas por *pull request*. Ao contribuir, você concorda que o seu código seja distribuído sob a `GPL-3.0-or-later`, a mesma licença do projeto, e declara que tem o direito de enviá-lo. Arquivos novos levam o cabeçalho de copyright e `SPDX-License-Identifier: GPL-3.0-or-later`.
+
+Para **dependências ou recursos de terceiros** (bibliotecas, ícones, fontes, código copiado ou adaptado):
+1. Só licenças compatíveis com a GPL-3.0-or-later e sem telemetria ou serviços externos.
+2. Confira a licença e o NOTICE na fonte original e acrescente o componente em [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md), em [`app/src/main/assets/licenca/TERCEIROS.txt`](app/src/main/assets/licenca/TERCEIROS.txt) e uma regra em [`third_party/license-policy.json`](third_party/license-policy.json).
+3. O workflow *Auditoria de licenças* falha enquanto isso não for feito. Para rodar no seu computador: `./gradlew --init-script tools/license-audit/audit.init.gradle.kts :app:cyclonedxDirectBom :app:finanResolvedDependencies` e depois `python3 tools/license-audit/check_licenses.py`.
+
+### Relatar um problema de licenciamento
+
+Abra uma *issue* em [Issues](../../issues) com o título começando por **[licença]**, indicando o arquivo ou a dependência e a fonte da informação (link do projeto original, licença, NOTICE). Problemas confirmados são corrigidos com prioridade.

@@ -15,6 +15,9 @@ roborazzi = "1.44.0"
 androidxTestCore = "1.6.1"
 # leitura de faturas em PDF (Apache 2.0), roda no aparelho
 pdfboxAndroid = "2.0.27.0"
+# Bouncy Castle: vem com o PdfBox-Android (1.72, sem correções de segurança posteriores). A versão é
+# forçada por restrição em app/build.gradle.kts; o PdfBox só usa o BC em PDF cifrado por certificado.
+bouncycastle = "1.83"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -33,6 +36,9 @@ androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-toolin
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncycastle" }
+bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", version.ref = "bouncycastle" }
+bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk15to18", version.ref = "bouncycastle" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 # capturas de tela das telas reais (Robolectric + Roborazzi), só para a documentação
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }

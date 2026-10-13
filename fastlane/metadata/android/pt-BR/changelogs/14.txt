@@ -1,0 +1,1 @@
+Novo em Ajustes › Sobre: "Ver avisos de terceiros", com os avisos de copyright e as licenças de todas as bibliotecas usadas pelo app, sem precisar de internet. Atualização de segurança da biblioteca de criptografia usada na leitura de faturas em PDF (Bouncy Castle 1.83). Lista de temas do "Sobre" atualizada.

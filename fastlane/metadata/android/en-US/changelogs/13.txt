@@ -1,0 +1,1 @@
+Tweaks to "Read a bill": the code excerpt shows once when the amount and due date come from the same boleto; the category starts at Others (or Housing for utility bills) instead of Food; a card statement with no purchases logged shows a clearer message.

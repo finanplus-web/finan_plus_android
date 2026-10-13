@@ -1,6 +1,6 @@
 # Changelog
 
-## Próxima versão — ajustes (13/10/2026)
+## 1.5.1 — Ajustes na leitura de faturas (13/10/2026)
 
 - **Ler fatura ou boleto, ajustes na tela de conferência:** quando o valor e o vencimento vêm do mesmo código do boleto, o trecho aparece uma vez só ("Valor e vencimento do código do boleto"); a categoria começa em **Outros** (ou Moradia para conta de consumo, ou a sugerida pelo assistente) em vez de Alimentação; na fatura de cartão sem nenhuma compra lançada, o aviso diz "Nenhuma compra deste cartão lançada nesta fatura no Finan+" em vez de "Faltam R$ X em compras".
 

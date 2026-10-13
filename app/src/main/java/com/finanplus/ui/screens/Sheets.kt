@@ -103,6 +103,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.ReportPdf -> ReportExportSheet(s, sheet.from, sheet.to, onClose)
                 is Sheet.MovesFilters -> MovesFiltersSheet(s, onClose)
                 is Sheet.Simulator -> SimulatorSheet(s, sheet, onClose)
+                is Sheet.BillImport -> BillImportSheet(s, sheet, onClose)
             }
         }
     }
@@ -175,6 +176,13 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     val cats = s.cats.of(kind).let { if (category !in it) it + category else it }
 
     Header(if (tx == null) "Novo lançamento" else "Editar lançamento", if (isPayment) "" else "Registre uma receita ou despesa")
+    if (tx == null && kind == Kind.EXPENSE) {
+        val nav = com.finanplus.ui.LocalNav.current
+        // atalho: preencher a partir de uma fatura em PDF, linha digitável do boleto ou Pix copia e cola (FATURAS.md)
+        com.finanplus.ui.components.Pill("Ler fatura ou boleto", Modifier.fillMaxWidth(), icon = com.finanplus.ui.components.Ico.RECEIPT) {
+            guard.dirty = false; nav.open(Sheet.BillImport())
+        }
+    }
     if (isPayment) Text("Pagamento de fatura: debita a conta e abate da fatura do cartão. Não conta como despesa nova.", style = MaterialTheme.typography.bodySmall, color = Fin.c.muted)
     else Segmented(listOf(Kind.EXPENSE to "Despesa", Kind.INCOME to "Receita"), kind) { k ->
         if (k != kind) { kind = k; if (category !in s.cats.of(k)) category = s.cats.of(k)[0] }
@@ -261,6 +269,7 @@ private fun AccountEditor(s: AppState, id: String?, close: () -> Unit) {
 @Composable
 private fun CardEditor(s: AppState, id: String?, close: () -> Unit) {
     val dialogs = LocalDialogs.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
     val c = id?.let { s.card(it) }
     var name by rememberSaveable { mutableStateOf(c?.name ?: "") }
     var limit by rememberSaveable { mutableStateOf(c?.let { Money.input(it.limit) } ?: "") }
@@ -273,12 +282,28 @@ private fun CardEditor(s: AppState, id: String?, close: () -> Unit) {
         Field("Fecha dia", close_, { close_ = it.filter(Char::isDigit) }, Modifier.weight(1f), keyboard = KeyboardType.Number, maxLength = 2)
         Field("Vence dia", due, { due = it.filter(Char::isDigit) }, Modifier.weight(1f), keyboard = KeyboardType.Number, maxLength = 2)
     }
+    if (c != null) {
+        val vault = remember { com.finanplus.data.BillPasswords.get(ctx) }
+        var hasPw by remember { mutableStateOf(vault.has(c.id)) }
+        val nav = com.finanplus.ui.LocalNav.current
+        Spacer(Modifier.height(4.dp))
+        com.finanplus.ui.components.Pill("Ler a fatura deste cartão (PDF)", Modifier.fillMaxWidth(), icon = com.finanplus.ui.components.Ico.RECEIPT) { nav.open(Sheet.BillImport(cardId = c.id)) }
+        // senha do PDF da fatura lembrada só neste aparelho (FATURAS.md): a pessoa pode esquecer a qualquer momento
+        if (hasPw) Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Senha do PDF da fatura lembrada neste aparelho", Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = Fin.c.muted)
+            com.finanplus.ui.components.Pill("Esquecer senha", danger = true) { vault.remove(c.id); hasPw = false }
+        }
+    }
     Spacer(Modifier.height(8.dp))
     PrimaryButton("Salvar") { apply(Ops.saveCard(Repo.state.value, c?.id, name, limit, close_, due), dialogs, close) }
     if (c != null) DeleteButton("Excluir cartão") {
         when (val o = Ops.deleteCard(Repo.state.value, c.id)) {
             is Outcome.Err -> dialogs.notice(o.title, o.message)
-            is Outcome.Ok -> dialogs.confirm("Excluir cartão", "Excluir o cartão “${c.name}”?", ok = "Excluir", danger = true) { Repo.replace(o.state); close() }
+            is Outcome.Ok -> dialogs.confirm("Excluir cartão", "Excluir o cartão “${c.name}”?", ok = "Excluir", danger = true) {
+                Repo.replace(o.state)
+                com.finanplus.data.BillPasswords.get(ctx).remove(c.id)
+                close()
+            }
         }
     }
 }

@@ -13,6 +13,8 @@ junit = "4.13.2"
 robolectric = "4.14.1"
 roborazzi = "1.44.0"
 androidxTestCore = "1.6.1"
+# leitura de faturas em PDF (Apache 2.0), roda no aparelho
+pdfboxAndroid = "2.0.27.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +32,7 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 # capturas de tela das telas reais (Robolectric + Roborazzi), só para a documentação
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }

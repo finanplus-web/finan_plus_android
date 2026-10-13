@@ -122,6 +122,11 @@ sealed interface Sheet : java.io.Serializable {
     data object MovesFilters : Sheet
     /** simulador "E se…?" ([scenario]: save, buy, income, debt; null = escolher) */
     data class Simulator(val scenario: String? = null) : Sheet
+    /**
+     * ler fatura ou boleto: [cardId] = fatura deste cartão (opcional);
+     * [sharedUri] = PDF recebido por "Compartilhar → Finan+" (content://, só leitura)
+     */
+    data class BillImport(val cardId: String? = null, val sharedUri: String? = null) : Sheet
 }
 
 /** Filtros da aba Lançamentos (o período também vale para Relatórios). */
@@ -202,6 +207,12 @@ fun FinanRoot(activity: MainActivity) {
         // Bloqueou: fecha qualquer diálogo aberto. Um AlertDialog é uma janela própria e ficaria utilizável por cima
         // da tela de bloqueio (ex.: "Definir PIN" deixado aberto permitia trocar o PIN sem saber o atual).
         LaunchedEffect(showLock) { if (showLock) dialogs.close() }
+        // PDF recebido por "Compartilhar → Finan+": abre a leitura da fatura só depois do desbloqueio
+        val shared by com.finanplus.ui.screens.SharedBill.pending.collectAsStateWithLifecycle()
+        LaunchedEffect(shared, showLock) {
+            val p = shared
+            if (p != null && !showLock) { nav.open(p); com.finanplus.ui.screens.SharedBill.pending.value = null }
+        }
         CompositionLocalProvider(LocalDialogs provides dialogs, LocalPrivacy provides s.privacy) {
             AppBackground {
                 // Bloqueado: o conteúdo do app nem é composto (nada acessível por trás).

@@ -3,6 +3,8 @@
 
 package com.finanplus
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -10,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.core.content.IntentCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -34,6 +37,24 @@ class MainActivity : FragmentActivity() {
             }
         }
         setContent { FinanRoot(activity = this) }
+        // girar a tela recria a Activity com o mesmo Intent: só trata o compartilhamento na primeira vez
+        if (savedInstanceState == null) handleShare(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleShare(intent)
+    }
+
+    /**
+     * "Compartilhar → Finan+" com uma fatura em PDF (de um app de banco ou de e-mail): guarda o endereço
+     * do arquivo e a tela "Ler fatura ou boleto" abre depois do desbloqueio (ver Root). Só leitura, só PDF.
+     */
+    private fun handleShare(i: Intent?) {
+        if (i?.action != Intent.ACTION_SEND || i.type != "application/pdf") return
+        val uri = IntentCompat.getParcelableExtra(i, Intent.EXTRA_STREAM, Uri::class.java) ?: return
+        if (uri.scheme != "content") return
+        com.finanplus.ui.screens.SharedBill.pending.value = com.finanplus.ui.Sheet.BillImport(sharedUri = uri.toString())
     }
 
     /** O aparelho tem bloqueio de tela (PIN, padrão ou senha do Android). */

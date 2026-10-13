@@ -469,14 +469,21 @@ private fun LicenseNotice() {
     Pill(if (full) "Ocultar licença completa" else "Ver licença completa (GNU GPL v3)") { full = !full }
     if (full) LicenseText("licenca/LICENSE.txt", "https://www.gnu.org/licenses/gpl-3.0.html")
 
-    // componente de terceiros: ícones Material Symbols
-    var icons by rememberSaveable { mutableStateOf(false) }
+    // componentes de terceiros que vão dentro do APK (lista completa em THIRD_PARTY_NOTICES.md)
+    var apache by rememberSaveable { mutableStateOf(false) }
+    var notices by rememberSaveable { mutableStateOf(false) }
+    Text("Componentes de terceiros", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 18.dp))
     Text(
-        "Ícones: Material Symbols, © Google. Leitura de faturas em PDF: PdfBox-Android (Apache PDFBox, © The Apache Software Foundation e Tom Roush). Ambos sob a Licença Apache 2.0 (compatível com a GPL v3).",
-        color = p.muted, modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
+        "O Finan+ usa bibliotecas AndroidX (Jetpack) e Kotlin; PdfBox-Android (adaptação do Apache PDFBox por Tom Roush), com Bouncy Castle, para ler faturas em PDF; " +
+            "e os ícones Material Symbols (Google). Licenças: Apache 2.0, MIT, BSD, SIL OFL 1.1 e Unicode, todas compatíveis com a GPL v3. " +
+            "Os avisos de copyright e os textos das licenças estão abaixo e funcionam sem internet.",
+        color = p.muted, modifier = Modifier.padding(vertical = 8.dp),
     )
-    Pill(if (icons) "Ocultar licença Apache 2.0" else "Ver licença Apache 2.0") { icons = !icons }
-    if (icons) LicenseText("licenca/APACHE-2.0.txt", "https://www.apache.org/licenses/LICENSE-2.0")
+    Pill(if (notices) "Ocultar avisos de terceiros" else "Ver avisos de terceiros") { notices = !notices }
+    if (notices) LicenseText("licenca/TERCEIROS.txt", "https://github.com/finanplus-web/finan_plus_android/blob/main/THIRD_PARTY_NOTICES.md")
+    Spacer(Modifier.height(8.dp))
+    Pill(if (apache) "Ocultar licença Apache 2.0" else "Ver licença Apache 2.0") { apache = !apache }
+    if (apache) LicenseText("licenca/APACHE-2.0.txt", "https://www.apache.org/licenses/LICENSE-2.0")
 }
 
 @Composable

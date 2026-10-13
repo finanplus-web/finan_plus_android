@@ -123,9 +123,11 @@ fun BillImportSheet(s: AppState, sheet: Sheet.BillImport, close: () -> Unit) {
 
     fun show(info: BillInfo) {
         value = info.amount?.let { Money.input(it.value) } ?: ""
-        valueNote = info.amount?.let { "Do ${it.source.label}: “${it.excerpt}”" } ?: ""
+        // valor e vencimento do mesmo trecho (o código do boleto): mostra uma vez só, embaixo do vencimento
+        val same = info.amount != null && info.due != null && info.amount.source == info.due.source && info.amount.excerpt == info.due.excerpt
+        valueNote = if (same) "" else info.amount?.let { "Valor do ${it.source.label}: “${it.excerpt}”" } ?: ""
         due = info.due?.value
-        dueNote = info.due?.let { "Do ${it.source.label}: “${it.excerpt}”" } ?: ""
+        dueNote = info.due?.let { "${if (same) "Valor e vencimento" else "Vencimento"} do ${it.source.label}: “${it.excerpt}”" } ?: ""
         desc = when {
             card != null -> "Fatura ${card.name}"
             info.segment != null -> info.segment
@@ -141,7 +143,9 @@ fun BillImportSheet(s: AppState, sheet: Sheet.BillImport, close: () -> Unit) {
             else -> ""
         }
         if (due == null) due = today
-        category = s.cats.expense.firstOrNull { it.equals("Moradia", true) && info.segment != null } ?: s.cats.expense[0]
+        // conta de consumo vai para Moradia; o resto começa em "Outros" (a primeira categoria, Alimentação, quase nunca é boleto)
+        category = s.cats.expense.firstOrNull { it.equals("Moradia", true) && info.segment != null }
+            ?: s.cats.expense.firstOrNull { it.equals("Outros", true) } ?: s.cats.expense[0]
         paid = false
         step = BillStep.RESULT
     }
@@ -263,6 +267,7 @@ fun BillImportSheet(s: AppState, sheet: Sheet.BillImport, close: () -> Unit) {
                     when {
                         diff == null -> Text("Informe o valor para comparar.", color = p.muted)
                         diff == 0L -> Text("Confere com as compras lançadas.", fontWeight = FontWeight.Bold, color = p.green)
+                        diff > 0 && app == 0L -> Text("Nenhuma compra deste cartão lançada nesta fatura no Finan+.", fontWeight = FontWeight.Bold)
                         diff > 0 -> Text("Faltam ${Money.format(diff)} em compras no Finan+.", fontWeight = FontWeight.Bold)
                         else -> Text("O Finan+ tem ${Money.format(-diff)} a mais do que o banco. Confira as compras do cartão.", fontWeight = FontWeight.Bold, color = p.red)
                     }

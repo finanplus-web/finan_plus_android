@@ -184,6 +184,7 @@ object Repo {
             writeLock.withLock {
                 store.wipe()
                 DevicePrefs.get(app).wipe()
+                BillPasswords.get(app).wipe() // senhas de fatura lembradas
                 lastWritten = null
                 saveBlocked = false
                 _problem.value = null

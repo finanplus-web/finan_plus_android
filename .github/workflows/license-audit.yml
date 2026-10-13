@@ -1,0 +1,82 @@
+# Finan+ — Copyright (C) 2026 Juscelino Be
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Auditoria de licenças e SBOM. A cada pull request, a cada mudança de dependências na main e
+# manualmente (Actions › Auditoria de licenças › Run workflow):
+#   1. gera o SBOM CycloneDX (sbom.json) com as dependências efetivamente resolvidas;
+#   2. lista as versões resolvidas no APK de release, no APK de teste e nos testes;
+#   3. confere cada componente contra a política revisada (third_party/license-policy.json):
+#      dependência nova sem revisão, licença desconhecida ou alterada, licença incompatível com a
+#      GPL-3.0-or-later no APK, componente de teste vazando para o APK e aviso ausente dentro do app.
+# O relatório aparece no resumo da execução; SBOM e relatórios ficam no artefato "auditoria-licencas".
+#
+# Segurança: roda em `pull_request` (nunca `pull_request_target`), só com permissão de leitura,
+# sem Secrets e sem gravar nada no repositório. As Actions são fixadas pelo SHA completo do commit
+# (a versão fica no comentário); para atualizar, ver docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md (seção I).
+name: Auditoria de licenças
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    paths:
+      - 'gradle/**'
+      - '**/*.gradle.kts'
+      - 'gradle.properties'
+      - 'third_party/**'
+      - 'tools/license-audit/**'
+      - 'app/src/main/assets/**'
+      - 'THIRD_PARTY_NOTICES.md'
+      - '.github/workflows/license-audit.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: license-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Conferir o Gradle Wrapper
+        uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+
+      # Cache do Gradle pelo próprio setup-java (MIT). O setup-gradle v6 usa por padrão um cache
+      # proprietário ("Enhanced Caching"); aqui ele não é usado.
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: SBOM e dependências resolvidas
+        run: |
+          set -o pipefail
+          ./gradlew --no-daemon --init-script tools/license-audit/audit.init.gradle.kts \
+            :app:cyclonedxDirectBom :app:finanResolvedDependencies 2>&1 | tee gradle.log
+          mkdir -p auditoria
+          cp app/build/reports/cyclonedx-direct/bom.json auditoria/sbom.json
+          cp app/build/reports/license-audit/resolved.json auditoria/resolved.json
+          for c in releaseRuntimeClasspath debugRuntimeClasspath debugUnitTestRuntimeClasspath; do
+            ./gradlew --no-daemon -q :app:dependencies --configuration "$c" > "auditoria/arvore-$c.txt"
+          done
+
+      - name: Conferir licenças
+        run: |
+          python3 tools/license-audit/check_licenses.py --report auditoria/relatorio-licencas.md
+
+      - name: Guardar SBOM e relatórios
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: auditoria-licencas
+          path: auditoria/
+          if-no-files-found: warn

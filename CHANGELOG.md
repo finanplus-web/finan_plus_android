@@ -1,6 +1,13 @@
 # Changelog
 
-## Ler fatura ou boleto (13/10/2026, ainda não publicado)
+## 1.5.0 — Ler fatura ou boleto, temas Gruvbox e Início renovado (13/10/2026)
+
+- **Ler fatura ou boleto:** valor e vencimento de uma fatura em PDF (inclusive com senha), da linha digitável do boleto ou do Pix copia e cola, tudo no aparelho. Também por *Compartilhar › Finan+*.
+- **Temas Gruvbox e Gruvbox OLED** no lugar do Material You (quem usava passa para Claro).
+- **Tela Início renovada.**
+- `versionCode 12`. Detalhes de cada parte abaixo.
+
+### Ler fatura ou boleto
 
 Novo: o Finan+ lê o **valor** e o **vencimento** de uma fatura em PDF, de uma **linha digitável de boleto** ou de um **Pix copia e cola**, e preenche o lançamento para você conferir. Tudo no aparelho, sem internet e sem permissão nova. Detalhes em [FATURAS.md](FATURAS.md). O mesmo foi feito no Finan+ web (PWA) e no Linux.
 
@@ -25,7 +32,7 @@ Novo: o Finan+ lê o **valor** e o **vencimento** de uma fatura em PDF, de uma *
 | `app/build.gradle.kts`, `gradle/libs.versions.toml`, `proguard-rules.pro` | Dependência e regra do R8 (`-dontwarn com.gemalto.jp2.**`) |
 | `BillTest.kt` | 15 testes do núcleo |
 
-## Temas Gruvbox e Gruvbox OLED no lugar do Material You (12/10/2026, ainda não publicado)
+### Temas Gruvbox e Gruvbox OLED no lugar do Material You
 
 - **Novos temas:** **Gruvbox** (fundo `#282828`, cartões `#32302F`, texto creme `#EBDBB2`, destaque azul `#83A598`, verde `#B8BB26`, vermelho `#FB4934`) e **Gruvbox OLED** (as mesmas cores sobre preto puro, com cartões quase pretos e borda fina, para economizar bateria em telas OLED).
 - **Material You removido.** Quem usava o tema (`materialBlue`), ou restaura um backup antigo com ele, passa para **Claro**, o mais parecido, em vez de cair em "Sistema" e poder ficar escuro de repente.
@@ -39,7 +46,7 @@ Novo: o Finan+ lê o **valor** e o **vencimento** de uma fatura em PDF, de uma *
 | `ui/screens/SettingsScreen.kt` | Amostras de cor dos novos temas no seletor |
 | `CoreTest.kt` | Teste da troca de Material You para Claro |
 
-## Novo visual da tela Início (12/10/2026, ainda não publicado)
+### Novo visual da tela Início
 
 Só aparência: os dados, os cálculos e as ações da tela são os mesmos. O mesmo visual foi aplicado ao Finan+ web (PWA).
 
@@ -69,9 +76,7 @@ Só aparência: os dados, os cálculos e as ações da tela são os mesmos. O me
 | `ui/Root.kt` | Botão + redondo |
 | `res/drawable/ms_*.xml` | 5 ícones novos |
 
-## 1.4.1 — Recorrências aparecem nos próximos meses (10/10/2026, ainda não publicada)
-
-> **Situação:** pronta para publicar; sem a tag `v1.4.1`, o F-Droid e as Releases continuam na 1.4.0.
+## 1.4.1 — Recorrências aparecem nos próximos meses (10/10/2026)
 
 **Problema (relatado pelo autor, 10/10/2026):** a receita fixa "Adiantamento Quinzenal" (todo dia 15) não aparecia em novembro e dezembro no calendário, enquanto uma despesa parcelada aparecia. Causa: toda recorrência (receita ou despesa) só vira lançamento quando o mês chega; as parcelas são criadas todas de uma vez, por isso pareciam "fixar".
 

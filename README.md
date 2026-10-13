@@ -1,4 +1,4 @@
-# Finan+ para Android — v1.5.0
+# Finan+ para Android — v1.5.1
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
@@ -35,7 +35,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 
 **No GitHub Actions:**
 - *Compilar e testar* roda em todo envio para a `main`, em todo pull request e nas tags. Para testar uma mudança sem publicar, abra um pull request: o APK de teste fica em *Artifacts* na página da execução.
-- *Capturas de tela* roda sozinho quando a interface muda na `main`, ou manualmente em *Actions › Capturas de tela › Run workflow*. Ele só grava as imagens na `main`. Rodado em outro branch, ele desenha as telas (o que já serve de teste de que o app abre e navega), mas a etapa "Gravar no repositório" falha de propósito; as imagens ficam no artefato `capturas-de-tela` da execução.
+- *Capturas de tela* roda sozinho quando a interface muda na `main`, ou manualmente em *Actions › Capturas de tela › Run workflow*. Ele só grava as imagens na `main`. Rodado em outro branch, ele desenha as telas e roda os testes que usam o Robolectric (abas, tela de licenças e leitura de faturas em PDF, inclusive com senha), mas pula a etapa "Gravar no repositório"; as imagens ficam no artefato `capturas-de-tela` da execução.
 
 ## O que tem
 

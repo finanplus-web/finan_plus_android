@@ -1,35 +1,21 @@
-AVISOS DE TERCEIROS — Finan+ para Android
+# AVISOS DE TERCEIROS — Finan+ para Android
 
-O Finan+ é software livre sob a GNU GPL versão 3 ou posterior (GPL-3.0-or-later).
-O aplicativo inclui os componentes de terceiros abaixo. Todos são software livre,
-com licenças compatíveis com a GPL-3.0-or-later. Cada componente continua sob a
-sua própria licença; os avisos de copyright e de atribuição exigidos estão aqui.
+O Finan+ é software livre sob a GNU GPL versão 3 ou posterior (GPL-3.0-or-later). O aplicativo inclui os componentes de terceiros abaixo. Todos são software livre, com licenças compatíveis com a GPL-3.0-or-later. Cada componente continua sob a sua própria licença; os avisos de copyright e de atribuição exigidos estão aqui.
 
-- Licença Apache 2.0: texto completo em "Ver licença Apache 2.0", logo acima.
-- Demais licenças (MIT, BSD, SIL OFL 1.1, Unicode, Boost): texto completo abaixo.
-- Lista completa, com versões: arquivo THIRD_PARTY_NOTICES.md do código-fonte,
-  em https://github.com/finanplus-web/finan_plus_android
+• Licença Apache 2.0: texto completo em "Ver licença Apache 2.0", logo abaixo destes avisos.
+• Demais licenças (MIT, BSD, SIL OFL 1.1, Unicode, Boost): texto completo nas seções abaixo, sem alterações.
+• Lista completa, com versões: arquivo THIRD_PARTY_NOTICES.md do código-fonte, em https://github.com/finanplus-web/finan_plus_android
 
-========================================================================
-AndroidX (Jetpack)
-========================================================================
+## AndroidX (Jetpack)
 
-Bibliotecas do Android Open Source Project usadas pelo app: Core, Activity,
-Lifecycle, Fragment, Biometric, WorkManager, Glance (widget), Jetpack Compose
-(UI, Foundation, Material 3, Animation, Runtime, ícones Material do Compose),
-Room, SQLite, DataStore, Emoji2, Profile Installer, Startup, Tracing,
-SavedState, AppCompat e as demais bibliotecas AndroidX das quais elas dependem.
+Bibliotecas do Android Open Source Project usadas pelo app: Core, Activity, Lifecycle, Fragment, Biometric, WorkManager, Glance (widget), Jetpack Compose (UI, Foundation, Material 3, Animation, Runtime, ícones Material do Compose), Room, SQLite, DataStore, Emoji2, Profile Installer, Startup, Tracing, SavedState, AppCompat e as demais bibliotecas AndroidX das quais elas dependem.
 
 Copyright The Android Open Source Project.
 Licença: Apache License 2.0.
 
-========================================================================
-Protocol Buffers (dentro do Glance e do DataStore)
-========================================================================
+## Protocol Buffers (dentro do Glance e do DataStore)
 
-Os componentes androidx.glance:glance-appwidget-external-protobuf e
-androidx.datastore:datastore-preferences-core contêm uma cópia do Protocol
-Buffers (Google, protobuf-javalite), sob a licença BSD de 3 cláusulas:
+Os componentes androidx.glance:glance-appwidget-external-protobuf e androidx.datastore:datastore-preferences-core contêm uma cópia do Protocol Buffers (Google, protobuf-javalite), sob a licença BSD de 3 cláusulas:
 
 Copyright 2008 Google Inc.  All rights reserved.
 
@@ -64,21 +50,18 @@ of the input file used when generating it.  This code is not
 standalone and requires a support library to be linked with it.  This
 support library is itself covered by the above license.
 
-========================================================================
-Kotlin (biblioteca padrão)
-========================================================================
+## Kotlin (biblioteca padrão)
 
 Kotlin Standard Library (kotlin-stdlib), JetBrains s.r.o. e colaboradores.
 Licença: Apache License 2.0.
 
-Partes da biblioteca padrão derivam de outros projetos, conforme
-license/README.md do repositório do Kotlin:
-- coleções: derivadas do GWT, (C) 2007-08 Google Inc. — Apache License 2.0;
-- números sem sinal: derivados do Guava, (C) 2011 The Guava Authors — Apache License 2.0;
-- kotlin.time: derivado do ThreeTen (JSR-310) — licença BSD de 3 cláusulas (abaixo);
-- funções matemáticas: derivadas do Boost — Boost Software License 1.0 (abaixo).
+Partes da biblioteca padrão derivam de outros projetos, conforme o arquivo license/README.md do repositório do Kotlin:
+• coleções: derivadas do GWT, (C) 2007-08 Google Inc. — Apache License 2.0;
+• números sem sinal: derivados do Guava, (C) 2011 The Guava Authors — Apache License 2.0;
+• kotlin.time: derivado do ThreeTen (JSR-310) — licença BSD de 3 cláusulas (abaixo);
+• funções matemáticas: derivadas do Boost — Boost Software License 1.0 (abaixo).
 
---- ThreeTen (JSR-310) ---
+### ThreeTen (JSR-310)
 
 Copyright (c) 2007-present, Stephen Colebourne & Michael Nascimento Santos.
 
@@ -110,7 +93,7 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
---- Boost Software License 1.0 ---
+### Boost Software License 1.0
 
 Boost Software License - Version 1.0 - August 17th, 2003
 
@@ -136,9 +119,7 @@ FOR ANY DAMAGES OR OTHER LIABILITY, WHETHER IN CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-========================================================================
-kotlinx.coroutines
-========================================================================
+## kotlinx.coroutines
 
 Licença: Apache License 2.0. Aviso (NOTICE) do projeto:
 
@@ -151,9 +132,7 @@ Licença: Apache License 2.0. Aviso (NOTICE) do projeto:
 kotlinx.coroutines library.
 Copyright 2016-2021 JetBrains s.r.o and respective authors and developers
 
-========================================================================
-kotlinx.serialization
-========================================================================
+## kotlinx.serialization
 
 Licença: Apache License 2.0. Aviso (NOTICE) do projeto:
 
@@ -166,34 +145,27 @@ Licença: Apache License 2.0. Aviso (NOTICE) do projeto:
    kotlinx.serialization library.
    Copyright 2017-2019 JetBrains s.r.o and respective authors and developers
 
-========================================================================
-JetBrains Java Annotations
-========================================================================
+## JetBrains Java Annotations
 
 org.jetbrains:annotations, JetBrains s.r.o.
 Licença: Apache License 2.0.
 
-========================================================================
-JSpecify
-========================================================================
+## JSpecify
 
 org.jspecify:jspecify, projeto JSpecify (https://jspecify.dev).
 Licença: Apache License 2.0.
 
-========================================================================
-Guava ListenableFuture
-========================================================================
+## Guava ListenableFuture
 
 com.google.guava:listenablefuture, The Guava Authors.
 Licença: Apache License 2.0.
 
-========================================================================
-PdfBox-Android
-========================================================================
+## PdfBox-Android
 
-Leitura de faturas em PDF. PdfBox-Android é a adaptação para Android, feita
-por Tom Roush, do Apache PDFBox (https://github.com/TomRoush/PdfBox-Android).
-Licença: Apache License 2.0. Aviso (NOTICE) do projeto:
+Leitura de faturas em PDF. O PdfBox-Android é a adaptação para Android, feita por Tom Roush, do Apache PDFBox (https://github.com/TomRoush/PdfBox-Android).
+Licença: Apache License 2.0.
+
+### Aviso (NOTICE) do projeto
 
 Apache PDFBox
 Copyright 2014 The Apache Software Foundation
@@ -218,8 +190,9 @@ Copyright 2002, 2010 Adobe Systems Incorporated.
 Includes the Script Property (Scripts-10.0.0.txt)
 Copyright 2017 Unicode, Inc.
 
-Componentes externos incluídos no PdfBox-Android (trecho do LICENSE.txt do
-projeto, reproduzido sem alterações):
+### Componentes externos incluídos no PdfBox-Android
+
+Trecho do LICENSE.txt do projeto, reproduzido sem alterações:
 
 EXTERNAL COMPONENTS
 
@@ -319,16 +292,15 @@ PaDaF PDF/A preflight (http://sourceforge.net/projects/padaf)
   See the License for the specific language governing permissions and
   limitations under the License.
 
-Recursos distribuídos dentro do app pelo PdfBox-Android (pasta
-com/tom_roush/ dos assets):
-- métricas de fonte AFM das 14 fontes básicas do PDF (Adobe), com a licença
-  "Adobe Font Metrics (AFM)" acima;
-- CMaps e a Adobe Glyph List (Adobe), com a licença BSD acima;
-- a fonte Liberation Sans (licença SIL Open Font License 1.1, abaixo);
-- os arquivos de dados Unicode Scripts.txt e BidiMirroring.txt (licença
-  Unicode, abaixo).
+### Recursos que o PdfBox-Android coloca dentro do app
 
---- Liberation Sans (Liberation Fonts 2.1.5) ---
+Ficam na pasta com/tom_roush/ dos assets:
+• métricas de fonte AFM das 14 fontes básicas do PDF (Adobe), com a licença "Adobe Font Metrics (AFM)" acima;
+• CMaps e a Adobe Glyph List (Adobe), com a licença BSD acima;
+• a fonte Liberation Sans (licença SIL Open Font License 1.1, abaixo);
+• os arquivos de dados Unicode Scripts.txt e BidiMirroring.txt (licença Unicode, abaixo).
+
+### Liberation Sans (Liberation Fonts 2.1.5)
 
 Digitized data copyright (c) 2010 Google Corporation
 	with Reserved Font Arimo, Tinos and Cousine.
@@ -432,7 +404,7 @@ DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM OTHER
 DEALINGS IN THE FONT SOFTWARE.
 
---- Arquivos de dados Unicode ---
+### Arquivos de dados Unicode
 
 UNICODE, INC. LICENSE AGREEMENT - DATA FILES AND SOFTWARE
 
@@ -457,12 +429,9 @@ THE DATA FILES AND SOFTWARE ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
 
 Except as contained in this notice, the name of a copyright holder shall not be used in advertising or otherwise to promote the sale, use or other dealings in these Data Files or Software without prior written authorization of the copyright holder.
 
-========================================================================
-Bouncy Castle
-========================================================================
+## Bouncy Castle
 
-Bibliotecas de criptografia que acompanham o PdfBox-Android (bcprov, bcpkix e
-bcutil, versão 1.83), usadas para abrir PDFs cifrados por certificado.
+Bibliotecas de criptografia que acompanham o PdfBox-Android (bcprov, bcpkix e bcutil, versão 1.83), usadas para abrir PDFs cifrados por certificado.
 Licença: Bouncy Castle Licence (equivalente à licença MIT):
 
 Copyright (c) 2000-2023 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
@@ -480,26 +449,16 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRA
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-========================================================================
-Material Symbols
-========================================================================
+## Material Symbols
 
-Ícones da interface: Material Symbols Rounded, peso 300, Google
-(https://github.com/google/material-design-icons).
+Ícones da interface: Material Symbols Rounded, peso 300, Google (https://github.com/google/material-design-icons).
 Licença: Apache License 2.0.
-Alteração feita pelo Finan+: conversão de SVG para VectorDrawable (mesmo
-traçado, cor branca para receber a cor do tema). Ícones usados:
-account_balance, account_balance_wallet, add, arrow_downward, arrow_drop_down, arrow_upward, attach_money, auto_awesome, backspace, bar_chart, calendar_month, check, checkroom, chevron_left, chevron_right, credit_card, directions_car, favorite, fingerprint, fitness_center, flag, home, local_gas_station, more_horiz, north_east, payments, pets, pie_chart, receipt_long, redeem, remove, repeat, restaurant, savings, school, search, settings, shield, shopping_bag, shopping_cart, south_west, spa, subscriptions, swap_horiz, theaters, track_changes, tune, view_list, warning, work.
+Alteração feita pelo Finan+: conversão de SVG para VectorDrawable (mesmo traçado, cor branca para receber a cor do tema).
 
-========================================================================
-Finan+ web servido pelo Acesso pela rede
-========================================================================
+Ícones usados: account_balance, account_balance_wallet, add, arrow_downward, arrow_drop_down, arrow_upward, attach_money, auto_awesome, backspace, bar_chart, calendar_month, check, checkroom, chevron_left, chevron_right, credit_card, directions_car, favorite, fingerprint, fitness_center, flag, home, local_gas_station, more_horiz, north_east, payments, pets, pie_chart, receipt_long, redeem, remove, repeat, restaurant, savings, school, search, settings, shield, shopping_bag, shopping_cart, south_west, spa, subscriptions, swap_horiz, theaters, track_changes, tune, view_list, warning, work.
 
-A página que o celular serve ao navegador (assets/lan/pwa) é o Finan+ web,
-do mesmo autor e sob a mesma GPL-3.0-or-later (código-fonte em
-https://github.com/finanplus-web/finan_plus). Ela inclui:
-- ícones Material Symbols (Google, Apache License 2.0), como caminhos SVG;
-- as larguras de caracteres da Helvetica e da Helvetica Bold, usadas para
-  montar o relatório em PDF, tiradas das métricas AFM da Adobe (Adobe Systems
-  Incorporated; licença "Adobe Font Metrics (AFM)" reproduzida na seção do
-  PdfBox-Android, acima).
+## Finan+ web servido pelo Acesso pela rede
+
+A página que o celular serve ao navegador (assets/lan/pwa) é o Finan+ web, do mesmo autor e sob a mesma GPL-3.0-or-later (código-fonte em https://github.com/finanplus-web/finan_plus). Ela inclui:
+• ícones Material Symbols (Google, Apache License 2.0), como caminhos SVG;
+• as larguras de caracteres da Helvetica e da Helvetica Bold, usadas para montar o relatório em PDF, tiradas das métricas AFM da Adobe (Adobe Systems Incorporated; licença "Adobe Font Metrics (AFM)" reproduzida na seção do PdfBox-Android, acima).

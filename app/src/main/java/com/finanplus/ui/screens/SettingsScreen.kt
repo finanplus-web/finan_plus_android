@@ -493,8 +493,33 @@ private fun LicenseText(asset: String, fallbackUrl: String) {
     val text = remember(asset) {
         runCatching { ctx.assets.open(asset).bufferedReader(Charsets.UTF_8).use { it.readText() } }.getOrElse { "Texto da licença: $fallbackUrl" }
     }
-    Text(
-        text, color = p.muted, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-        modifier = Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.accent2.copy(alpha = 0.5f)).padding(12.dp),
-    )
+    // Linhas que começam com "# " (ou "## ", "### ") são títulos: aparecem em destaque e contam como
+    // cabeçalho para leitores de tela. O resto vai como está: os textos das licenças mantêm o original.
+    val blocks = remember(text) { licenseBlocks(text) }
+    Column(Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(p.accent2.copy(alpha = 0.5f)).padding(12.dp)) {
+        blocks.forEach { (heading, body) ->
+            if (heading) {
+                Text(
+                    body, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 14.dp, bottom = 6.dp).semantics { heading() },
+                )
+            } else {
+                Text(body, color = p.muted, fontSize = 11.sp, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            }
+        }
+    }
+}
+
+/** Divide o texto em títulos (linhas "# …") e trechos comuns, na ordem. */
+private fun licenseBlocks(text: String): List<Pair<Boolean, String>> {
+    val out = mutableListOf<Pair<Boolean, String>>()
+    val buf = StringBuilder()
+    fun flush() { val t = buf.toString().trim('\n'); if (t.isNotBlank()) out += false to t; buf.clear() }
+    val title = Regex("^#{1,3} (.+)$")
+    for (line in text.lines()) {
+        val h = title.find(line)
+        if (h != null) { flush(); out += true to h.groupValues[1].trim() } else buf.append(line).append('\n')
+    }
+    flush()
+    return out
 }

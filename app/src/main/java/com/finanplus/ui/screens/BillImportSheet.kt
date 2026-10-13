@@ -230,7 +230,7 @@ fun BillImportSheet(s: AppState, sheet: Sheet.BillImport, close: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Field("Senha do PDF", pw, { pw = it }, keyboard = KeyboardType.Password, password = true, maxLength = 64)
             pwError?.let { Text(it, color = p.red, style = MaterialTheme.typography.bodySmall, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }) }
-            if (card != null) CheckLine("Lembrar para o cartão ${card.name}", rememberPw) { rememberPw = it }
+            if (card != null) CheckLine("Lembrar a senha para ${card.name}", rememberPw) { rememberPw = it }
             if (card != null && rememberPw) Text(
                 "Fica cifrada só neste aparelho e não vai para o backup. Para esquecer, desmarque aqui ou use Esquecer senha no cartão.",
                 style = MaterialTheme.typography.bodySmall, color = p.muted,

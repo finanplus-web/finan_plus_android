@@ -1,5 +1,30 @@
 # Changelog
 
+## Ler fatura ou boleto (13/10/2026, ainda não publicado)
+
+Novo: o Finan+ lê o **valor** e o **vencimento** de uma fatura em PDF, de uma **linha digitável de boleto** ou de um **Pix copia e cola**, e preenche o lançamento para você conferir. Tudo no aparelho, sem internet e sem permissão nova. Detalhes em [FATURAS.md](FATURAS.md). O mesmo foi feito no Finan+ web (PWA) e no Linux.
+
+- **Onde:** Novo lançamento (despesa) › **Ler fatura ou boleto**; no cartão › **Ler a fatura deste cartão (PDF)**; e **Compartilhar › Finan+** com um PDF (abre depois do desbloqueio).
+- **Boleto e Pix:** a linha digitável (bancário, 47 números, e arrecadação, 48) e o Pix copia e cola têm os dígitos verificadores e o CRC conferidos; o valor e o vencimento saem do próprio código. O fator de vencimento considera a virada de 22/02/2025.
+- **Texto da fatura:** rótulos como "Total desta fatura" e "Vencimento", ignorando pagamento mínimo, limite, fatura anterior e próximo vencimento. Embaixo de cada valor aparece o trecho de onde ele saiu.
+- **PDF com senha:** o app pede a senha e abre o arquivo só na memória; nunca tenta adivinhar. PDF com proteção só contra cópia abre sem senha. A senha pode ser **lembrada por cartão** (desligado por padrão), cifrada por uma chave própria do Android Keystore, fora do backup e do acesso pela rede; dá para esquecer no cartão, e excluir o cartão ou "Apagar todos os dados" apagam junto.
+- **Boleto ou conta** vira despesa pendente no vencimento (ou já paga). **Fatura de cartão** é comparada com a fatura calculada pelo Finan+ e a diferença pode ser lançada no cartão.
+- PDF só imagem (escaneado) mostra o aviso "PDF sem texto": a leitura de imagens (OCR) fica para uma próxima etapa.
+- Nova dependência: **PdfBox-Android 2.0.27.0** (Apache 2.0), do Maven Central. Em *Ajustes › Sobre* o aviso de terceiros passou a citar a biblioteca.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/bill/Bill.kt` | Novo: boleto, Pix, leitura do texto (`BillReader`) e comparação com a fatura do cartão (`BillMatch`) |
+| `data/BillPdf.kt` | Novo: abre o PDF com o PdfBox-Android (com senha), só na memória |
+| `data/BillPasswords.kt` | Novo: senhas lembradas, cifradas no Keystore |
+| `ui/screens/BillImportSheet.kt` | Novo: a tela "Ler fatura ou boleto" |
+| `ui/screens/Sheets.kt`, `ui/Root.kt` | Atalho no novo lançamento; no cartão, "Ler a fatura" e "Esquecer senha"; `Sheet.BillImport` |
+| `MainActivity.kt`, `AndroidManifest.xml` | Receber PDF por "Compartilhar" |
+| `data/Repo.kt` | "Apagar todos os dados" apaga as senhas lembradas |
+| `ui/screens/SettingsScreen.kt` | Aviso de terceiros com o PdfBox-Android |
+| `app/build.gradle.kts`, `gradle/libs.versions.toml`, `proguard-rules.pro` | Dependência e regra do R8 (`-dontwarn com.gemalto.jp2.**`) |
+| `BillTest.kt` | 15 testes do núcleo |
+
 ## Temas Gruvbox e Gruvbox OLED no lugar do Material You (12/10/2026, ainda não publicado)
 
 - **Novos temas:** **Gruvbox** (fundo `#282828`, cartões `#32302F`, texto creme `#EBDBB2`, destaque azul `#83A598`, verde `#B8BB26`, vermelho `#FB4934`) e **Gruvbox OLED** (as mesmas cores sobre preto puro, com cartões quase pretos e borda fina, para economizar bateria em telas OLED).

@@ -472,10 +472,10 @@ private fun LicenseNotice() {
     // componente de terceiros: ícones Material Symbols
     var icons by rememberSaveable { mutableStateOf(false) }
     Text(
-        "Ícones: Material Symbols, © Google, sob a Licença Apache 2.0 (compatível com a GPL v3).",
+        "Ícones: Material Symbols, © Google. Leitura de faturas em PDF: PdfBox-Android (Apache PDFBox, © The Apache Software Foundation e Tom Roush). Ambos sob a Licença Apache 2.0 (compatível com a GPL v3).",
         color = p.muted, modifier = Modifier.padding(top = 14.dp, bottom = 8.dp),
     )
-    Pill(if (icons) "Ocultar licença dos ícones" else "Ver licença dos ícones (Apache 2.0)") { icons = !icons }
+    Pill(if (icons) "Ocultar licença Apache 2.0" else "Ver licença Apache 2.0") { icons = !icons }
     if (icons) LicenseText("licenca/APACHE-2.0.txt", "https://www.apache.org/licenses/LICENSE-2.0")
 }
 

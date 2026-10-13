@@ -10,6 +10,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 - Calendário de lançamentos (como ler e o que entra na conta): [CALENDARIO.md](CALENDARIO.md)
 - Simulador "E se…?" (as contas e o que não considera): [SIMULADOR.md](SIMULADOR.md)
 - Recorrências nos próximos meses ("Previsto"): [RECORRENCIAS.md](RECORRENCIAS.md)
+- Ler fatura ou boleto (PDF com senha, linha digitável e Pix): [FATURAS.md](FATURAS.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
 - Acesso pela rede (uso, certificado, segurança): [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) · auditoria: [AUDITORIA-LAN.md](AUDITORIA-LAN.md)
 - Auditoria de outubro de 2026 e o que foi corrigido: [docs/AUDITORIA-2026-10.md](docs/AUDITORIA-2026-10.md)
@@ -45,6 +46,7 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 | Relatórios | Mesmo ‹ mês › da aba Lançamentos, Receitas e Despesas realizadas com comparação justa (mês atual contra os mesmos dias do mês anterior), despesas por categoria (com limites), últimos 6 meses (com descrição para leitores de tela), botão PDF |
 | Simulador "E se…?" | Economizar por mês, quanto tempo para comprar, mudança na renda e antecipar dívida parcelada, a partir da média dos últimos 3 meses. Nada é gravado; dá para transformar em meta. Detalhes em [SIMULADOR.md](SIMULADOR.md) |
 | Editores | Lançamento (parcelas com divisão do total, repetir mensalmente, cartão), meta, conta, cartão, recorrência (com início, pausa e edição), limite, pagamento de fatura |
+| Ler fatura ou boleto | Valor e vencimento de uma fatura em PDF (inclusive com senha, que pode ser lembrada por cartão), da linha digitável do boleto ou do Pix copia e cola. Também por **Compartilhar › Finan+**. Fatura de cartão é comparada com a calculada pelo app. Tudo no aparelho; você confere antes de salvar. Detalhes em [FATURAS.md](FATURAS.md) |
 | Ajustes | 6 temas (Sistema, Claro, Material You com cores do papel de parede no Android 12+, OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |
 | Relatório em PDF | Qualquer período (atalhos ou datas): resumo com comparação ao período anterior, gastos por categoria (gráfico e tabela com limites), evolução mensal, maiores despesas, contas, metas e lista de lançamentos, com páginas numeradas. Em *Relatórios* ou *Ajustes › Dados* |
 | Assistente | No aparelho, sem internet: sugestão de categoria pela descrição, resumo do mês, dicas (duplicados, aumento de preço, ritmo do limite, acima da média, pequenos gastos, gastos fixos) e perguntas rápidas. Cada resultado tem “Por quê?”. Detalhes em [ASSISTENTE.md](ASSISTENTE.md) |
@@ -171,7 +173,9 @@ Na prática:
 - Quem distribuir o app ou uma versão modificada precisa manter a mesma licença e **disponibilizar o código-fonte**, incluindo as modificações.
 - O programa é fornecido **sem garantia**.
 
-**Componente de terceiros:** os ícones da interface são do conjunto Material Symbols, © Google, sob a Licença Apache 2.0, compatível com a GPL v3. Detalhes em `third_party/material-symbols/`.
+**Componentes de terceiros** (Licença Apache 2.0, compatível com a GPL v3):
+- Ícones da interface: Material Symbols, © Google. Detalhes em `third_party/material-symbols/`.
+- Leitura de faturas em PDF: [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android) (port do Apache PDFBox), dependência `com.tom-roush:pdfbox-android`. Detalhes em [FATURAS.md](FATURAS.md).
 
 **Ícone do app (F+):** desenho próprio do Finan+, sob a mesma licença GPL-3.0-or-later. Fontes em vetor em [`docs/icone/`](docs/icone/).
 

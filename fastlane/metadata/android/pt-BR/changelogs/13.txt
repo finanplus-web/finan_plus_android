@@ -1,0 +1,1 @@
+Ajustes em "Ler fatura ou boleto": o trecho do código aparece uma vez só quando valor e vencimento vêm do mesmo boleto; a categoria começa em Outros (ou Moradia para conta de consumo) em vez de Alimentação; fatura de cartão sem compras lançadas mostra um aviso mais claro.

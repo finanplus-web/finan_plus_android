@@ -94,6 +94,13 @@ dependencies {
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)
     implementation(libs.pdfbox.android)
+    // O PdfBox-Android traz o Bouncy Castle 1.72; a restrição sobe para uma versão com as correções de
+    // segurança publicadas depois (mesma API; licença MIT). Teste: BillPdfTest (com -PfinanScreenshots=true).
+    constraints {
+        implementation(libs.bouncycastle.bcprov) { because("correções de segurança posteriores à 1.72") }
+        implementation(libs.bouncycastle.bcpkix) { because("correções de segurança posteriores à 1.72") }
+        implementation(libs.bouncycastle.bcutil) { because("correções de segurança posteriores à 1.72") }
+    }
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.foundation)

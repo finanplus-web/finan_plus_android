@@ -461,11 +461,11 @@ Except as contained in this notice, the name of a copyright holder shall not be 
 Bouncy Castle
 ========================================================================
 
-Bibliotecas de criptografia usadas pelo PdfBox-Android para abrir PDFs
-protegidos por senha (bcprov, bcpkix e bcutil, versão 1.72).
+Bibliotecas de criptografia que acompanham o PdfBox-Android (bcprov, bcpkix e
+bcutil, versão 1.83), usadas para abrir PDFs cifrados por certificado.
 Licença: Bouncy Castle Licence (equivalente à licença MIT):
 
-Copyright (c) 2000-2021 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
+Copyright (c) 2000-2023 The Legion of the Bouncy Castle Inc. (https://www.bouncycastle.org)
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software 
 and associated documentation files (the "Software"), to deal in the Software without restriction, 
 including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, 

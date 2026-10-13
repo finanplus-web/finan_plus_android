@@ -436,7 +436,7 @@ private fun AboutText() {
         "Esta versão é nativa para Android, construída com Kotlin e Jetpack Compose. Os dados ficam no aparelho, criptografados com AES-256 e chave no Android Keystore, sem conta, cadastro ou servidor externo. O acesso pela rede é opcional, fica desligado até você ligar e funciona só na sua rede local.",
         "Inclui widget de saldo na tela inicial, avisos de vencimento, desbloqueio por PIN ou biometria e backup em JSON compatível com o Finan+ web.",
         "O assistente (sugestão de categoria, resumo do mês, dicas de economia e perguntas rápidas) funciona inteiro no aparelho, sem internet e sem modelo de IA externo: são regras e um classificador simples, com código aberto e explicação em cada resposta.",
-        "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com os temas Material You, OLED, Tokyo Night e Nord.",
+        "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com os temas Claro, Gruvbox, OLED Cinza, Gruvbox OLED, Tokyo Night e Nord, ou o do sistema.",
     )
     paras.forEach { Text(it, color = p.muted, modifier = Modifier.padding(bottom = 12.dp)) }
     Text("Privacidade em primeiro lugar: seus dados financeiros permanecem no seu dispositivo.", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 14.dp))

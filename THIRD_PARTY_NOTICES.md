@@ -7,7 +7,7 @@ O Finan+ é software livre sob a **GNU GPL versão 3 ou posterior** (`GPL-3.0-or
 - **Conferência automática:** o workflow [*Auditoria de licenças*](.github/workflows/license-audit.yml) gera o SBOM CycloneDX (`sbom.json`) e falha se aparecer dependência nova sem revisão, licença desconhecida ou alterada, licença incompatível no APK ou aviso faltando no app. A política revisada fica em [`third_party/license-policy.json`](third_party/license-policy.json).
 - **Relatório da auditoria:** [`docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md`](docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md).
 
-Versões: as **efetivamente resolvidas** pelo Gradle no `releaseRuntimeClasspath` da versão 1.5.1 (não apenas as declaradas em `gradle/libs.versions.toml`). Ao mudar uma dependência, o SBOM do CI é a referência atualizada.
+Versões: as **efetivamente resolvidas** pelo Gradle no `releaseRuntimeClasspath` da versão 1.5.2 (não apenas as declaradas em `gradle/libs.versions.toml`). Ao mudar uma dependência, o SBOM do CI é a referência atualizada.
 
 ## 1. Distribuídos no APK (F-Droid e GitHub Releases)
 

@@ -1,0 +1,1 @@
+New in Settings › About: "View third-party notices", with the copyright notices and licenses of every library the app uses, available offline. Security update for the cryptography library used when reading PDF bills (Bouncy Castle 1.83). The theme list in About is up to date.

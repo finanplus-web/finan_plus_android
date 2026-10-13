@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.2 — Licenças de terceiros e atualização de segurança (13/10/2026)
+
+- **Avisos de terceiros no app:** *Ajustes › Sobre* ganhou "Componentes de terceiros" e o botão **Ver avisos de terceiros**, com os avisos de copyright e as licenças de todas as bibliotecas que vão dentro do app (AndroidX, Kotlin, PdfBox-Android, Bouncy Castle, Protocol Buffers, fontes e dados usados na leitura de PDF, ícones Material Symbols). Funciona sem internet. Lista completa em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+- **Segurança:** Bouncy Castle atualizado da 1.72 para a 1.83 (biblioteca de criptografia que acompanha a leitura de PDF), com as correções de segurança publicadas desde então.
+- **Sobre:** a lista de temas agora mostra os temas atuais.
+- **Por dentro:** auditoria de licenças e SBOM a cada pull request, Actions do GitHub fixadas por versão exata e testes automáticos da tela de licenças e da leitura de faturas em PDF com senha. Detalhes em [docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md](docs/OPEN_SOURCE_COMPLIANCE_AUDIT.md).
+
 ## 1.5.1 — Ajustes na leitura de faturas (13/10/2026)
 
 - **Ler fatura ou boleto, ajustes na tela de conferência:** quando o valor e o vencimento vêm do mesmo código do boleto, o trecho aparece uma vez só ("Valor e vencimento do código do boleto"); a categoria começa em **Outros** (ou Moradia para conta de consumo, ou a sugerida pelo assistente) em vez de Alimentação; na fatura de cartão sem nenhuma compra lançada, o aviso diz "Nenhuma compra deste cartão lançada nesta fatura no Finan+" em vez de "Faltam R$ X em compras".

@@ -1,4 +1,4 @@
-# Finan+ para Android — v1.5.1
+# Finan+ para Android — v1.5.2
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 

@@ -75,6 +75,8 @@ android {
                     test.systemProperty("roborazzi.test.record", "true")
                     test.systemProperty("finan.screenshots.dir", rootProject.file("docs/screenshots").absolutePath)
                     test.filter.includeTestsMatching("com.finanplus.screenshots.*")
+                    // falhas com a mensagem completa no log (o CI mostra as linhas de erro como avisos)
+                    test.testLogging { exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL }
                 } else {
                     test.exclude("**/screenshots/**")
                 }

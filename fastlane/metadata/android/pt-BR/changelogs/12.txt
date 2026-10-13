@@ -1,0 +1,3 @@
+Novo: ler fatura ou boleto. O app tira valor e vencimento de uma fatura em PDF (inclusive com senha, que pode ser lembrada por cartão), da linha digitável ou do Pix copia e cola, tudo no aparelho. Fatura de cartão é comparada com a do app.
+
+Temas Gruvbox e Gruvbox OLED no lugar do Material You (quem usava vai para Claro). Tela Início renovada.

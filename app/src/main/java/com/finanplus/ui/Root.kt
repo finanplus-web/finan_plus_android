@@ -36,6 +36,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -181,7 +183,7 @@ val LocalNav = staticCompositionLocalOf { Nav() }
 
 /** Padding inferior para o conteúdo não ficar sob a barra de navegação flutuante. */
 @Composable
-fun bottomSpace(): Dp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 110.dp
+fun bottomSpace(): Dp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 170.dp
 
 @Composable
 fun screenPadding() = PaddingValues(start = 18.dp, end = 18.dp, top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 14.dp, bottom = bottomSpace())
@@ -291,6 +293,10 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
             BottomNav(nav, shownTab, Modifier.align(Alignment.BottomCenter))
+            AddTransactionPill(
+                nav,
+                Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 116.dp),
+            )
             SaveErrorBanner(Modifier.align(Alignment.TopCenter)) { reaskProblem++ }
         }
         nav.sheet?.let { sh -> key(sh) { SheetHost(s, sh) { nav.sheet = null } } }
@@ -311,22 +317,41 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     ) {
         NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
         NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
-        // O + ocupa a coluna do meio, com a mesma largura (weight 1f) das quatro abas:
-        // fica sempre no centro exato da barra, qualquer que seja o tamanho dos rótulos.
-        Column(
-            Modifier.weight(1f).height(58.dp).clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }
-                .semantics { contentDescription = "Adicionar lançamento" },
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Box(
-                Modifier.size(44.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent),
-                contentAlignment = Alignment.Center,
-            ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 26.dp) }
-            Text("Adicionar", fontSize = 10.sp, color = p.accent, fontWeight = FontWeight.Bold, maxLines = 1)
-        }
         NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
         NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
+    }
+}
+
+/** Ação global fora do centro da navegação, com escolha clara entre receita e despesa. */
+@Composable
+private fun AddTransactionPill(nav: Nav, modifier: Modifier = Modifier) {
+    val p = Fin.c
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    Box(modifier) {
+        Row(
+            Modifier.shadow(10.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
+                .background(p.accent).clickable(role = Role.Button) { expanded = true }
+                .semantics { contentDescription = "Adicionar receita ou despesa" }
+                .padding(horizontal = 16.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 20.dp)
+            Text("Adicionar", color = p.onAccent, fontWeight = FontWeight.Bold)
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, p.onAccent, size = 18.dp)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Despesa") },
+                leadingIcon = { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.EXPENSE, p.red) },
+                onClick = { expanded = false; nav.open(Sheet.TxEdit(Kind.EXPENSE)) },
+            )
+            DropdownMenuItem(
+                text = { Text("Receita") },
+                leadingIcon = { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.INCOME, p.green) },
+                onClick = { expanded = false; nav.open(Sheet.TxEdit(Kind.INCOME)) },
+            )
+        }
     }
 }
 

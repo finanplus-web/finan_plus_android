@@ -67,7 +67,8 @@ class ScreenshotTest {
             tab("Lista")
             tab("Relatórios"); shot("relatorios")
             tab("Ajustes"); shot("ajustes")
-            compose.onNode(hasContentDescription("Adicionar lançamento")).performClick()
+            compose.onNode(hasContentDescription("Adicionar receita ou despesa")).performClick()
+            compose.onNode(hasText("Despesa")).performClick()
             shot("novo-lancamento")
         }
         Repo.showForScreenshots(demo.copy(theme = ThemeId.TOKYO))

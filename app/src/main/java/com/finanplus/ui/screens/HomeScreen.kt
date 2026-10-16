@@ -56,7 +56,6 @@ import com.finanplus.ui.components.Eyebrow
 import com.finanplus.ui.components.Glass
 import com.finanplus.ui.components.LocalPrivacy
 import com.finanplus.ui.components.MoneyText
-import com.finanplus.ui.components.PrimaryButton
 import com.finanplus.ui.components.SectionHead
 import com.finanplus.ui.components.br
 import com.finanplus.ui.components.sensitive
@@ -195,11 +194,6 @@ fun HomeScreen(s: AppState) {
                 PendingCard("Falta receber", pending.toReceive, flow.income, "recebido", p.green, Ico.INCOME, Modifier.weight(1f))
                 // Em despesas, faturas abertas podem corresponder a compras já registradas; não exibimos uma porcentagem que as conte duas vezes.
                 PendingCard("Falta pagar", pending.toPay, flow.expense, "pago", p.red, Ico.EXPENSE, Modifier.weight(1f), showProgress = false)
-            }
-        }
-        item {
-            PrimaryButton("＋  Adicionar lançamento", Modifier.padding(top = 12.dp)) {
-                nav.open(Sheet.TxEdit(Kind.EXPENSE))
             }
         }
         item {

@@ -47,7 +47,9 @@ import com.finanplus.ui.components.ManageItem
 import com.finanplus.ui.components.MoneyText
 import com.finanplus.ui.components.Pill
 import com.finanplus.ui.components.PrimaryButton
+import com.finanplus.ui.components.SectionHead
 import com.finanplus.ui.components.SelectField
+import com.finanplus.ui.components.br
 import com.finanplus.ui.components.sensitive
 import com.finanplus.ui.screenPadding
 import com.finanplus.ui.theme.Fin

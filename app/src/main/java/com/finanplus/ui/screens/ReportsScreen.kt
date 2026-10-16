@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -59,7 +60,7 @@ import com.finanplus.ui.theme.Fin
 import java.time.format.DateTimeFormatter
 
 /**
- * Relatórios: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
+ * Análises: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
  * Resumo com comparação justa, despesas por categoria e evolução.
  */
 @Composable
@@ -77,7 +78,7 @@ fun ReportsScreen(s: AppState) {
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         item {
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Relatórios", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
+                Text("Análises", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
                 // exportar o mesmo período em PDF (dá para trocar o período na própria folha)
                 Pill("PDF", icon = Ico.RECEIPT, modifier = Modifier.semantics { contentDescription = "Exportar relatório em PDF" }) {
                     nav.open(Sheet.ReportPdf(f.from, f.to))
@@ -142,6 +143,17 @@ fun ReportsScreen(s: AppState) {
                 Text(explanation, style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 2.dp))
             }
         }
+        if (flow.income > 0L || flow.expense > 0L) item {
+            val sources = remember(inRange) {
+                inRange.asSequence()
+                    .filter { it.kind == com.finanplus.core.Kind.INCOME && it.paid && it.isFlow }
+                    .groupBy { it.category.ifBlank { "Sem categoria" } }
+                    .map { (category, txs) -> category to txs.sumOf { it.value } }
+                    .sortedByDescending { it.second }
+            }
+            val expenses = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
+            MoneyFlowCard(sources, expenses, flow.income, flow.expense, hide)
+        }
         item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
                 Column2("Despesas", "Por categoria")
@@ -191,6 +203,111 @@ fun ReportsScreen(s: AppState) {
                     months.forEach { (ym, _) -> Text(ym.format(DateTimeFormatter.ofPattern("MMM", BR)), Modifier.weight(1f), style = MaterialTheme.typography.labelSmall, color = p.muted, textAlign = TextAlign.Center) }
                 }
                 Text("Verde: receitas · Vermelho: despesas", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+    }
+}
+
+private data class FlowPart(val label: String, val value: Long, val color: Color)
+
+/** Fluxo agregado do período: mostra origens e destinos sem atribuir uma receita a uma despesa específica. */
+@Composable
+private fun MoneyFlowCard(
+    sources: List<Pair<String, Long>>,
+    expenses: List<Pair<String, Long>>,
+    income: Long,
+    expense: Long,
+    hide: Boolean,
+) {
+    val p = Fin.c
+    val colors = listOf(Color(0xFF00AFC1), p.red, Color(0xFF278AE5), p.green, Color(0xFF8C9499), p.accent)
+    val incomeParts = sources.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[i % colors.size]) }
+    val outputParts = expenses.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[(i + 1) % colors.size]) }.toMutableList()
+    val leftover = (income - expense).coerceAtLeast(0L)
+    if (leftover > 0L) outputParts += FlowPart("Sobrou", leftover, p.green)
+    val scale = maxOf(income, expense, 1L)
+    val description = buildString {
+        append("Fluxo do dinheiro. Entradas realizadas: ")
+        append(if (hide) "valores ocultos" else Money.format(income))
+        append(". Despesas realizadas: ")
+        append(if (hide) "valores ocultos" else Money.format(expense))
+        if (leftover > 0L) append(". Sobra: ").append(if (hide) "valor oculto" else Money.format(leftover))
+        else if (expense > income) append(". Despesas acima das receitas: ").append(if (hide) "valor oculto" else Money.format(expense - income))
+    }
+    Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
+        Column2("Análises", "Fluxo do dinheiro")
+        Text("De onde veio (em cima) e para onde foi (embaixo).", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(bottom = 12.dp))
+        Text("De onde veio", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+        SegmentedFlowBar(incomeParts, scale, hide)
+        FlowLegend(incomeParts, income, hide)
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                if (hide) "Entradas ocultas" else "Entrou ${Money.format(income)}",
+                modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(p.text).padding(horizontal = 20.dp, vertical = 8.dp),
+                color = p.bg,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.ExtraBold,
+            )
+        }
+        Text("Para onde foi", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+        if (outputParts.isEmpty()) {
+            Text("Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 6.dp))
+        } else {
+            SegmentedFlowBar(outputParts, scale, hide)
+            FlowLegend(outputParts, maxOf(income, expense), hide)
+        }
+        if (expense > income) {
+            Text("As despesas passaram o valor recebido neste período.", style = MaterialTheme.typography.bodySmall, color = p.red, modifier = Modifier.padding(top = 8.dp))
+        }
+        Text(
+            "Considera apenas lançamentos pagos ou recebidos; não associa uma entrada a uma despesa específica.",
+            style = MaterialTheme.typography.labelSmall,
+            color = p.muted,
+            modifier = Modifier.padding(top = 10.dp).semantics { contentDescription = description },
+        )
+    }
+}
+
+@Composable
+private fun SegmentedFlowBar(parts: List<FlowPart>, scale: Long, hide: Boolean) {
+    val p = Fin.c
+    Canvas(
+        Modifier.fillMaxWidth().height(14.dp).padding(top = 4.dp).sensitive(hide)
+            .semantics { contentDescription = "Gráfico de barras proporcionais do fluxo de dinheiro" },
+    ) {
+        val totalWidth = size.width
+        var left = 0f
+        val radius = CornerRadius(size.height / 2f, size.height / 2f)
+        parts.forEachIndexed { index, part ->
+            val width = totalWidth * (part.value.toDouble() / scale.coerceAtLeast(1L)).toFloat()
+            if (width > 0f) {
+                drawRoundRect(part.color, Offset(left, 0f), Size(width, size.height), radius)
+                left += width
+            }
+        }
+        if (left < totalWidth) drawRoundRect(p.track, Offset(left, 0f), Size(totalWidth - left, size.height), radius)
+    }
+}
+
+@Composable
+private fun FlowLegend(parts: List<FlowPart>, total: Long, hide: Boolean) {
+    val p = Fin.c
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        parts.forEach { part ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.width(12.dp).height(12.dp)) { drawCircle(part.color) }
+                Text(part.label, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(horizontalAlignment = Alignment.End) {
+                    MoneyText(part.value, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        if (hide || total <= 0L) "••%" else "${(part.value * 100 / total).coerceAtMost(100)}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = p.muted,
+                    )
+                }
             }
         }
     }

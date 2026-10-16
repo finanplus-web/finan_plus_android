@@ -311,19 +311,25 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
 @Composable
 private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
-    Row(
-        modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
-            // sem recorte (clip): sombras e áreas de toque permanecem visíveis.
-            .shadow(16.dp, RoundedCornerShape(28.dp), clip = false)
-            .background(p.surface.compositeOver(p.bg), RoundedCornerShape(28.dp)).border(1.dp, p.border, RoundedCornerShape(28.dp))
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    // Fundo opaco atrás da barra e da área de gesto: o conteúdo rolável não aparece por baixo.
+    Box(
+        modifier.fillMaxWidth().background(p.bg).navigationBarsPadding(),
+        contentAlignment = Alignment.Center,
     ) {
-        NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
-        NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
-        NavItem(Tab.ACCOUNTS, nav, shown, Modifier.weight(1f))
-        NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
-        NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
+                // sem recorte (clip): sombras e áreas de toque permanecem visíveis.
+                .shadow(16.dp, RoundedCornerShape(28.dp), clip = false)
+                .background(p.surface.compositeOver(p.bg), RoundedCornerShape(28.dp)).border(1.dp, p.border, RoundedCornerShape(28.dp))
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.ACCOUNTS, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
+        }
     }
 }
 

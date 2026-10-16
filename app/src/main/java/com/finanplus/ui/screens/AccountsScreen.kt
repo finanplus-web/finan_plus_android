@@ -182,7 +182,6 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            SectionHead("PERSONALIZAÇÃO", "Categorias")
             CategoryManager(s)
         }
     }
@@ -194,7 +193,14 @@ private fun CategoryManager(s: AppState) {
     val dialogs = LocalDialogs.current
     var newCategory by rememberSaveable { mutableStateOf("") }
     var newKind by rememberSaveable { mutableStateOf(Kind.EXPENSE) }
-    Glass(radius = 22.dp, padding = 14.dp) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+    SectionHead(
+        "PERSONALIZAÇÃO", "Categorias",
+        action = if (expanded) "Minimizar" else "Expandir",
+        actionIcon = Ico.DROPDOWN,
+        onAction = { expanded = !expanded },
+    )
+    if (expanded) Glass(radius = 22.dp, padding = 14.dp) {
         Text("As categorias ajudam a organizar relatórios e lançamentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
         Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Field("Nova categoria", newCategory, { newCategory = it }, Modifier.weight(1.3f), maxLength = 40)

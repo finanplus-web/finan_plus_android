@@ -89,6 +89,7 @@ import com.finanplus.ui.components.LocalDialogs
 import com.finanplus.ui.components.LocalPrivacy
 import com.finanplus.ui.components.MoneyText
 import com.finanplus.ui.components.br
+import com.finanplus.ui.screens.AccountsScreen
 import com.finanplus.ui.screens.HomeScreen
 import com.finanplus.ui.screens.LockScreen
 import com.finanplus.ui.screens.MovesScreen
@@ -102,7 +103,7 @@ import java.time.LocalDate
 
 enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
     HOME("Início", com.finanplus.ui.components.Ico.HOME), MOVES("Lançamentos", com.finanplus.ui.components.Ico.MOVES),
-    REPORTS("Relatórios", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
+    ACCOUNTS("Contas", com.finanplus.ui.components.Ico.BANK), REPORTS("Relatórios", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
 }
 
 /** Folhas (formulários) abertas. Serializable para sobreviver a girar a tela e ao bloqueio. */
@@ -181,9 +182,12 @@ class Nav {
 
 val LocalNav = staticCompositionLocalOf { Nav() }
 
-/** Padding inferior para o conteúdo não ficar sob a barra de navegação flutuante. */
+/** Padding inferior para o conteúdo não ficar sob a navegação e a ação flutuante. */
 @Composable
-fun bottomSpace(): Dp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 170.dp
+fun bottomSpace(): Dp {
+    val hasAddPill = LocalNav.current.tab in setOf(Tab.HOME, Tab.MOVES)
+    return WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (hasAddPill) 170.dp else 110.dp
+}
 
 @Composable
 fun screenPadding() = PaddingValues(start = 18.dp, end = 18.dp, top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 14.dp, bottom = bottomSpace())
@@ -258,7 +262,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
         }
     }
     var reaskProblem by remember { mutableIntStateOf(0) }
-    // Abas lado a lado: deslizar para o lado passa para a vizinha (Início › Lançamentos › Relatórios › Ajustes).
+    // Abas lado a lado: deslizar para o lado passa para a vizinha.
     // Os botões da barra inferior continuam funcionando; os dois caminhos mudam o mesmo nav.tab.
     val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = nav.tab.ordinal) { Tab.entries.size }
     // tocou num botão da barra (ou "Voltar" para o Início): leva o pager até a aba
@@ -285,6 +289,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
                     when (Tab.entries[page]) {
                         Tab.HOME -> HomeScreen(s)
                         Tab.MOVES -> MovesScreen(s)
+                        Tab.ACCOUNTS -> AccountsScreen(s)
                         Tab.REPORTS -> ReportsScreen(s)
                         Tab.PREFS -> SettingsScreen(s, dev, activity)
                     }
@@ -293,9 +298,8 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
             BottomNav(nav, shownTab, Modifier.align(Alignment.BottomCenter))
-            AddTransactionPill(
-                nav,
-                Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 116.dp),
+            if (shownTab == Tab.HOME || shownTab == Tab.MOVES) AddTransactionPill(
+                nav, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 116.dp),
             )
             SaveErrorBanner(Modifier.align(Alignment.TopCenter)) { reaskProblem++ }
         }
@@ -309,7 +313,7 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
     Row(
         modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
-            // sem recorte (clip): o botão + sobe um pouco acima da barra e não pode ser cortado
+            // sem recorte (clip): sombras e áreas de toque permanecem visíveis.
             .shadow(16.dp, RoundedCornerShape(28.dp), clip = false)
             .background(p.surface.compositeOver(p.bg), RoundedCornerShape(28.dp)).border(1.dp, p.border, RoundedCornerShape(28.dp))
             .padding(8.dp),
@@ -317,6 +321,7 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     ) {
         NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
         NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
+        NavItem(Tab.ACCOUNTS, nav, shown, Modifier.weight(1f))
         NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
         NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
     }

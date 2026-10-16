@@ -60,7 +60,7 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Relatórios: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
- * Resumo com comparação justa, atalho para a simulação, despesas por categoria e evolução.
+ * Resumo com comparação justa, despesas por categoria e evolução.
  */
 @Composable
 fun ReportsScreen(s: AppState) {
@@ -142,7 +142,6 @@ fun ReportsScreen(s: AppState) {
                 Text(explanation, style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 2.dp))
             }
         }
-        item { WhatIfCard { nav.open(Sheet.Simulator()) } }
         item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
                 Column2("Despesas", "Por categoria")
@@ -218,24 +217,5 @@ private fun MiniBox(label: String, value: Long, color: androidx.compose.ui.graph
     Column(modifier.clip(RoundedCornerShape(15.dp)).background(p.accent2).padding(horizontal = 12.dp, vertical = 10.dp)) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted)
         MoneyText(value, color = color, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
-    }
-}
-
-/** Atalho para o simulador, na cor de destaque do tema. */
-@Composable
-private fun WhatIfCard(onClick: () -> Unit) {
-    val p = Fin.c
-    Row(
-        Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(22.dp)).background(p.accent)
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AppIcon(Ico.ASSIST, p.onAccent, size = 22.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("Simular meu dinheiro", color = p.onAccent, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
-            Text("Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.", color = p.onAccent, style = MaterialTheme.typography.bodySmall)
-        }
-        AppIcon(Ico.NEXT, p.onAccent, size = 20.dp)
     }
 }

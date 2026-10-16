@@ -405,25 +405,43 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
     }
 }
 
-/** Cartão de Ajustes que abre e fecha com o botão +/− (todas as seções usam). */
+/** Linha compacta de Ajustes que abre e fecha com uma seta de navegação. */
 @Composable
 private fun Collapsible(title: String, summary: String, content: @Composable ColumnScope.() -> Unit) {
     var open by rememberSaveable(title) { mutableStateOf(false) }
     val p = Fin.c
-    Glass(Modifier.padding(bottom = 14.dp), radius = 25.dp, padding = 0.dp) {
+    val icon = when (title) {
+        "Aparência" -> com.finanplus.ui.components.Ico.SETTINGS
+        "Privacidade e segurança" -> com.finanplus.ui.components.Ico.SHIELD
+        "Notificações e widget" -> com.finanplus.ui.components.Ico.WARNING
+        "Assistente" -> com.finanplus.ui.components.Ico.ASSIST
+        "Contas e cartões" -> com.finanplus.ui.components.Ico.BANK
+        "Recorrências" -> com.finanplus.ui.components.Ico.REPEAT
+        "Limites mensais" -> com.finanplus.ui.components.Ico.LIMIT
+        "Categorias" -> com.finanplus.ui.components.Ico.TUNE
+        "Acesso pela rede" -> com.finanplus.ui.components.Ico.MOVES
+        "Dados" -> com.finanplus.ui.components.Ico.WALLET
+        else -> com.finanplus.ui.components.Ico.NEXT
+    }
+    Glass(Modifier.padding(bottom = 8.dp), radius = 19.dp, padding = 0.dp) {
         Row(
-            Modifier.fillMaxWidth().clickable(role = Role.Button) { open = !open }.semantics { stateDescription = if (open) "expandido" else "recolhido" }.padding(17.dp),
+            Modifier.fillMaxWidth().clickable(role = Role.Button) { open = !open }
+                .semantics { stateDescription = if (open) "expandido" else "recolhido" }
+                .padding(horizontal = 13.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-                Text(summary, style = MaterialTheme.typography.bodySmall, color = p.muted)
+            com.finanplus.ui.components.IconTile(icon, p.accent, p.accent2, size = 38.dp, iconSize = 20.dp)
+            Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }, maxLines = 1)
+                Text(summary, style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 2)
             }
-            Box(Modifier.size(38.dp).clip(CircleShape).background(p.accent2), contentAlignment = Alignment.Center) {
-                com.finanplus.ui.components.AppIcon(if (open) com.finanplus.ui.components.Ico.REMOVE else com.finanplus.ui.components.Ico.ADD, p.text, size = 22.dp)
-            }
+            com.finanplus.ui.components.AppIcon(
+                if (open) com.finanplus.ui.components.Ico.DROPDOWN else com.finanplus.ui.components.Ico.NEXT,
+                p.muted,
+                size = 20.dp,
+            )
         }
-        if (open) Column(Modifier.padding(start = 17.dp, end = 17.dp, bottom = 17.dp), content = content)
+        if (open) Column(Modifier.padding(start = 13.dp, end = 13.dp, bottom = 13.dp), content = content)
     }
 }
 

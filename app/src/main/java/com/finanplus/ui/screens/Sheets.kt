@@ -187,10 +187,10 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     else Segmented(listOf(Kind.EXPENSE to "Despesa", Kind.INCOME to "Receita"), kind) { k ->
         if (k != kind) { kind = k; if (category !in s.cats.of(k)) category = s.cats.of(k)[0] }
     }
+    MoneyField("Valor (R$)", value, { value = it })
     Field("Descrição", desc, { desc = it }, placeholder = "Ex.: Mercado")
     // assistente: sugere a categoria pela descrição (lançamento novo, ou quando a descrição foi alterada)
     if (!isPayment) CategoryHint(s, kind, desc, category, enabled = tx == null || desc != tx.desc) { category = it }
-    MoneyField("Valor (R$)", value, { value = it })
     SelectField("Categoria", cats.map { it to it }, category, { category = it })
     if (canCard) SelectField("Forma de pagamento", listOf(false to "Conta / dinheiro", true to "Cartão de crédito"), card, { useCard = it })
     if (card) SelectField("Cartão", s.cards.map { it.id to it.name }, cardId, { cardId = it })

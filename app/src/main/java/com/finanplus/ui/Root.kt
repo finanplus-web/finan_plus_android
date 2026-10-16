@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -58,7 +59,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -313,13 +313,17 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
         NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
         // O + ocupa a coluna do meio, com a mesma largura (weight 1f) das quatro abas:
         // fica sempre no centro exato da barra, qualquer que seja o tamanho dos rótulos.
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+        Column(
+            Modifier.weight(1f).height(58.dp).clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }
+                .semantics { contentDescription = "Adicionar lançamento" },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
             Box(
-                Modifier.size(56.dp)
-                    .shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
-                    .clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }.semantics { contentDescription = "Novo lançamento" },
+                Modifier.size(44.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent),
                 contentAlignment = Alignment.Center,
-            ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 28.dp) }
+            ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 26.dp) }
+            Text("Adicionar", fontSize = 10.sp, color = p.accent, fontWeight = FontWeight.Bold, maxLines = 1)
         }
         NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
         NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
@@ -341,12 +345,13 @@ private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
     }
 }
 
-/** Linha de lançamento: toque abre a edição; o círculo marca como pago/recebido. */
+/** Linha de lançamento: toque abre a edição; a ação textual pede confirmação antes de mudar a situação. */
 @Composable
 fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val p = Fin.c
     val today = com.finanplus.ui.components.LocalToday.current
     val nav = LocalNav.current
+    val dialogs = LocalDialogs.current
     // recorrência prevista (mês que ainda não chegou): não existe no estado; tocar abre a recorrência
     val projected = t.isProjected
     val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
@@ -385,18 +390,28 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
         }
         else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
         else {
-            val label = (if (t.kind == Kind.INCOME) "Recebida" else "Paga") + ": ${t.desc}"
-            Box(
-                Modifier.padding(end = 6.dp).size(48.dp).clip(CircleShape)
-                    .toggleable(value = t.paid, role = Role.Checkbox, onValueChange = { onToggle() })
-                    .semantics { contentDescription = label },
-                contentAlignment = Alignment.Center,
+            val action = if (t.kind == Kind.INCOME) "recebido" else "pago"
+            TextButton(
+                modifier = Modifier.widthIn(min = 66.dp).padding(end = 2.dp),
+                contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp),
+                onClick = {
+                    dialogs.confirm(
+                        if (t.paid) "Desfazer confirmação?" else if (t.kind == Kind.INCOME) "Confirmar recebimento?" else "Confirmar pagamento?",
+                        if (t.paid) "Marcar “${t.desc}” como pendente novamente?" else "Marcar “${t.desc}” como $action?",
+                        ok = if (t.paid) "Marcar pendente" else "Confirmar",
+                        danger = t.paid,
+                        onOk = onToggle,
+                    )
+                },
             ) {
-                Box(
-                    Modifier.size(32.dp).clip(CircleShape).background(if (t.paid) p.green else androidx.compose.ui.graphics.Color.Transparent)
-                        .border(2.dp, if (t.paid) p.green else p.muted, CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) { if (t.paid) com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CHECK, p.onAccent, size = 18.dp) }
+                Text(
+                    if (t.paid) if (t.kind == Kind.INCOME) "Recebido" else "Pago"
+                    else if (t.kind == Kind.INCOME) "Marcar recebido" else "Marcar pago",
+                    color = if (t.paid) p.green else p.accent,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

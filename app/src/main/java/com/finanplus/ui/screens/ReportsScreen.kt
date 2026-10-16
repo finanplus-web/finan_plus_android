@@ -60,7 +60,7 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Relatórios: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
- * Resumo com comparação justa, atalho para o simulador "E se…?", despesas por categoria e evolução.
+ * Resumo com comparação justa, atalho para a simulação, despesas por categoria e evolução.
  */
 @Composable
 fun ReportsScreen(s: AppState) {
@@ -126,6 +126,20 @@ fun ReportsScreen(s: AppState) {
             Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SumBox("Receitas", Ico.UP, flow.income, p.green, chg(flow.income, prev?.income), Modifier.weight(1f))
                 SumBox("Despesas", Ico.DOWN, flow.expense, p.red, chg(flow.expense, prev?.expense), Modifier.weight(1f))
+            }
+        }
+        if (flow.income > 0L || flow.expense > 0L) item {
+            val result = flow.balance
+            val explanation = when {
+                hide -> "Os relatórios consideram somente valores já pagos ou recebidos."
+                flow.income == flow.expense -> "Neste período, você gastou o mesmo valor que recebeu."
+                flow.expense > flow.income -> "Você gastou ${Money.format(flow.expense - flow.income)} a mais do que recebeu."
+                else -> "Depois das despesas, sobraram ${Money.format(flow.income - flow.expense)}."
+            }
+            Glass(Modifier.padding(top = 8.dp), radius = 20.dp, padding = 14.dp) {
+                Text("Resultado do período", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                MoneyText(result, color = if (result < 0) p.red else p.accent, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold))
+                Text(explanation, style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 2.dp))
             }
         }
         item { WhatIfCard { nav.open(Sheet.Simulator()) } }
@@ -219,7 +233,7 @@ private fun WhatIfCard(onClick: () -> Unit) {
         AppIcon(Ico.ASSIST, p.onAccent, size = 22.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text("E se…?", color = p.onAccent, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
+            Text("Simular meu dinheiro", color = p.onAccent, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
             Text("Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.", color = p.onAccent, style = MaterialTheme.typography.bodySmall)
         }
         AppIcon(Ico.NEXT, p.onAccent, size = 20.dp)

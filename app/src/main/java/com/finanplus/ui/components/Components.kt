@@ -222,8 +222,20 @@ fun Field(label: String, value: String, onChange: (String) -> Unit, modifier: Mo
 }
 
 @Composable
-fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String = "0,00") =
-    Field(label, value, { v -> onChange(v.filter { it.isDigit() || it in ".,-" }) }, modifier, placeholder, KeyboardType.Decimal, maxLength = 18)
+fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String = "0,00") {
+    OutlinedTextField(
+        value,
+        { v -> onChange(v.filter { it.isDigit() || it in ".,-" }.take(18)) },
+        modifier.fillMaxWidth().padding(vertical = 5.dp),
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+        shape = RoundedCornerShape(18.dp),
+        colors = fieldColors(),
+    )
+}
 
 /** Campo de leitura que abre algo ao tocar (data, seleção). */
 @Composable

@@ -56,6 +56,7 @@ import com.finanplus.ui.components.Eyebrow
 import com.finanplus.ui.components.Glass
 import com.finanplus.ui.components.LocalPrivacy
 import com.finanplus.ui.components.MoneyText
+import com.finanplus.ui.components.PrimaryButton
 import com.finanplus.ui.components.SectionHead
 import com.finanplus.ui.components.br
 import com.finanplus.ui.components.sensitive
@@ -82,6 +83,11 @@ fun HomeScreen(s: AppState) {
     val balance = Finance.currentBalance(s)
     val future = Finance.futureBalance(s, ym.atEndOfMonth(), today)
     val pending = androidx.compose.runtime.remember(s, ym, today) { com.finanplus.core.Period.monthPending(s, ym, today) }
+    val nextDue = androidx.compose.runtime.remember(s, today) { Finance.nextDue(s, today) }
+    val recent = androidx.compose.runtime.remember(s.txs, today) {
+        s.txs.filter { !it.date.isAfter(today) }
+            .sortedWith(compareByDescending<com.finanplus.core.Tx> { it.date }.thenByDescending { it.id }).take(3)
+    }
     // saldo no fim do mês anterior = saldo atual sem o que foi realizado nas contas a partir deste mês
     // (mesma regra de Finance.accountBalance); null quando ainda não há lançamentos antes deste mês
     val prevEnd: Long? = androidx.compose.runtime.remember(s, ym, balance) {
@@ -102,13 +108,13 @@ fun HomeScreen(s: AppState) {
                     // data dinâmica (ex.: "Quinta, 8 de outubro"); muda sozinha com o dia
                     Text(com.finanplus.core.MonthCalendar.dayTitle(today, today), style = MaterialTheme.typography.bodyMedium, color = p.muted)
                 }
-                Row(
+                if (s.privacy) Row(
                     Modifier.clip(RoundedCornerShape(99.dp)).background(p.green.copy(alpha = 0.14f)).padding(horizontal = 11.dp, vertical = 7.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.SHIELD, p.green, size = 14.dp)
                     Spacer(Modifier.width(4.dp))
-                    Text("Privado", color = p.green, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text("Valores ocultos", color = p.green, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -183,12 +189,48 @@ fun HomeScreen(s: AppState) {
                 }
             }
         }
-        // realizados no mês, com o que ainda está pendente (para o R$ 0,00 não esconder o que vem)
+        // pendências e progresso deixam claro o que falta entrar e sair, sem misturar valores realizados.
         item {
             Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                FlowCard("Receitas do mês", flow.income, pending.toReceive, "a receber ", "recebido", p.green, Ico.INCOME, Modifier.weight(1f))
-                FlowCard("Despesas do mês", flow.expense, pending.toPay, "a pagar ", "pago", p.red, Ico.EXPENSE, Modifier.weight(1f))
+                PendingCard("Falta receber", pending.toReceive, flow.income, "recebido", p.green, Ico.INCOME, Modifier.weight(1f))
+                // Em despesas, faturas abertas podem corresponder a compras já registradas; não exibimos uma porcentagem que as conte duas vezes.
+                PendingCard("Falta pagar", pending.toPay, flow.expense, "pago", p.red, Ico.EXPENSE, Modifier.weight(1f), showProgress = false)
             }
+        }
+        item {
+            PrimaryButton("＋  Adicionar lançamento", Modifier.padding(top = 12.dp)) {
+                nav.open(Sheet.TxEdit(Kind.EXPENSE))
+            }
+        }
+        item {
+            SectionHead(null, "Próximo pagamento")
+            NextPaymentCard(nextDue) {
+                val due = nextDue ?: return@NextPaymentCard
+                if (due.type == com.finanplus.core.ReminderType.INVOICE_DUE) nav.open(Sheet.PayInvoice(due.refId))
+                else s.txs.firstOrNull { it.id == due.refId }?.let { nav.open(Sheet.TxEdit(it.kind, it.id)) }
+            }
+        }
+        item {
+            SectionHead(null, "Últimas movimentações", "Ver todas", actionIcon = Ico.NEXT) {
+                nav.filters.from = null
+                nav.filters.to = null
+                nav.filters.kind = null
+                nav.filters.paid = null
+                nav.filters.query = ""
+                nav.tab = Tab.MOVES
+            }
+        }
+        if (recent.isEmpty()) item {
+            Glass(radius = 20.dp, padding = 14.dp) {
+                Text("Suas movimentações aparecerão aqui", fontWeight = FontWeight.Bold)
+                Text("Adicione uma receita ou despesa para começar.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+            }
+        } else items(recent, key = { "recent-${it.id}" }) { t ->
+            com.finanplus.ui.TxRow(
+                t, s,
+                onToggle = { com.finanplus.data.Repo.update { com.finanplus.core.Ops.togglePaid(it, t.id) } },
+                onOpen = { nav.open(Sheet.TxEdit(t.kind, t.id)) },
+            )
         }
         // assistente: as 2 frases mais úteis do mês e a dica mais importante (pode ser desligado em Ajustes)
         item { HomeAssistantCard(s) }
@@ -315,6 +357,86 @@ fun HomeScreen(s: AppState) {
         }
     }
 }
+/** Cartão do que ainda falta entrar/sair; realizado e pendente permanecem separados. */
+@Composable
+private fun PendingCard(
+    label: String,
+    pending: Long,
+    realized: Long,
+    realizedLabel: String,
+    color: Color,
+    icon: Ico,
+    modifier: Modifier,
+    showProgress: Boolean = true,
+) {
+    val p = Fin.c
+    val hide = LocalPrivacy.current
+    val nav = LocalNav.current
+    val total = pending + realized
+    val progress = if (total > 0) realized.toFloat() / total else 0f
+    val shape = RoundedCornerShape(22.dp)
+    Column(
+        modifier.fillMaxHeight().clip(shape).background(p.surface, shape)
+            .background(color.copy(alpha = if (p.dark) 0.10f else 0.07f), shape)
+            .border(1.dp, p.border, shape).clickable(role = Role.Button) { nav.tab = Tab.MOVES }
+            .padding(13.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconTile(icon, color, color.copy(alpha = 0.14f), size = 34.dp, iconSize = 18.dp)
+            Spacer(Modifier.width(8.dp))
+            Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Spacer(Modifier.height(7.dp))
+        MoneyText(pending, color = color, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
+        if (showProgress && total > 0) {
+            Spacer(Modifier.height(7.dp))
+            Bar(progress, color, Modifier.sensitive(hide), height = 6.dp)
+            Text(
+                if (hide) "Progresso oculto" else "${"%.0f".format(BR, progress * 100)}% $realizedLabel",
+                style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 5.dp),
+            )
+        } else Text(
+            when {
+                !showProgress && pending > 0 -> "Contas e faturas em aberto neste mês"
+                !showProgress -> "Tudo pago neste mês"
+                else -> "Nada registrado neste mês"
+            },
+            style = MaterialTheme.typography.labelSmall, color = p.muted,
+        )
+    }
+}
+
+@Composable
+private fun NextPaymentCard(due: com.finanplus.core.Reminder?, onOpen: () -> Unit) {
+    val p = Fin.c
+    if (due == null) {
+        Glass(radius = 20.dp, padding = 14.dp) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconTile(Ico.CHECK, p.green, p.green.copy(alpha = 0.12f))
+                Column(Modifier.padding(start = 12.dp)) {
+                    Text("Nenhum pagamento pendente", fontWeight = FontWeight.Bold)
+                    Text("Quando houver uma conta ou fatura, ela aparecerá aqui.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                }
+            }
+        }
+        return
+    }
+    val overdue = due.date.isBefore(com.finanplus.ui.components.LocalToday.current)
+    Glass(radius = 20.dp, padding = 14.dp, onClick = onOpen) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconTile(if (overdue) Ico.WARNING else Ico.CALENDAR, if (overdue) p.red else p.accent, if (overdue) p.red.copy(alpha = 0.12f) else p.accent2)
+            Column(Modifier.weight(1f).padding(horizontal = 11.dp)) {
+                Text(due.title, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    (if (overdue) "Vencido em " else "Vence em ") + due.date.br(),
+                    style = MaterialTheme.typography.bodySmall, color = if (overdue) p.red else p.muted,
+                )
+            }
+            MoneyText(due.amount, color = p.red, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold))
+        }
+        Text("Ver pagamento  ›", color = p.accent, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(start = 52.dp, top = 8.dp))
+    }
+}
 
 /**
  * Ondas ao lado do saldo. São só decoração (não representam dados), por isso ficam suaves
@@ -386,48 +508,5 @@ private fun StartCard(icon: Ico, title: String, subtitle: String, modifier: Modi
         IconTile(icon, p.accent, p.accent2)
         Text(title, fontWeight = FontWeight.Bold)
         Text(subtitle, style = MaterialTheme.typography.bodySmall, color = p.muted)
-    }
-}
-
-/**
- * Receitas ou despesas do mês: valor já realizado, o que falta e uma barra de quanto do total
- * previsto já entrou/saiu. A porcentagem some com "Ocultar valores" (ela também revela valores).
- */
-@Composable
-private fun FlowCard(
-    label: String, done: Long, pending: Long, pendingLabel: String, doneWord: String,
-    color: Color, icon: Ico, modifier: Modifier,
-) {
-    val p = Fin.c
-    val hide = LocalPrivacy.current
-    val nav = LocalNav.current
-    val shape = RoundedCornerShape(22.dp)
-    Column(
-        modifier.fillMaxHeight().clip(shape).background(p.surface, shape).background(color.copy(alpha = if (p.dark) 0.10f else 0.07f), shape)
-            .border(1.dp, p.border, shape).clickable(role = Role.Button) { nav.tab = Tab.MOVES }.padding(14.dp),
-    ) {
-        // toque leva aos lançamentos; a seta indica isso
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            IconTile(icon, color, color.copy(alpha = 0.14f), size = 36.dp)
-            Spacer(Modifier.weight(1f))
-            com.finanplus.ui.components.AppIcon(Ico.NEXT, p.muted, size = 20.dp)
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        MoneyText(done, color = color, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold, fontSize = 19.sp))
-        if (pending > 0) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(pendingLabel, style = MaterialTheme.typography.labelSmall, color = p.muted, maxLines = 1)
-                MoneyText(pending, color = color, style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold))
-            }
-            Spacer(Modifier.weight(1f))
-            Spacer(Modifier.height(10.dp))
-            val frac = done.toFloat() / (done + pending)
-            Bar(frac, color, Modifier.sensitive(hide), height = 6.dp)
-            if (!hide) Text(
-                "${"%.0f".format(BR, frac * 100)}% $doneWord", style = MaterialTheme.typography.labelSmall, color = p.muted,
-                modifier = Modifier.padding(top = 5.dp),
-            )
-        }
     }
 }

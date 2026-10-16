@@ -197,8 +197,12 @@ private fun PeriodSummary(flow: com.finanplus.core.Flow, pending: com.finanplus.
             SummaryCol("Saldo", flow.balance, if (flow.balance < 0) p.red else p.text, "previsto", forecast, if (forecast < 0) p.red else p.accent, Modifier.weight(1f),
                 showSub = pending.toReceive > 0 || pending.toPay > 0)
         }
-        if (flow.income > 0 && !hide) Text(
-            "As despesas são ${"%.1f".format(BR, flow.expense * 100.0 / flow.income)}% das receitas do período.",
+        if ((flow.income > 0 || flow.expense > 0) && !hide) Text(
+            when {
+                flow.income == flow.expense -> "Neste período, você gastou o mesmo valor que recebeu."
+                flow.expense > flow.income -> "Você gastou ${Money.format(flow.expense - flow.income)} a mais do que recebeu."
+                else -> "Depois das despesas, sobraram ${Money.format(flow.income - flow.expense)}."
+            },
             style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 10.dp),
         )
     }

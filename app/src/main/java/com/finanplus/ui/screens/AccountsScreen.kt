@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -41,13 +42,13 @@ import com.finanplus.ui.components.Eyebrow
 import com.finanplus.ui.components.Field
 import com.finanplus.ui.components.Glass
 import com.finanplus.ui.components.Ico
+import com.finanplus.ui.components.IconTile
 import com.finanplus.ui.components.LocalDialogs
 import com.finanplus.ui.components.LocalPrivacy
 import com.finanplus.ui.components.ManageItem
 import com.finanplus.ui.components.MoneyText
 import com.finanplus.ui.components.Pill
 import com.finanplus.ui.components.PrimaryButton
-import com.finanplus.ui.components.SectionHead
 import com.finanplus.ui.components.SelectField
 import com.finanplus.ui.components.br
 import com.finanplus.ui.components.sensitive
@@ -71,8 +72,8 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            SectionHead("ORGANIZAÇÃO", "Contas e cartões")
-            Glass(radius = 22.dp, padding = 14.dp) {
+            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+                AccountCardHeading(Ico.BANK, "Contas e cartões", "Saldo das contas e situação dos cartões")
                 if (s.accounts.isEmpty() && s.cards.isEmpty()) {
                     Text("Cadastre uma conta ou cartão para organizar seus lançamentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
                 }
@@ -109,11 +110,14 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            SectionHead("PLANEJAMENTO", "Limites mensais", "Adicionar", Ico.ADD) { nav.open(Sheet.LimitEdit()) }
-            Glass(radius = 22.dp, padding = 14.dp) {
-                if (s.limits.isEmpty()) Text("Defina um limite para acompanhar seus gastos por categoria.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+                AccountCardHeading(
+                    Ico.LIMIT, "Definir um limite mensal", "Acompanhe quanto gasta por categoria",
+                    action = "Adicionar", onAction = { nav.open(Sheet.LimitEdit()) },
+                )
+                if (s.limits.isEmpty()) Text("Seus limites aparecerão aqui.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
                 else {
-                    Text("Inclui lançamentos pendentes deste mês.", style = MaterialTheme.typography.labelSmall, color = p.muted)
+                    Text("Inclui lançamentos pendentes deste mês.", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
                     s.limits.forEach { (category, limit) ->
                         val spent = usage[category] ?: 0L
                         val pct = if (limit > 0) spent * 100.0 / limit else 0.0
@@ -144,39 +148,39 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            SectionHead("PLANOS", "Metas", "Criar meta", Ico.ADD) { nav.open(Sheet.GoalEdit()) }
-            if (s.goals.isEmpty()) Glass(radius = 20.dp, padding = 14.dp) {
-                Text("Ainda não há metas cadastradas.", fontWeight = FontWeight.Bold)
-                Text("Crie uma meta para acompanhar quanto falta e o prazo do seu objetivo.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-            }
-        }
-        items(s.goals.size, key = { s.goals[it].id }) { index ->
-            val goal = s.goals[index]
-            val plan = Finance.goalPlan(goal, today)
-            Glass(Modifier.fillMaxWidth().padding(vertical = 4.dp), radius = 20.dp, padding = 14.dp, onClick = { nav.open(Sheet.GoalEdit(goal.id)) }) {
-                Row(Modifier.fillMaxWidth()) {
-                    Text(goal.name, Modifier.weight(1f), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    MoneyText(goal.saved); Text(" / "); MoneyText(goal.target)
-                }
-                    Spacer(Modifier.padding(top = 3.dp))
-                Bar(if (goal.target > 0) goal.saved.toFloat() / goal.target else 0f, p.accent, Modifier.sensitive(hide))
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
-                    Text(goal.deadline?.let { "Até ${it.br()}" } ?: "Sem prazo", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.weight(1f))
-                    Text(
-                        if (plan.done) "Meta atingida" else listOfNotNull(
-                            plan.needed?.let { if (hide) "Precisa de R$ ••••/mês" else "Precisa de ${Money.format(it)}/mês" },
-                            plan.eta?.let { "Conclui em ${it.label()}" + if (plan.late) " (após o prazo)" else "" },
-                        ).joinToString(" · "),
-                        style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.weight(1.5f), textAlign = TextAlign.End,
-                    )
+            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+                AccountCardHeading(Ico.GOAL, "Metas", "Acompanhe seus objetivos financeiros", action = "Criar meta", onAction = { nav.open(Sheet.GoalEdit()) })
+                if (s.goals.isEmpty()) {
+                    Text("Suas metas aparecerão aqui.", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
+                    Text("Defina um objetivo e acompanhe seu progresso.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                } else s.goals.forEach { goal ->
+                    val plan = Finance.goalPlan(goal, today)
+                    Glass(Modifier.fillMaxWidth().padding(top = 9.dp), radius = 19.dp, padding = 12.dp, onClick = { nav.open(Sheet.GoalEdit(goal.id)) }) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Text(goal.name, Modifier.weight(1f), fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            MoneyText(goal.saved); Text(" / "); MoneyText(goal.target)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Bar(if (goal.target > 0) goal.saved.toFloat() / goal.target else 0f, p.accent, Modifier.sensitive(hide))
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
+                            Text(goal.deadline?.let { "Até ${it.br()}" } ?: "Sem prazo", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.weight(1f))
+                            Text(
+                                if (plan.done) "Meta atingida" else listOfNotNull(
+                                    plan.needed?.let { if (hide) "Precisa de R$ ••••/mês" else "Precisa de ${Money.format(it)}/mês" },
+                                    plan.eta?.let { "Conclui em ${it.label()}" + if (plan.late) " (após o prazo)" else "" },
+                                ).joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.weight(1.5f), textAlign = TextAlign.End,
+                            )
+                        }
+                    }
                 }
             }
         }
 
         item {
-            SectionHead("FERRAMENTAS", "Simular meu dinheiro")
-            Glass(radius = 22.dp, padding = 14.dp) {
-                Text("Explore compras, mudanças na renda, economias e quitação de dívidas sem alterar seus dados.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+                AccountCardHeading(Ico.ASSIST, "Simular meu dinheiro", "Teste cenários sem alterar seus dados")
+                Text("Explore compras, mudanças na renda, economias e quitação de dívidas.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
                 Pill("Abrir simulação", Modifier.padding(top = 10.dp), icon = Ico.ASSIST) { nav.open(Sheet.Simulator()) }
             }
         }
@@ -194,41 +198,41 @@ private fun CategoryManager(s: AppState) {
     var newCategory by rememberSaveable { mutableStateOf("") }
     var newKind by rememberSaveable { mutableStateOf(Kind.EXPENSE) }
     var expanded by rememberSaveable { mutableStateOf(true) }
-    SectionHead(
-        "PERSONALIZAÇÃO", "Categorias",
-        action = if (expanded) "Minimizar" else "Expandir",
-        actionIcon = Ico.DROPDOWN,
-        onAction = { expanded = !expanded },
-    )
-    if (expanded) Glass(radius = 22.dp, padding = 14.dp) {
-        Text("As categorias ajudam a organizar relatórios e lançamentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Field("Nova categoria", newCategory, { newCategory = it }, Modifier.weight(1.3f), maxLength = 40)
-            SelectField("Tipo", listOf(Kind.EXPENSE to "Despesa", Kind.INCOME to "Receita"), newKind, { newKind = it }, Modifier.weight(1f))
-        }
-        PrimaryButton("Adicionar categoria") {
-            when (val result = Ops.addCategory(com.finanplus.data.Repo.state.value, newKind, newCategory)) {
-                is Outcome.Err -> dialogs.notice(result.title, result.message)
-                is Outcome.Ok -> { com.finanplus.data.Repo.replace(result.state); newCategory = "" }
+    Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+        AccountCardHeading(
+            Ico.TUNE, "Categorias", "Organize relatórios e lançamentos",
+            action = if (expanded) "Minimizar" else "Expandir",
+            onAction = { expanded = !expanded },
+        )
+        if (expanded) {
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Field("Nova categoria", newCategory, { newCategory = it }, Modifier.weight(1.3f), maxLength = 40)
+                SelectField("Tipo", listOf(Kind.EXPENSE to "Despesa", Kind.INCOME to "Receita"), newKind, { newKind = it }, Modifier.weight(1f))
             }
-        }
-        listOf(Kind.EXPENSE to "Despesas", Kind.INCOME to "Receitas").forEach { (kind, label) ->
-            Eyebrow(label, Modifier.padding(top = 14.dp, bottom = 4.dp))
-            s.cats.of(kind).forEach { category ->
-                ManageItem(category, if (kind == Kind.EXPENSE) "Despesa" else "Receita") {
-                    Pill("Renomear") {
-                        dialogs.input("Renomear categoria", "Lançamentos, recorrências e limites de “$category” passam a usar o novo nome.", "Novo nome", category) { name ->
-                            com.finanplus.data.Repo.commit(Ops.renameCategory(com.finanplus.data.Repo.state.value, kind, category, name))?.let { dialogs.notice(it.title, it.message) }
+            PrimaryButton("Adicionar categoria") {
+                when (val result = Ops.addCategory(com.finanplus.data.Repo.state.value, newKind, newCategory)) {
+                    is Outcome.Err -> dialogs.notice(result.title, result.message)
+                    is Outcome.Ok -> { com.finanplus.data.Repo.replace(result.state); newCategory = "" }
+                }
+            }
+            listOf(Kind.EXPENSE to "Despesas", Kind.INCOME to "Receitas").forEach { (kind, label) ->
+                Eyebrow(label, Modifier.padding(top = 14.dp, bottom = 4.dp))
+                s.cats.of(kind).forEach { category ->
+                    ManageItem(category, if (kind == Kind.EXPENSE) "Despesa" else "Receita") {
+                        Pill("Renomear") {
+                            dialogs.input("Renomear categoria", "Lançamentos, recorrências e limites de “$category” passam a usar o novo nome.", "Novo nome", category) { name ->
+                                com.finanplus.data.Repo.commit(Ops.renameCategory(com.finanplus.data.Repo.state.value, kind, category, name))?.let { dialogs.notice(it.title, it.message) }
+                            }
                         }
-                    }
-                    Pill("Excluir", danger = true) {
-                        when (val check = Ops.checkDeleteCategory(com.finanplus.data.Repo.state.value, kind, category)) {
-                            is Outcome.Err -> dialogs.notice(check.title, check.message)
-                            is Outcome.Ok -> {
-                                val count = Ops.categoryUseCount(com.finanplus.data.Repo.state.value, kind, category)
-                                val message = if (count > 0) "Excluir “$category” da lista? $count lançamento(s) antigo(s) continuará(ão) com essa categoria no histórico." else "Excluir a categoria “$category”?"
-                                dialogs.confirm("Excluir categoria", message, ok = "Excluir", danger = true) {
-                                    com.finanplus.data.Repo.replace(Ops.deleteCategory(com.finanplus.data.Repo.state.value, kind, category))
+                        Pill("Excluir", danger = true) {
+                            when (val check = Ops.checkDeleteCategory(com.finanplus.data.Repo.state.value, kind, category)) {
+                                is Outcome.Err -> dialogs.notice(check.title, check.message)
+                                is Outcome.Ok -> {
+                                    val count = Ops.categoryUseCount(com.finanplus.data.Repo.state.value, kind, category)
+                                    val message = if (count > 0) "Excluir “$category” da lista? $count lançamento(s) antigo(s) continuará(ão) com essa categoria no histórico." else "Excluir a categoria “$category”?"
+                                    dialogs.confirm("Excluir categoria", message, ok = "Excluir", danger = true) {
+                                        com.finanplus.data.Repo.replace(Ops.deleteCategory(com.finanplus.data.Repo.state.value, kind, category))
+                                    }
                                 }
                             }
                         }
@@ -236,5 +240,24 @@ private fun CategoryManager(s: AppState) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AccountCardHeading(
+    icon: Ico,
+    title: String,
+    subtitle: String,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    val p = Fin.c
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconTile(icon, p.accent, p.accent2, size = 46.dp, iconSize = 23.dp)
+        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = p.muted)
+        }
+        if (action != null && onAction != null) Pill(action, icon = if (action == "Minimizar" || action == "Expandir") Ico.DROPDOWN else Ico.ADD, onClick = onAction)
     }
 }

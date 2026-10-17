@@ -111,10 +111,10 @@ fun AccountsScreen(s: AppState) {
 
         item {
             Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
-                AccountCardHeading(
-                    Ico.LIMIT, "Definir um limite mensal", "Acompanhe quanto gasta por categoria",
-                    action = "Adicionar", onAction = { nav.open(Sheet.LimitEdit()) },
-                )
+                AccountCardHeading(Ico.LIMIT, "Definir um limite mensal", "Acompanhe quanto gasta por categoria")
+                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
+                    Pill("Adicionar limite", icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
+                }
                 if (s.limits.isEmpty()) Text("Seus limites aparecerão aqui.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
                 else {
                     Text("Inclui lançamentos pendentes deste mês.", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))

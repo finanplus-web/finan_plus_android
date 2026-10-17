@@ -120,7 +120,7 @@ fun MoneyText(c: Cents, modifier: Modifier = Modifier, style: TextStyle = Materi
 fun Modifier.sensitive(hide: Boolean): Modifier = if (!hide) this
     else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) this.blur(10.dp) else this.alpha(0.1f)
 
-/** Fundo com os brilhos radiais do Finan+. */
+/** Fundo com os brilhos radiais e uma grade pontilhada discreta, adaptada à paleta ativa. */
 @Composable
 fun AppBackground(content: @Composable () -> Unit) {
     val p = Fin.c
@@ -128,6 +128,18 @@ fun AppBackground(content: @Composable () -> Unit) {
         Modifier.fillMaxSize().background(p.bg).drawBehind {
             if (p.glowA != p.bg) drawCircle(Brush.radialGradient(listOf(p.glowA, Color.Transparent), Offset(size.width * 0.9f, size.height * 0.05f), size.width * 0.7f), size.width * 0.7f, Offset(size.width * 0.9f, size.height * 0.05f))
             if (p.glowB != p.bg) drawCircle(Brush.radialGradient(listOf(p.glowB, Color.Transparent), Offset(0f, size.height * 0.3f), size.width * 0.65f), size.width * 0.65f, Offset(0f, size.height * 0.3f))
+            val spacing = 34.dp.toPx()
+            val radius = 1.25.dp.toPx()
+            val dotColor = p.text.copy(alpha = if (p.dark) 0.055f else 0.075f)
+            var y = spacing / 2f
+            while (y < size.height) {
+                var x = spacing / 2f
+                while (x < size.width) {
+                    drawCircle(dotColor, radius, Offset(x, y))
+                    x += spacing
+                }
+                y += spacing
+            }
         },
     ) { content() }
 }

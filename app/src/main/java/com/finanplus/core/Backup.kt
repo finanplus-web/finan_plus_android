@@ -138,6 +138,8 @@ object Backup {
             if (o == null || kind == null || value <= 0 || date == null) { d = d.copy(txs = d.txs + 1); continue }
             val cardId = if (kind == Kind.EXPENSE) cardOf(o["cardId"]) else ""
             val cardPayment = if (kind == Kind.EXPENSE && cardId.isEmpty()) cardOf(o["cardPayment"]) else ""
+            val paid = if (cardId.isNotEmpty()) true else o["paid"] != false
+            val scheduledDate = if (paid && cardId.isEmpty() && cardPayment.isEmpty()) parseDate(o["scheduledDate"]) else null
             val parcel = obj(o["parcel"])
             val pTotal = parcel?.let { intIn(it["total"], 1, 120, 0) } ?: 0
             val pN = parcel?.let { intIn(it["n"], 1, 120, 0) } ?: 0
@@ -146,10 +148,11 @@ object Backup {
                 id = idFor(o["id"]), kind = kind, value = value, date = date,
                 desc = str(o["desc"], 200).ifEmpty { "Sem descrição" },
                 category = str(o["category"], 40).ifEmpty { if (cardPayment.isNotEmpty()) AppState.CARD_PAYMENT_CAT else "Outros" },
-                paid = if (cardId.isNotEmpty()) true else o["paid"] != false,
+                paid = paid,
                 accountId = accOf(o["accountId"]), cardId = cardId, cardPayment = cardPayment,
                 recurringId = safeId(o["recurringId"]), groupId = safeId(o["groupId"]),
                 parcelN = if (okParcel) pN else 0, parcelTotal = if (okParcel) pTotal else 0,
+                scheduledDate = scheduledDate,
             ))
         }
 
@@ -188,6 +191,7 @@ object Backup {
                 if (t.recurringId.isNotEmpty()) put("recurringId", t.recurringId)
                 if (t.groupId.isNotEmpty()) put("groupId", t.groupId)
                 if (t.parcelTotal > 0) put("parcel", linkedMapOf("n" to t.parcelN, "total" to t.parcelTotal))
+                if (t.scheduledDate != null) put("scheduledDate", t.scheduledDate.toString())
             }
         }
         m["goals"] = s.goals.map { linkedMapOf("id" to it.id, "name" to it.name, "target" to Money.toReaisJson(it.target), "saved" to Money.toReaisJson(it.saved), "deadline" to (it.deadline?.toString() ?: ""), "monthly" to Money.toReaisJson(it.monthly)) }

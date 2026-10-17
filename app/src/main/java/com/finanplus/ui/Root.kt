@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -61,6 +62,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -183,7 +186,7 @@ val LocalNav = staticCompositionLocalOf { Nav() }
 @Composable
 fun bottomSpace(): Dp {
     val hasAddPill = LocalNav.current.tab in setOf(Tab.HOME, Tab.MOVES)
-    return WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (hasAddPill) 170.dp else 110.dp
+    return WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (hasAddPill) 180.dp else 140.dp
 }
 
 @Composable
@@ -425,9 +428,13 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val status = when {
         projected -> "Previsto · recorrência"
         t.isCard -> "Cartão"
-        t.paid -> if (t.kind == Kind.INCOME) "Recebido" else "Pago"
-        t.date.isBefore(today) -> "Em atraso"
-        else -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
+        !t.paid && t.date.isBefore(today) -> "Em atraso"
+        else -> ""
+    }
+    val dateLabel = buildString {
+        append(t.date.br())
+        if (t.paid && t.scheduledDate != null) append(" · previsto ").append(t.scheduledDate.br())
+        else if (status.isNotEmpty()) append(" · ").append(status)
     }
     val where = if (t.isCard) "Cartão " + (s.card(t.cardId)?.name ?: "") else s.account(t.accountId)?.name ?: "Conta"
     Row(
@@ -446,7 +453,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                 Text(t.desc, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 // duas linhas fixas: data e situação nunca são cortadas, mesmo com nomes longos
                 Text("${t.category} · $where", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${t.date.br()} · $status", style = MaterialTheme.typography.bodySmall, color = if (status == "Em atraso") p.red else p.muted, maxLines = 1)
+                Text(dateLabel, style = MaterialTheme.typography.bodySmall, color = if (status == "Em atraso") p.red else p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.kind == Kind.EXPENSE) p.red else p.green,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
@@ -458,27 +465,31 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
         else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
         else {
             val action = if (t.kind == Kind.INCOME) "recebido" else "pago"
-            TextButton(
-                modifier = Modifier.widthIn(min = 66.dp).padding(end = 2.dp),
-                contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp),
-                onClick = {
-                    dialogs.confirm(
-                        if (t.paid) "Desfazer confirmação?" else if (t.kind == Kind.INCOME) "Confirmar recebimento?" else "Confirmar pagamento?",
-                        if (t.paid) "Marcar “${t.desc}” como pendente novamente?" else "Marcar “${t.desc}” como $action?",
-                        ok = if (t.paid) "Marcar pendente" else "Confirmar",
-                        danger = t.paid,
-                        onOk = onToggle,
-                    )
-                },
+            Box(
+                Modifier.padding(end = 4.dp).size(48.dp).clip(CircleShape)
+                    .clickable(role = Role.Button) {
+                        dialogs.confirm(
+                            if (t.paid) "Desfazer confirmação?" else if (t.kind == Kind.INCOME) "Confirmar recebimento?" else "Confirmar pagamento?",
+                            if (t.paid) "Marcar “${t.desc}” como pendente novamente?" else "Marcar “${t.desc}” como $action?",
+                            ok = if (t.paid) "Marcar pendente" else "Confirmar",
+                            danger = t.paid,
+                            onOk = onToggle,
+                        )
+                    }
+                    .semantics {
+                        contentDescription = if (t.paid) "Desfazer confirmação: $action" else "Marcar como $action"
+                        stateDescription = if (t.paid) "Pago" else "Pendente"
+                    },
+                contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    if (t.paid) if (t.kind == Kind.INCOME) "Recebido" else "Pago"
-                    else if (t.kind == Kind.INCOME) "Marcar recebido" else "Marcar pago",
-                    color = if (t.paid) p.green else p.accent,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                Box(
+                    Modifier.size(34.dp).clip(CircleShape)
+                        .background(if (t.paid) p.green else androidx.compose.ui.graphics.Color.Transparent)
+                        .border(2.dp, if (t.paid) p.green else p.muted, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (t.paid) com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CHECK, p.onAccent, size = 19.dp)
+                }
             }
         }
     }

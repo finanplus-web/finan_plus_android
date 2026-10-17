@@ -50,6 +50,8 @@ data class Tx(
     val groupId: String = "",
     val parcelN: Int = 0,
     val parcelTotal: Int = 0,
+    /** Data prevista preservada quando um lançamento pendente é realizado em outro dia. */
+    val scheduledDate: LocalDate? = null,
 ) {
     val isFlow get() = cardPayment.isEmpty()
     val isCard get() = cardId.isNotEmpty()

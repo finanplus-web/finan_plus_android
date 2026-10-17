@@ -32,10 +32,22 @@ data class TxDraft(
     val recurring: Boolean = false,
 )
 
+/** Data efetiva se realizado; data prevista se pendente. */
+private fun transactionDates(old: Tx?, requested: LocalDate, paid: Boolean, card: Boolean, today: LocalDate): Pair<LocalDate, LocalDate?> {
+    if (card) return requested to null
+    if (!paid) return (if (old?.paid == true) old.scheduledDate ?: requested else requested) to null
+    if (old != null) {
+        if (!old.paid) return today to old.date.takeIf { it != today }
+        return requested to old.scheduledDate
+    }
+    if (requested.isAfter(today)) return today to requested
+    return requested to null
+}
+
 /** Todas as alterações de dados passam por aqui, com as mesmas validações do PWA. */
 object Ops {
     // ---------------- lançamentos ----------------
-    fun saveTx(s: AppState, editId: String?, d: TxDraft): Outcome {
+    fun saveTx(s: AppState, editId: String?, d: TxDraft, today: LocalDate = LocalDate.now()): Outcome {
         val desc = d.desc.trim().take(TX_DESC_MAX)
         val value = Money.parse(d.value)
         val card = d.kind == Kind.EXPENSE && d.cardId.isNotEmpty()
@@ -50,22 +62,33 @@ object Ops {
 
         if (editId != null) {
             val t = s.txs.firstOrNull { it.id == editId } ?: return err("Lançamento não encontrado.")
-            val upd = if (t.cardPayment.isNotEmpty())
+            val upd = if (t.cardPayment.isNotEmpty()) {
                 t.copy(desc = desc, value = value, category = category, date = date, accountId = accountId, paid = true)
-            else t.copy(kind = d.kind, desc = desc, value = value, category = category, date = date, paid = paid, accountId = accountId, cardId = cardId)
+            } else {
+                val (entryDate, scheduledDate) = transactionDates(t, date, paid, card, today)
+                t.copy(kind = d.kind, desc = desc, value = value, category = category, date = entryDate, paid = paid,
+                    accountId = accountId, cardId = cardId, scheduledDate = scheduledDate)
+            }
             return ok(s.copy(txs = s.txs.map { if (it.id == editId) upd else it }))
         }
 
         val n = d.reps.coerceIn(1, 60)
         if (n > 1 && d.recurring) return err("Escolha parcelas ou repetição mensal, não os dois.", "Revise o lançamento")
-        val base = Tx(Ids.new(), d.kind, value, date, desc, category, paid, accountId, cardId)
+        val (entryDate, scheduledDate) = transactionDates(null, date, paid, card, today)
+        val base = Tx(Ids.new(), d.kind, value, entryDate, desc, category, paid, accountId, cardId, scheduledDate = scheduledDate)
         val added = if (n > 1) {
             val values = if (d.repsMode == RepsMode.EACH) List(n) { value } else Finance.splitInstallments(value, n)
             if (values.any { it <= 0 }) return err("O valor é pequeno demais para tantas parcelas.", "Valor inválido")
             val group = Ids.new()
             values.mapIndexed { i, v ->
-                base.copy(id = Ids.new(), value = v, date = date.plusMonthsClamped(i.toLong()), paid = card || (i == 0 && d.paid),
-                    desc = parcelDesc(desc, i + 1, n), groupId = group, parcelN = i + 1, parcelTotal = n)
+                val installmentPaid = card || (i == 0 && d.paid)
+                base.copy(
+                    id = Ids.new(), value = v,
+                    date = if (i == 0) entryDate else date.plusMonthsClamped(i.toLong()),
+                    paid = installmentPaid,
+                    scheduledDate = if (i == 0 && installmentPaid) scheduledDate else null,
+                    desc = parcelDesc(desc, i + 1, n), groupId = group, parcelN = i + 1, parcelTotal = n,
+                )
             }
         } else listOf(base)
         var rec = s.recurring
@@ -99,8 +122,12 @@ object Ops {
      *  reabria a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes. */
     fun canTogglePaid(t: Tx) = !t.isCard && t.isFlow && !t.isProjected
 
-    fun togglePaid(s: AppState, id: String): AppState =
-        s.copy(txs = s.txs.map { if (it.id == id && canTogglePaid(it)) it.copy(paid = !it.paid) else it })
+    fun togglePaid(s: AppState, id: String, today: LocalDate = LocalDate.now()): AppState =
+        s.copy(txs = s.txs.map { t ->
+            if (t.id != id || !canTogglePaid(t)) t
+            else if (t.paid) t.copy(paid = false, date = t.scheduledDate ?: t.date, scheduledDate = null)
+            else t.copy(paid = true, scheduledDate = t.date.takeIf { it != today }, date = today)
+        })
 
     // ---------------- metas ----------------
     fun saveGoal(s: AppState, id: String?, name: String, target: String, move: String, deadline: LocalDate?, monthly: String): Outcome {

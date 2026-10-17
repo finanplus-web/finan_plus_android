@@ -1,5 +1,12 @@
 # Changelog
 
+## Próxima versão (1.7.0) — Reserva para metas
+
+- **Guardar numa meta tira o dinheiro da conta:** ao guardar, o Finan+ cria o lançamento **"Meta › nome da meta"** (categoria **Metas**), que sai do saldo da conta escolhida e aparece em Lançamentos e no calendário. Ao retirar, **"Retirada da meta › nome"** devolve o valor. A opção **Tirar da conta** vem ligada; desligada, fica como antes (só o valor da meta muda).
+- **Não é despesa:** como o pagamento de fatura, a reserva fica fora das despesas, dos limites, do % economizado e do assistente. O **Resumo** mostra **Guardado em metas** e, no fluxo do dinheiro, "Para onde foi › Metas".
+- **Excluir** o lançamento desfaz o valor na meta; **excluir a meta** devolve à conta o que saiu dela pelo Finan+.
+- **Backup:** campo novo `goalId` nos lançamentos. Detalhes, regras e testes em [METAS.md](METAS.md).
+
 ## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)
 
 Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #1 a #10). `versionCode 15`. Notas de design em [docs/REDESIGN-UXUI.md](docs/REDESIGN-UXUI.md).

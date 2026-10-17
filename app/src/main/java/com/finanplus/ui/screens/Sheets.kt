@@ -187,6 +187,7 @@ private fun CheckRow(text: String, checked: Boolean, onChange: (Boolean) -> Unit
 private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val tx = sheet.id?.let { id -> s.txs.firstOrNull { it.id == id } }
+    if (tx != null && tx.isGoal) { GoalMoveView(s, tx, close); return }
     val isPayment = tx?.cardPayment?.isNotEmpty() == true
     val today = LocalDate.now()
     var kind by rememberSaveable { mutableStateOf(tx?.kind ?: sheet.kind) }
@@ -344,6 +345,33 @@ private fun PaymentStatusChoice(label: String, selected: Boolean, onSelect: () -
     }
 }
 
+/** Lançamento de reserva para meta: só consulta e exclusão (o valor muda pela meta). */
+@Composable
+private fun GoalMoveView(s: AppState, tx: com.finanplus.core.Tx, close: () -> Unit) {
+    val dialogs = LocalDialogs.current
+    val nav = com.finanplus.ui.LocalNav.current
+    val goal = s.goals.firstOrNull { it.id == tx.goalId }
+    val saved = tx.kind == Kind.EXPENSE
+    Header(if (saved) "Guardado na meta" else "Retirado da meta", goal?.name ?: "Meta excluída")
+    Glass(Modifier.padding(top = 4.dp), radius = 22.dp, padding = 14.dp) {
+        Text(Money.format(tx.value), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold, color = Fin.c.accent)
+        Text("${tx.date.br()} · ${s.account(tx.accountId)?.name ?: "Conta"}", style = MaterialTheme.typography.bodyMedium, color = Fin.c.muted)
+        Text(
+            if (saved) "Este valor saiu do saldo da conta para a meta. Não conta como despesa, nem nos limites ou no assistente."
+            else "Este valor voltou da meta para o saldo da conta. Não conta como receita.",
+            style = MaterialTheme.typography.bodySmall, color = Fin.c.muted, modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+    Spacer(Modifier.height(12.dp))
+    if (goal != null) PrimaryButton("Abrir a meta") { nav.open(Sheet.GoalEdit(goal.id)) }
+    DeleteButton("Excluir lançamento") {
+        val what = if (goal == null) "O saldo da conta volta ao que era antes deste lançamento."
+        else if (saved) "O valor guardado na meta diminui ${Money.format(tx.value)} e volta para o saldo da conta."
+        else "O valor guardado na meta aumenta ${Money.format(tx.value)} e sai de novo do saldo da conta."
+        dialogs.confirm("Excluir lançamento", what, ok = "Excluir", danger = true) { Repo.replace(Ops.deleteTx(Repo.state.value, tx.id, false)); close() }
+    }
+}
+
 // ------------------------------------------------------------------ meta
 @Composable
 private fun GoalEditor(s: AppState, sheet: Sheet.GoalEdit, close: () -> Unit) {
@@ -355,16 +383,35 @@ private fun GoalEditor(s: AppState, sheet: Sheet.GoalEdit, close: () -> Unit) {
     var move by rememberSaveable { mutableStateOf("") }
     var deadline by rememberSaveable { mutableStateOf(g?.deadline) }
     var monthly by rememberSaveable { mutableStateOf(g?.monthly?.takeIf { it > 0 }?.let { Money.input(it) } ?: sheet.monthly.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
+    // reserva para meta (1.7.0): o valor guardado sai da conta, sem contar como despesa
+    var fromAccount by rememberSaveable { mutableStateOf(true) }
+    val lastAccount = g?.let { goal -> s.txs.filter { it.goalId == goal.id && it.kind == Kind.EXPENSE }.maxByOrNull { it.date }?.accountId }
+    var goalAccount by rememberSaveable { mutableStateOf(lastAccount?.takeIf { s.account(it) != null } ?: s.accounts[0].id) }
     Header(if (g == null) "Nova meta" else "Editar meta", if (g == null) "Dê um nome e um valor ao seu objetivo." else "Guardado até agora: ${Money.format(g.saved)}")
     Field("Nome", name, { name = it }, maxLength = 60)
     MoneyField("Valor da meta (R$)", target, { target = it })
-    if (g != null) MoneyField("Guardar ou retirar agora (R$)", move, { move = it }, placeholder = "Ex.: 100 ou -50")
+    if (g != null) {
+        MoneyField("Guardar ou retirar agora (R$)", move, { move = it }, placeholder = "Ex.: 100 ou -50")
+        val mv = Money.parse(move)
+        if (mv != null && mv != 0L) Glass(Modifier.padding(top = 6.dp), radius = 20.dp, padding = 13.dp) {
+            val withdraw = mv < 0
+            SwitchRow(
+                if (withdraw) "Devolver para a conta" else "Tirar da conta",
+                if (fromAccount) (if (withdraw) "O valor volta para o saldo da conta." else "O valor sai do saldo da conta, mas não conta como despesa.")
+                else "Só o valor guardado na meta muda; o saldo da conta continua igual.",
+                fromAccount,
+            ) { fromAccount = it }
+            if (fromAccount) SelectField("Conta", s.accounts.map { it.id to it.name }, goalAccount, { goalAccount = it })
+        }
+    }
     DateField("Prazo (opcional)", deadline, { deadline = it }, allowClear = true)
     MoneyField("Contribuição mensal planejada (opcional)", monthly, { monthly = it })
     Spacer(Modifier.height(8.dp))
-    PrimaryButton("Salvar") { apply(Ops.saveGoal(Repo.state.value, g?.id, name, target, move, deadline, monthly), dialogs, close) }
+    PrimaryButton("Salvar") { apply(Ops.saveGoal(Repo.state.value, g?.id, name, target, move, deadline, monthly, fromAccount, goalAccount), dialogs, close) }
     if (g != null) DeleteButton("Excluir meta") {
-        dialogs.confirm("Excluir meta", "Excluir a meta “${g.name}”?", ok = "Excluir", danger = true) { Repo.replace(Ops.deleteGoal(Repo.state.value, g.id)); close() }
+        val back = Ops.goalFromAccounts(Repo.state.value, g.id)
+        val msg = if (back > 0) "Excluir a meta “${g.name}”? ${Money.format(back)} que saíram das contas para ela voltam para a conta." else "Excluir a meta “${g.name}”?"
+        dialogs.confirm("Excluir meta", msg, ok = "Excluir", danger = true) { Repo.replace(Ops.deleteGoal(Repo.state.value, g.id)); close() }
     }
 }
 

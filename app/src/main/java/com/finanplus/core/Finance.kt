@@ -160,6 +160,14 @@ object Finance {
 
     fun monthFlow(s: AppState, ym: YearMonth): Flow = flow(s.txs.filter { it.date.ym() == ym })
 
+    /** Reservas para metas no período: quanto saiu das contas para metas e quanto voltou delas. */
+    data class GoalMoves(val saved: Cents, val withdrawn: Cents) { val net get() = saved - withdrawn }
+
+    fun goalMoves(list: List<Tx>): GoalMoves {
+        val r = list.filter { it.isGoal && it.paid }
+        return GoalMoves(r.totalOf(Kind.EXPENSE), r.totalOf(Kind.INCOME))
+    }
+
     /** Despesas do mês por categoria, incluindo pendentes (para limites). */
     fun budgetUsage(s: AppState, ym: YearMonth): Map<String, Cents> = s.txs
         .filter { it.kind == Kind.EXPENSE && it.isFlow && it.date.ym() == ym }
@@ -218,7 +226,7 @@ object Csv {
         val head = listOf("data", "tipo", "categoria", "descricao", "valor", "situacao", "conta", "cartao")
         val rows = s.txs.sortedBy { it.date }.map { t ->
             listOf(
-                cell(t.date), cell(if (t.kind == Kind.INCOME) "receita" else "despesa"), cell(t.category), cell(t.desc),
+                cell(t.date), cell(if (t.isGoal) (if (t.kind == Kind.EXPENSE) "reserva para meta" else "retirada de meta") else if (t.kind == Kind.INCOME) "receita" else "despesa"), cell(t.category), cell(t.desc),
                 cell(Money.input(t.value)), cell(if (t.paid) "realizado" else "pendente"),
                 cell(if (t.isCard) "" else s.account(t.accountId)?.name ?: ""),
                 cell(s.card(t.cardId.ifEmpty { t.cardPayment })?.name ?: ""),

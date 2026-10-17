@@ -12,8 +12,8 @@ android {
         applicationId = "com.finanplus"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "1.5.2"
+        versionCode = 15
+        versionName = "1.6.0"
         // Parâmetros do "Acesso pela rede", sem mexer no código (sem segredos: só portas e tempos).
         // Ex.: ./gradlew assembleRelease -PfinanLan="httpsPort=9443;idleMinutes=5"
         // ou a variável de ambiente ORG_GRADLE_PROJECT_finanLan. Vazio (F-Droid, Releases) = padrões de LanConfig.

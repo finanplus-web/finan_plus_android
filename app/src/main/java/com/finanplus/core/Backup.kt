@@ -26,12 +26,6 @@ data class Normalized(val state: AppState, val dropped: Dropped, val version: In
  */
 object Backup {
     const val VERSION = 5
-    private const val MAX_TRANSACTIONS = 50_000
-    private const val MAX_ACCOUNTS = 100
-    private const val MAX_CARDS = 100
-    private const val MAX_RECURRING = 1_000
-    private const val MAX_GOALS = 1_000
-    private const val MAX_CATEGORIES_PER_KIND = 500
     private val ID_RE = Regex("^[A-Za-z0-9_.-]{1,48}$")
     private val DATE_RE = Regex("^\\d{4}-\\d{2}-\\d{2}$")
     private val YM_RE = Regex("^\\d{4}-(0[1-9]|1[0-2])$")
@@ -87,10 +81,10 @@ object Backup {
     private fun obj(v: Any?): Map<String, Any?>? = v as? Map<String, Any?>
 
     /** Lança [BackupException] quando não há uma lista de lançamentos. */
-    fun normalize(raw: Any?): Normalized {
+    fun normalize(raw: Any?, enforceLimits: Boolean = true): Normalized {
         val r = obj(raw) ?: throw BackupException("Formato inválido")
         val rawTxs = r["txs"] as? List<*> ?: throw BackupException("Backup sem lista de lançamentos")
-        if (rawTxs.size > MAX_TRANSACTIONS) throw BackupException("Muitos lançamentos no backup")
+        if (enforceLimits && rawTxs.size > AppState.Limits.TRANSACTIONS) throw BackupException("Muitos lançamentos no backup")
         var d = Dropped()
         val used = HashSet<String>()
         fun idFor(v: Any?): String { var id = safeId(v); if (id.isEmpty() || id in used) id = Ids.new(); used.add(id); return id }
@@ -103,7 +97,7 @@ object Backup {
         obj(r["cats"])?.let { c ->
             for (k in Kind.entries) {
                 val list = c[k.json] as? List<*> ?: continue
-                if (list.size > MAX_CATEGORIES_PER_KIND) throw BackupException("Muitas categorias no backup")
+                if (enforceLimits && list.size > AppState.Limits.CATEGORIES_PER_KIND) throw BackupException("Muitas categorias no backup")
                 val seen = HashSet<String>(); val out = ArrayList<String>()
                 for (x in list) { val n = str(x, 40); if (n.isNotEmpty() && seen.add(n.lowercase())) out.add(n) }
                 if (out.isNotEmpty()) cats = cats.with(k, out)
@@ -113,7 +107,7 @@ object Backup {
         // contas
         val accounts = ArrayList<Account>()
         val rawAccounts = r["accounts"] as? List<*> ?: emptyList<Any?>()
-        if (rawAccounts.size > MAX_ACCOUNTS) throw BackupException("Muitas contas no backup")
+        if (enforceLimits && rawAccounts.size > AppState.Limits.ACCOUNTS) throw BackupException("Muitas contas no backup")
         rawAccounts.forEach { x ->
             val a = obj(x)
             if (a == null || str(a["name"], 40).isEmpty()) { d = d.copy(accounts = d.accounts + 1); return@forEach }
@@ -128,7 +122,7 @@ object Backup {
         // cartões
         val cards = ArrayList<Card>()
         val rawCards = r["cards"] as? List<*> ?: emptyList<Any?>()
-        if (rawCards.size > MAX_CARDS) throw BackupException("Muitos cartões no backup")
+        if (enforceLimits && rawCards.size > AppState.Limits.CARDS) throw BackupException("Muitos cartões no backup")
         rawCards.forEach { x ->
             val c = obj(x)
             if (c == null || str(c["name"], 40).isEmpty()) { d = d.copy(cards = d.cards + 1); return@forEach }
@@ -141,7 +135,7 @@ object Backup {
         // recorrências
         val recurring = ArrayList<Recurring>()
         val rawRecurring = r["recurring"] as? List<*> ?: emptyList<Any?>()
-        if (rawRecurring.size > MAX_RECURRING) throw BackupException("Muitas recorrências no backup")
+        if (enforceLimits && rawRecurring.size > AppState.Limits.RECURRING) throw BackupException("Muitas recorrências no backup")
         rawRecurring.forEach { x ->
             val o = obj(x); val kind = Kind.of(o?.get("kind")); val value = cents(o?.get("value"))
             if (o == null || kind == null || value <= 0 || str(o["desc"]).isEmpty()) { d = d.copy(recurring = d.recurring + 1); return@forEach }
@@ -182,7 +176,7 @@ object Backup {
         // metas
         val goals = ArrayList<Goal>()
         val rawGoals = r["goals"] as? List<*> ?: emptyList<Any?>()
-        if (rawGoals.size > MAX_GOALS) throw BackupException("Muitas metas no backup")
+        if (enforceLimits && rawGoals.size > AppState.Limits.GOALS) throw BackupException("Muitas metas no backup")
         rawGoals.forEach { x ->
             val g = obj(x); val target = cents(g?.get("target"))
             if (g == null || str(g["name"], 60).isEmpty() || target <= 0) { d = d.copy(goals = d.goals + 1); return@forEach }
@@ -201,7 +195,7 @@ object Backup {
     }
 
     /** O BOM do início (arquivos salvos no Bloco de Notas) é ignorado, como no Finan+ web. */
-    fun parse(text: String): Normalized = try { normalize(Json.parse(text.removePrefix("\uFEFF"))) } catch (e: Json.ParseException) { throw BackupException("JSON inválido: ${e.message}") }
+    fun parse(text: String, enforceLimits: Boolean = true): Normalized = try { normalize(Json.parse(text.removePrefix("\uFEFF")), enforceLimits) } catch (e: Json.ParseException) { throw BackupException("JSON inválido: ${e.message}") }
 
     /** Serializa no formato do PWA (valores em reais). [meta] = bloco _backup para arquivos exportados. */
     fun toJson(s: AppState, meta: Map<String, Any?>? = null): String {

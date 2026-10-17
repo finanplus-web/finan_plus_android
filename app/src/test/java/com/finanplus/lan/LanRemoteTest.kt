@@ -63,6 +63,24 @@ class LanRemoteTest {
         assertTrue(f.backend.state.txs.isEmpty())
     }
 
+    @Test fun acimaDoLimiteEditaMasNaoCresce() {
+        val many = (1..com.finanplus.core.AppState.Limits.ACCOUNTS + 2).map { com.finanplus.core.Account("a$it", "Conta $it", 0) }
+        f.backend.apply { s -> Outcome.Ok(s.copy(accounts = many)) }
+        val t = f.pair()
+        val (rev, data) = read(t)
+        // editar (renomear uma conta) passa, mesmo com mais contas que o limite
+        val renamed = Json.stringify(data).replaceFirst("\"Conta 1\"", "\"Conta renomeada\"")
+        val ok = f.api("/api/remote/state", "PUT", """{"rev":$rev,"data":$renamed}""", t)
+        assertEquals(200, ok.status)
+        assertEquals("Conta renomeada", f.backend.state.account("a1")?.name)
+        // criar mais uma conta é recusado
+        val (rev2, data2) = read(t)
+        val more = Json.stringify(data2).replaceFirst("\"accounts\":[", "\"accounts\":[{\"id\":\"novo\",\"name\":\"Nova\",\"initial\":0},")
+        val r = f.api("/api/remote/state", "PUT", """{"rev":$rev2,"data":$more}""", t)
+        assertEquals(422, r.status)
+        assertEquals(com.finanplus.core.AppState.Limits.ACCOUNTS + 2, f.backend.state.accounts.size)
+    }
+
     @Test fun entradaInvalida() {
         val t = f.pair()
         assertEquals(400, f.api("/api/remote/state", "PUT", """{"data":{}}""", t).status)

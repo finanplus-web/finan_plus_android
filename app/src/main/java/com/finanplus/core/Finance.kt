@@ -124,7 +124,7 @@ object Finance {
         }
         if (newTxs.isEmpty() && recs == s.recurring) return s to 0
         val next = s.copy(txs = s.txs + newTxs, recurring = recs)
-        return if (next.hasSafeMoneyTotals()) next to newTxs.size else s to 0
+        return if (next.hasSafeMoneyTotals() && s.growthError(next) == null) next to newTxs.size else s to 0
     }
 
     // ---------------- parcelas ----------------

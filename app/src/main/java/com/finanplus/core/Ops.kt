@@ -14,6 +14,9 @@ sealed class Outcome {
 private fun err(msg: String, title: String = "Revise os dados") = Outcome.Err(title, msg)
 private fun ok(s: AppState): Outcome = if (s.hasSafeMoneyTotals()) Outcome.Ok(s)
 else err("O total dos valores excede o limite seguro. Reduza algum valor antes de salvar.", "Limite financeiro excedido")
+/** Como [ok], conferindo também se a alteração cria itens além de [AppState.Limits]. */
+private fun ok(before: AppState, next: AppState): Outcome =
+    before.growthError(next)?.let { err("$it Exclua itens antigos antes de criar novos.", "Limite atingido") } ?: ok(next)
 private fun sameName(a: String, b: String) = a.lowercase() == b.lowercase()
 
 enum class RepsMode { TOTAL, EACH }
@@ -56,7 +59,7 @@ object Ops {
         val card = d.kind == Kind.EXPENSE && d.cardId.isNotEmpty()
         if (value == null || value <= 0) return err("Informe um valor maior que zero. Ex.: 59,90", "Valor inválido")
         val date = d.date ?: return err("Informe uma data válida.", "Data inválida")
-        if (card && s.card(d.cardId) == null) return err("Cadastre um cartão em Ajustes antes de lançar no cartão.", "Sem cartão")
+        if (card && s.card(d.cardId) == null) return err("Cadastre um cartão em Meu dinheiro antes de lançar no cartão.", "Sem cartão")
         val accountId = if (s.account(d.accountId) != null) d.accountId else s.accounts[0].id
         val category = d.category.ifBlank { s.cats.of(d.kind)[0] }
         // Descrição é opcional no formulário rápido; usar a categoria como rótulo preserva a legibilidade da lista.
@@ -98,7 +101,7 @@ object Ops {
         var rec = s.recurring
         // a recorrência guarda até 120 caracteres (o limite lido de volta do arquivo); sem cortar aqui, o fim se perdia na próxima abertura
         if (d.recurring) rec = rec + Recurring(Ids.new(), d.kind, desc.take(REC_DESC_MAX).trimEnd(), value, category, accountId, cardId, date.dayOfMonth, true, date, date.ym())
-        return ok(s.copy(txs = s.txs + added, recurring = rec))
+        return ok(s, s.copy(txs = s.txs + added, recurring = rec))
     }
 
     const val TX_DESC_MAX = 200
@@ -142,7 +145,7 @@ object Ops {
         if (t == null || t <= 0) return err("Informe um valor de meta maior que zero. Ex.: 1500,50")
         if (m == null || m < 0) return err("Contribuição mensal inválida.")
         val mv = if (move.isBlank()) 0L else Money.parse(move) ?: return err("Valor a guardar inválido.")
-        if (id == null) return ok(s.copy(goals = s.goals + Goal(Ids.new(), n, t, 0, deadline, m)))
+        if (id == null) return ok(s, s.copy(goals = s.goals + Goal(Ids.new(), n, t, 0, deadline, m)))
         val saved = try { Math.addExact(s.goals.firstOrNull { it.id == id }?.saved ?: 0L, mv).coerceAtLeast(0L) }
         catch (_: ArithmeticException) { return err("O valor guardado excede o limite seguro.", "Limite financeiro excedido") }
         return ok(s.copy(goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = saved) else it }))
@@ -156,7 +159,7 @@ object Ops {
         val ini = if (initial.isBlank()) 0L else Money.parse(initial)
         if (n.isEmpty()) return err("Informe o nome da conta.")
         if (ini == null) return err("Saldo inicial inválido. Ex.: 1.250,00 ou -300")
-        if (id == null) return ok(s.copy(accounts = s.accounts + Account(Ids.new(), n, ini)))
+        if (id == null) return ok(s, s.copy(accounts = s.accounts + Account(Ids.new(), n, ini)))
         return ok(s.copy(accounts = s.accounts.map { if (it.id == id) it.copy(name = n, initial = ini) else it }))
     }
 
@@ -181,7 +184,7 @@ object Ops {
         if (n.isEmpty()) return err("Informe o nome do cartão.")
         if (lim == null || lim < 0) return err("Limite inválido.")
         if (c == null || d == null || c !in 1..31 || d !in 1..31) return err("Os dias de fechamento e vencimento devem estar entre 1 e 31.")
-        if (id == null) return ok(s.copy(cards = s.cards + Card(Ids.new(), n, lim, c, d)))
+        if (id == null) return ok(s, s.copy(cards = s.cards + Card(Ids.new(), n, lim, c, d)))
         return ok(s.copy(cards = s.cards.map { if (it.id == id) it.copy(name = n, limit = lim, close = c, due = d) else it }))
     }
 
@@ -197,7 +200,7 @@ object Ops {
         if (v == null || v <= 0) return err("Informe um valor maior que zero.")
         if (date == null) return err("Informe uma data válida.")
         val acc = if (s.account(accountId) != null) accountId else s.accounts[0].id
-        return ok(s.copy(txs = s.txs + Tx(Ids.new(), Kind.EXPENSE, v, date, "Pagamento fatura ${c.name}", AppState.CARD_PAYMENT_CAT, true, acc, cardPayment = c.id)))
+        return ok(s, s.copy(txs = s.txs + Tx(Ids.new(), Kind.EXPENSE, v, date, "Pagamento fatura ${c.name}", AppState.CARD_PAYMENT_CAT, true, acc, cardPayment = c.id)))
     }
 
     // ---------------- recorrências ----------------
@@ -220,7 +223,7 @@ object Ops {
             else it.copy(kind = kind, desc = ds, value = v, day = dd, category = cat, accountId = acc, cardId = card, active = active,
                 last = if (!it.active && active) resumedLast(it.last, today) else it.last)
         })
-        return ok(Finance.generateRecurring(next, today).first)
+        return ok(s, Finance.generateRecurring(next, today).first)
     }
 
     /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
@@ -250,7 +253,7 @@ object Ops {
         val n = name.trim().take(40)
         if (n.isEmpty()) return err("Digite o nome da categoria.", "Nome vazio")
         if (s.cats.of(kind).any { sameName(it, n) }) return err("Essa categoria já existe.", "Categoria duplicada")
-        return ok(s.copy(cats = s.cats.with(kind, s.cats.of(kind) + n)))
+        return ok(s, s.copy(cats = s.cats.with(kind, s.cats.of(kind) + n)))
     }
 
     fun renameCategory(s: AppState, kind: Kind, old: String, name: String): Outcome {

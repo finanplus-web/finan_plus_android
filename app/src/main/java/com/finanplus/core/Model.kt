@@ -108,6 +108,22 @@ data class AppState(
     fun account(id: String) = accounts.firstOrNull { it.id == id }
     fun card(id: String) = cards.firstOrNull { it.id == id }
 
+    /** Garante que valores e somas permaneçam exatos em Long e no Number do PWA. */
+    fun hasSafeMoneyTotals(): Boolean {
+        val cap = java.math.BigInteger("9007199254740991") // Number.MAX_SAFE_INTEGER, em centavos
+        val max = java.math.BigInteger.valueOf(Money.MAX_ABS)
+        var total = java.math.BigInteger.ZERO
+        fun add(value: Cents): Boolean {
+            val n = java.math.BigInteger.valueOf(value).abs()
+            if (n > max) return false
+            total = total.add(n)
+            return total <= cap
+        }
+        return txs.all { add(it.value) } && accounts.all { add(it.initial) } && cards.all { add(it.limit) } &&
+            goals.all { add(it.target) && add(it.saved) && add(it.monthly) } &&
+            recurring.all { add(it.value) } && limits.values.all(::add)
+    }
+
     companion object {
         const val MAIN_ACCOUNT = "main"
         val DEFAULT_EXPENSE = listOf("Alimentação", "Transporte", "Moradia", "Saúde", "Lazer", "Educação", "Outros")

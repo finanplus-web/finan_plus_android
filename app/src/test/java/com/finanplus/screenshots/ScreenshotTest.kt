@@ -65,9 +65,12 @@ class ScreenshotTest {
             tab("Lançamentos"); shot("lancamentos")
             tab("Calendário"); shot("calendario")
             tab("Lista")
+            tab("Contas"); shot("contas")
             tab("Relatórios"); shot("relatorios")
             tab("Ajustes"); shot("ajustes")
-            compose.onNode(hasContentDescription("Adicionar lançamento")).performClick()
+            tab("Início")
+            compose.onNode(hasContentDescription("Adicionar receita ou despesa")).performClick()
+            compose.onNode(hasText("Despesa")).performClick()
             shot("novo-lancamento")
         }
         Repo.showForScreenshots(demo.copy(theme = ThemeId.TOKYO))

@@ -1,4 +1,6 @@
-undefined
+# Redesign de UX/UI do Finan+ Android (1.6.0)
+
+Registro das rodadas de ajustes feitas no repositório de desenvolvimento e mescladas na 1.6.0. O resumo para quem usa o app está no [CHANGELOG](../CHANGELOG.md).
 
 ## Correções UX/UI da rodada seguinte
 
@@ -16,5 +18,7 @@ undefined
 - Compilação, testes unitários e auditoria de licenças serão executados pelo GitHub Actions no commit desta rodada.
 - Não houve teste visual por emulador nesta sessão.
 
+
+## Ajuste final
 
 - A seção de gerenciamento de categorias começa minimizada; sua lista e formulário só aparecem após tocar em **Maximizar**. O estado segue reversível pela ação **Minimizar**.

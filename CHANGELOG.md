@@ -1,5 +1,38 @@
 # Changelog
 
+## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)
+
+Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #1 a #10). `versionCode 15`. Notas de design em [docs/REDESIGN-UXUI.md](docs/REDESIGN-UXUI.md).
+
+### Para quem usa
+
+- **Navegação nova:** a barra inferior tem Início, Lançamentos, **Meu dinheiro** (nova), **Resumo** (antes Relatórios) e Ajustes. O botão **+** saiu do meio da barra: agora é um botão redondo no canto, só em Início e Lançamentos, e abre **Despesa**, **Receita** ou **Nova recorrência**.
+- **Meu dinheiro:** contas e cartões (com fatura e "Pagar fatura"), metas, limites mensais e categorias, que saíram de Ajustes. A lista de categorias começa minimizada. Quando uma parte está vazia, ela explica o que fazer e oferece um atalho.
+- **Ajustes** reorganizado em grupos (Personalização, Planejamento e automação, Privacidade e segurança, Dados, Aplicativo), sem remover opções.
+- **Formulário de lançamento:** valor em destaque; categoria, data e descrição logo abaixo; conta, situação, parcelas e repetição em **Mais opções**. A **descrição é opcional**: em branco, o lançamento usa o nome da categoria.
+- **Pendente ou realizado:** lançamento novo só vem como pago/recebido se a data for hoje; nas outras datas começa pendente (dá para trocar). Ao confirmar um lançamento pendente, a data passa a ser a do dia da confirmação e a **data prevista** original fica guardada ("previsto 10/10"); se voltar para pendente, a data prevista é restaurada.
+- **Confirmar pagamento** pede confirmação e mostra **Desfazer** logo depois. A situação aparece por escrito (Paga, A pagar, Vencida · a pagar, No cartão, Prevista · recorrência).
+- **Início:** os próximos 3 vencimentos (contas e faturas) e o saldo previsto explicado.
+- **Resumo:** visualização do **fluxo do dinheiro** (quanto entrou, saiu e sobrou) e frases mais diretas ("sobraram R$ X" / "gastou R$ X a mais").
+- Fundo pontilhado discreto que acompanha o tema; mais contraste no vermelho dos temas Gruvbox (de 3,8:1 para 5,4:1).
+
+### Dados e segurança
+
+- **Valores exatos:** números do backup e do acesso pela rede são lidos como texto e convertidos direto para centavos, sem passar por número de ponto flutuante (antes, valores com muitas casas podiam perder centavos).
+- **Teto de segurança:** a soma de todos os valores não pode passar do maior inteiro exato do Finan+ web; salvar, restaurar e gerar recorrências recusam o que passaria disso.
+- **Limites de tamanho no backup externo:** 50.000 lançamentos, 100 contas, 100 cartões, 1.000 recorrências, 1.000 metas e 500 categorias por tipo. O app também não deixa **criar** além desses números, para que todo backup gerado por ele possa ser restaurado. Os dados que o app já tem salvos nunca passam por esses limites: quem já tinha mais itens continua abrindo e editando tudo normalmente.
+- O backup ganhou o campo opcional `scheduledDate` (data prevista). Versões anteriores e o Finan+ web ignoram o campo sem erro.
+
+| Arquivo | Mudança |
+|---|---|
+| `core/Json.kt`, `core/Money.kt`, `core/Backup.kt`, `lan/LanApi.kt` | Números preservados como texto (`Json.NumberToken`), centavos sem ponto flutuante, limites do backup externo, `scheduledDate` |
+| `core/Model.kt` | `Tx.scheduledDate`, `AppState.hasSafeMoneyTotals()`, `AppState.Limits` e `growthError()` |
+| `core/Ops.kt`, `core/Finance.kt` | Data efetiva/prevista ao confirmar, pendente por padrão fora de hoje, descrição opcional, limites na criação, `upcomingDues()` |
+| `data/Repo.kt` | Os dados do próprio app abrem sem limite de quantidade |
+| `ui/Root.kt`, `ui/screens/*` | Nova navegação, aba `AccountsScreen`, escolha Despesa/Receita/Recorrência, formulário, Resumo, Ajustes |
+| `ui/theme/Theme.kt` | Cores de apoio (sucesso, perigo, aviso), espaçamentos e vermelho Gruvbox mais legível |
+| Testes | `SettlementDateTest`, `LimitsTest` e novos casos em `RegressionTest` |
+
 ## 1.5.2 — Licenças de terceiros e atualização de segurança (13/10/2026)
 
 - **Avisos de terceiros no app:** *Ajustes › Sobre* ganhou "Componentes de terceiros" e o botão **Ver avisos de terceiros**, com os avisos de copyright e as licenças de todas as bibliotecas que vão dentro do app (AndroidX, Kotlin, PdfBox-Android, Bouncy Castle, Protocol Buffers, fontes e dados usados na leitura de PDF, ícones Material Symbols). Funciona sem internet. Lista completa em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

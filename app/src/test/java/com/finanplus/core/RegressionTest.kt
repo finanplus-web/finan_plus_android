@@ -21,6 +21,15 @@ private fun d(s: String) = LocalDate.parse(s)
 private fun AppState.ok(o: Outcome): AppState = when (o) { is Outcome.Ok -> o.state; is Outcome.Err -> error("esperava Ok: ${o.message}") }
 
 class RegressionTest {
+    @Test fun descricaoOpcionalUsaCategoriaComoRotulo() {
+        val s = AppState()
+        val saved = s.ok(
+            Ops.saveTx(s, null, TxDraft(Kind.EXPENSE, "", "25,50", "Alimentação", today, true, "main"), today)
+        )
+        assertEquals("Alimentação", saved.txs.single().desc)
+        assertEquals(2_550L, saved.txs.single().value)
+    }
+
     private val today = d("2026-10-06")
 
     @Test fun reativarRecorrenciaPausadaNaoGeraMesesParados() {
@@ -70,6 +79,39 @@ class RegressionTest {
             """{"id":"t$i","kind":"income","value":9999999999999.99,"date":"2026-10-01","paid":true}"""
         }
         assertFailsWith<BackupException> { Backup.parse("""{"txs":[$txs]}""") }
+    }
+
+    @Test fun marcarLancamentoFuturoComoRealizadoEDesfazerPreservaVencimento() {
+        val today = d("2026-10-17")
+        val due = Tx("salario", Kind.INCOME, 250_000, d("2026-10-30"), "Salário", "Salário", false, "main")
+        val pending = AppState(txs = listOf(due))
+
+        val paid = Ops.togglePaid(pending, due.id, today).txs.single()
+        assertTrue(paid.paid)
+        assertEquals(today, paid.date)
+        assertEquals(due.date, paid.scheduledDate)
+        assertEquals(250_000L, Finance.monthFlow(AppState(txs = listOf(paid)), today.ym()).income)
+
+        val undone = Ops.togglePaid(pending.copy(txs = listOf(paid)), due.id, today).txs.single()
+        assertFalse(undone.paid)
+        assertEquals(due.date, undone.date)
+        assertNull(undone.scheduledDate)
+        assertEquals(0L, Finance.monthFlow(AppState(txs = listOf(undone)), today.ym()).income)
+    }
+
+    @Test fun inicioMostraAteTresVencimentosEmOrdemSemIncluirPagos() {
+        val today = d("2026-10-06")
+        val txs = listOf(
+            Tx("c", Kind.EXPENSE, 3_00, d("2026-10-12"), "C", "Outros", false, "main"),
+            Tx("a", Kind.EXPENSE, 1_00, d("2026-10-08"), "A", "Outros", false, "main"),
+            Tx("paid", Kind.EXPENSE, 99_00, d("2026-10-07"), "Pago", "Outros", true, "main"),
+            Tx("b", Kind.EXPENSE, 2_00, d("2026-10-09"), "B", "Outros", false, "main"),
+            Tx("d", Kind.EXPENSE, 4_00, d("2026-10-13"), "D", "Outros", false, "main"),
+        )
+        val dues = Finance.upcomingDues(AppState(txs = txs), today)
+        assertEquals(listOf("a", "b", "c"), dues.map { it.refId })
+        assertEquals(1, Finance.upcomingDues(AppState(txs = txs), today, 1).size)
+        assertEquals("a", Finance.nextDue(AppState(txs = txs), today)?.refId)
     }
 
     @Test fun backupComBomEVersaoNova() {

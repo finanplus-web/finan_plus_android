@@ -155,6 +155,8 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         item { PageTitle("Configurações", "Ajustes", "Tudo fica salvo e criptografado neste aparelho.") }
 
+        item { SettingsGroupHeader("Personalização") }
+
         item {
             Collapsible("Aparência", "Tema: ${s.theme.label}") {
                 ThemeId.entries.chunked(2).forEach { row ->
@@ -183,6 +185,41 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                 if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) Text("Material You usa as cores do papel de parede a partir do Android 12.", style = MaterialTheme.typography.bodySmall, color = p.muted)
             }
         }
+
+        item {
+            Collapsible("Notificações e widget", if (dev.notifications && Reminders.canNotify(ctx)) "Avisos de vencimento ligados" else "Avisos de vencimento desligados") {
+                SwitchRow("Avisar vencimentos", "Contas a pagar, valores a receber e faturas, por volta das 9h", dev.notifications && Reminders.canNotify(ctx)) { v ->
+                    if (v && Build.VERSION.SDK_INT >= 33 && !Reminders.canNotify(ctx)) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    else prefs.update { it.copy(notifications = v) }
+                }
+                SwitchRow("Mostrar valores no widget", "Desligado, o widget mostra “R$ ••••”", dev.widgetValues) { v ->
+                    prefs.update { it.copy(widgetValues = v) }
+                    scope.launch { com.finanplus.widget.BalanceWidget.refresh(ctx) }
+                }
+            }
+        }
+
+        item { SettingsGroupHeader("Planejamento e automação") }
+
+        item {
+            Collapsible("Assistente", "${listOf(dev.assistCategory, dev.assistTips, dev.assistAsk).count { it }} de 3 funções ligadas") { AssistantSettings(s, dev) }
+        }
+
+        item {
+            Collapsible("Recorrências", if (s.recurring.isEmpty()) "Nenhuma recorrência cadastrada" else "${s.recurring.size} recorrência(s) cadastrada(s)") {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Pill("Nova", icon = com.finanplus.ui.components.Ico.ADD) { nav.open(Sheet.RecurringEdit()) } }
+                if (s.recurring.isEmpty()) Text("Você também pode marcar “Repetir mensalmente” ao criar um lançamento.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                s.recurring.forEach { r ->
+                    val where = if (r.cardId.isNotEmpty()) "Cartão " + (s.card(r.cardId)?.name ?: "") else s.account(r.accountId)?.name ?: ""
+                    val v = if (s.privacy) "R$ ••••" else Money.format(r.value)
+                    ManageItem(r.desc, "${if (r.kind == Kind.INCOME) "Receita" else "Despesa"} · $v · dia ${r.day} · ${r.category} · $where${if (r.active) "" else " · pausada"}") {
+                        Pill("Editar") { nav.open(Sheet.RecurringEdit(r.id)) }
+                    }
+                }
+            }
+        }
+
+        item { SettingsGroupHeader("Segurança e dados") }
 
         item {
             Collapsible("Privacidade e segurança", (if (dev.lockEnabled) "Bloqueio ativo" else "Bloqueio desativado") + if (s.privacy) " · valores ocultos" else "") {
@@ -265,37 +302,6 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
         }
 
         item {
-            Collapsible("Notificações e widget", if (dev.notifications && Reminders.canNotify(ctx)) "Avisos de vencimento ligados" else "Avisos de vencimento desligados") {
-                SwitchRow("Avisar vencimentos", "Contas a pagar, valores a receber e faturas, por volta das 9h", dev.notifications && Reminders.canNotify(ctx)) { v ->
-                    if (v && Build.VERSION.SDK_INT >= 33 && !Reminders.canNotify(ctx)) notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    else prefs.update { it.copy(notifications = v) }
-                }
-                SwitchRow("Mostrar valores no widget", "Desligado, o widget mostra “R$ ••••”", dev.widgetValues) { v ->
-                    prefs.update { it.copy(widgetValues = v) }
-                    scope.launch { com.finanplus.widget.BalanceWidget.refresh(ctx) }
-                }
-            }
-        }
-
-        item {
-            Collapsible("Assistente", "${listOf(dev.assistCategory, dev.assistTips, dev.assistAsk).count { it }} de 3 funções ligadas") { AssistantSettings(s, dev) }
-        }
-
-        item {
-            Collapsible("Recorrências", if (s.recurring.isEmpty()) "Nenhuma recorrência cadastrada" else "${s.recurring.size} recorrência(s) cadastrada(s)") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { Pill("Nova", icon = com.finanplus.ui.components.Ico.ADD) { nav.open(Sheet.RecurringEdit()) } }
-                if (s.recurring.isEmpty()) Text("Você também pode marcar “Repetir mensalmente” ao criar um lançamento.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-                s.recurring.forEach { r ->
-                    val where = if (r.cardId.isNotEmpty()) "Cartão " + (s.card(r.cardId)?.name ?: "") else s.account(r.accountId)?.name ?: ""
-                    val v = if (s.privacy) "R$ ••••" else Money.format(r.value)
-                    ManageItem(r.desc, "${if (r.kind == Kind.INCOME) "Receita" else "Despesa"} · $v · dia ${r.day} · ${r.category} · $where${if (r.active) "" else " · pausada"}") {
-                        Pill("Editar") { nav.open(Sheet.RecurringEdit(r.id)) }
-                    }
-                }
-            }
-        }
-
-        item {
             val lan by com.finanplus.lan.Lan.ui.collectAsState()
             Collapsible("Acesso pela rede", if (lan.running) "Ligado · ${lan.devices} aparelho(s) conectado(s)" else "Lançar e exportar pelo navegador de outro aparelho") {
                 com.finanplus.lan.LanSettings(lan)
@@ -327,12 +333,27 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
             }
         }
 
+        item { SettingsGroupHeader("Aplicativo") }
+
         item {
             Collapsible("Sobre", "Conheça o Finan+ · versão ${BuildConfig.VERSION_NAME}") {
                 AboutText()
             }
         }
+
     }
+}
+
+/** Cabeçalho de grupo que facilita localizar preferências sem aumentar o número de telas. */
+@Composable
+private fun SettingsGroupHeader(title: String) {
+    Text(
+        title,
+        Modifier.fillMaxWidth().padding(start = 4.dp, top = 10.dp, bottom = 4.dp).semantics { heading() },
+        style = MaterialTheme.typography.titleSmall,
+        color = Fin.c.text,
+        fontWeight = FontWeight.Bold,
+    )
 }
 
 /** Linha compacta de Ajustes que abre e fecha com uma seta de navegação. */

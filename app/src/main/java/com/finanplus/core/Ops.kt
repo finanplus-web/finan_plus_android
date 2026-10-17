@@ -49,15 +49,15 @@ private fun transactionDates(old: Tx?, requested: LocalDate, paid: Boolean, card
 object Ops {
     // ---------------- lançamentos ----------------
     fun saveTx(s: AppState, editId: String?, d: TxDraft, today: LocalDate = LocalDate.now()): Outcome {
-        val desc = d.desc.trim().take(TX_DESC_MAX)
         val value = Money.parse(d.value)
         val card = d.kind == Kind.EXPENSE && d.cardId.isNotEmpty()
-        if (desc.isEmpty()) return err("Informe uma descrição.", "Campo obrigatório")
         if (value == null || value <= 0) return err("Informe um valor maior que zero. Ex.: 59,90", "Valor inválido")
         val date = d.date ?: return err("Informe uma data válida.", "Data inválida")
         if (card && s.card(d.cardId) == null) return err("Cadastre um cartão em Ajustes antes de lançar no cartão.", "Sem cartão")
         val accountId = if (s.account(d.accountId) != null) d.accountId else s.accounts[0].id
         val category = d.category.ifBlank { s.cats.of(d.kind)[0] }
+        // Descrição é opcional no formulário rápido; usar a categoria como rótulo preserva a legibilidade da lista.
+        val desc = d.desc.trim().take(TX_DESC_MAX).ifBlank { category }
         val cardId = if (card) d.cardId else ""
         val paid = card || d.paid
 

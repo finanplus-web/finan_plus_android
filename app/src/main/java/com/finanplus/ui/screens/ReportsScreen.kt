@@ -60,7 +60,7 @@ import com.finanplus.ui.theme.Fin
 import java.time.format.DateTimeFormatter
 
 /**
- * Análises: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
+ * Resumo: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
  * Resumo com comparação justa, despesas por categoria e evolução.
  */
 @Composable
@@ -81,7 +81,7 @@ fun ReportsScreen(s: AppState) {
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         item {
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Análises", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
+                Text("Resumo", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
                 // exportar o mesmo período em PDF (dá para trocar o período na própria folha)
                 Pill("PDF", icon = Ico.RECEIPT, modifier = Modifier.semantics { contentDescription = "Exportar relatório em PDF" }) {
                     nav.open(Sheet.ReportPdf(f.from, f.to))

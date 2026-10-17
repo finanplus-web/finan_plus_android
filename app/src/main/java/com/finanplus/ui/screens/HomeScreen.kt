@@ -78,9 +78,10 @@ fun HomeScreen(s: AppState) {
     val ym = today.ym()
     val flow = Finance.monthFlow(s, ym)
     val balance = Finance.currentBalance(s)
-    val future = Finance.futureBalance(s, ym.atEndOfMonth(), today)
+    val projectionEnd = ym.atEndOfMonth()
+    val future = Finance.futureBalance(s, projectionEnd, today)
     val pending = androidx.compose.runtime.remember(s, ym, today) { com.finanplus.core.Period.monthPending(s, ym, today) }
-    val nextDue = androidx.compose.runtime.remember(s, today) { Finance.nextDue(s, today) }
+    val nextDues = androidx.compose.runtime.remember(s, today) { Finance.upcomingDues(s, today) }
     // saldo no fim do mês anterior = saldo atual sem o que foi realizado nas contas a partir deste mês
     // (mesma regra de Finance.accountBalance); null quando ainda não há lançamentos antes deste mês
     val prevEnd: Long? = androidx.compose.runtime.remember(s, ym, balance) {
@@ -99,15 +100,20 @@ fun HomeScreen(s: AppState) {
                 Column(Modifier.weight(1f)) {
                     Text("Finan+", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
                     // data dinâmica (ex.: "Quinta, 8 de outubro"); muda sozinha com o dia
-                    Text(com.finanplus.core.MonthCalendar.dayTitle(today, today), style = MaterialTheme.typography.bodyMedium, color = p.muted)
+                    Text("Seu dinheiro, sem complicação.", style = MaterialTheme.typography.bodyMedium, color = p.muted)
+                    Text(com.finanplus.core.MonthCalendar.dayTitle(today, today), style = MaterialTheme.typography.labelSmall, color = p.muted)
                 }
-                if (s.privacy) Row(
-                    Modifier.clip(RoundedCornerShape(99.dp)).background(p.green.copy(alpha = 0.14f)).padding(horizontal = 11.dp, vertical = 7.dp),
+                Row(
+                    Modifier.clip(RoundedCornerShape(99.dp))
+                        .background(if (hide) p.successContainer else p.accent2)
+                        .clickable(role = Role.Button) { com.finanplus.data.Repo.update { it.copy(privacy = !it.privacy) } }
+                        .semantics { contentDescription = if (hide) "Mostrar valores financeiros" else "Ocultar valores financeiros" }
+                        .padding(horizontal = 11.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.SHIELD, p.green, size = 14.dp)
-                    Spacer(Modifier.width(4.dp))
-                    Text("Valores ocultos", color = p.green, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.SHIELD, if (hide) p.green else p.accent, size = 16.dp)
+                    Spacer(Modifier.width(5.dp))
+                    Text(if (hide) "Mostrar valores" else "Ocultar valores", color = if (hide) p.green else p.accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -137,8 +143,12 @@ fun HomeScreen(s: AppState) {
                 ) {
                     IconTile(Ico.FORECAST, p.accent, p.accent2)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("Saldo previsto no fim do mês", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Saldo previsto até ${projectionEnd.br()}", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         MoneyText(future, color = if (future < 0) p.red else p.accent, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold))
+                        Text(
+                            "Considera valores pendentes, faturas e recorrências até esta data.",
+                            style = MaterialTheme.typography.labelSmall, color = p.muted, maxLines = 2,
+                        )
                         // comparação com o fim do mês anterior; no primeiro mês não há com o que comparar
                         if (!hide) {
                             Spacer(Modifier.height(6.dp))
@@ -172,12 +182,9 @@ fun HomeScreen(s: AppState) {
                     val used = flow.expense * 100.0 / flow.income
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            if (hide) "Valores ocultos." else "Neste mês você usou ${"%.1f".format(BR, used)}% das receitas.",
+                            if (hide) "Valores ocultos." else "Despesas equivalem a ${"%.1f".format(BR, used)}% das receitas recebidas.",
                             Modifier.weight(1f), style = MaterialTheme.typography.bodySmall, color = p.muted, fontWeight = FontWeight.SemiBold,
                         )
-                        if (!hide) Box(Modifier.clip(RoundedCornerShape(99.dp)).background(p.accent.copy(alpha = 0.12f)).padding(horizontal = 9.dp, vertical = 5.dp)) {
-                            Text("${"%.0f".format(BR, maxOf(0.0, 100 - used))}% economizado", color = p.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
                     }
                 }
             }
@@ -191,11 +198,13 @@ fun HomeScreen(s: AppState) {
             }
         }
         item {
-            SectionHead(null, "Próximo pagamento")
-            NextPaymentCard(nextDue) {
-                val due = nextDue ?: return@NextPaymentCard
-                if (due.type == com.finanplus.core.ReminderType.INVOICE_DUE) nav.open(Sheet.PayInvoice(due.refId))
-                else s.txs.firstOrNull { it.id == due.refId }?.let { nav.open(Sheet.TxEdit(it.kind, it.id)) }
+            SectionHead(null, "Próximos vencimentos")
+            if (nextDues.isEmpty()) NextPaymentCard(null) {}
+            else nextDues.forEach { due ->
+                NextPaymentCard(due) {
+                    if (due.type == com.finanplus.core.ReminderType.INVOICE_DUE) nav.open(Sheet.PayInvoice(due.refId))
+                    else s.txs.firstOrNull { it.id == due.refId }?.let { nav.open(Sheet.TxEdit(it.kind, it.id)) }
+                }
             }
         }
         // assistente: as 2 frases mais úteis do mês e a dica mais importante (pode ser desligado em Ajustes)

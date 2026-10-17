@@ -8,6 +8,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onRoot
@@ -40,10 +41,11 @@ import kotlin.test.assertEquals
 class TabSwipeTest {
     @get:Rule val compose = createEmptyComposeRule()
 
-    /** texto que só existe na tela de cada aba */
-    private val marker = mapOf(
-        "Início" to "Saldo atual", "Lançamentos" to "Calendário",
-        "Relatórios" to "Exportar relatório em PDF", "Ajustes" to "Aparência",
+    /** algo que só existe na tela de cada aba (texto ou descrição para leitores de tela) */
+    private val marker: Map<String, SemanticsMatcher> = mapOf(
+        "Início" to hasText("Saldo atual"), "Lançamentos" to hasText("Calendário"),
+        "Meu dinheiro" to hasText("Contas, cartões e seus planos financeiros em um só lugar."),
+        "Resumo" to hasContentDescription("Exportar relatório em PDF"), "Ajustes" to hasText("Aparência"),
     )
 
     private fun selectedTab(): String = compose.onAllNodes(
@@ -54,7 +56,7 @@ class TabSwipeTest {
     private fun assertInSync() {
         compose.waitForIdle()
         val tab = selectedTab()
-        val shown = marker.filterValues { compose.onAllNodes(hasText(it)).fetchSemanticsNodes().isNotEmpty() }.keys
+        val shown = marker.filterValues { compose.onAllNodes(it).fetchSemanticsNodes().isNotEmpty() }.keys
         assertEquals(setOf(tab), shown, "barra marca \"$tab\", mas a tela mostra $shown")
     }
 
@@ -75,8 +77,8 @@ class TabSwipeTest {
         Repo.showForScreenshots(DemoData.state().copy(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {
             assertInSync()
-            rapid(true, true, true); assertInSync()          // Início → … → Ajustes
-            rapid(false, false, false); assertInSync()       // e de volta
+            rapid(true, true, true, true); assertInSync()    // Início → … → Ajustes
+            rapid(false, false, false, false); assertInSync() // e de volta
             rapid(true, false, true, true, false); assertInSync()
             rapid(true, true, true, true, true, true); assertInSync() // além da última aba
         }

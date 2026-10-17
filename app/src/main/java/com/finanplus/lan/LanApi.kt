@@ -237,7 +237,9 @@ class LanRoutes(
         val rev = revNumber?.takeIf { it >= 0 && it <= MAX_SAFE_INT && it == Math.floor(it) }?.toLong()
             ?: return HttpResponse.error(400, "Requisição inválida", "Versão ausente ou inválida.")
         val data = body["data"] as? Map<String, Any?> ?: return HttpResponse.error(400, "Requisição inválida", "Dados ausentes.")
-        val normalized = try { Backup.normalize(data) } catch (e: BackupException) {
+        // sem limite de quantidade aqui: os dados vêm do próprio celular e voltam editados; o crescimento
+        // além de AppState.Limits é barrado abaixo, como no app (quem já passou de um limite continua editando)
+        val normalized = try { Backup.normalize(data, enforceLimits = false) } catch (e: BackupException) {
             return HttpResponse.error(422, "Dados inválidos", "O formato não foi reconhecido pelo celular.")
         }
         if (normalized.dropped.total > 0) {
@@ -249,7 +251,8 @@ class LanRoutes(
         val err = backend.apply { s ->
             conflict = versions.of(s) != rev
             if (conflict) Outcome.Err("Conflito", "Os dados mudaram no celular.")
-            else { newRev = versions.assign(normalized.state); Outcome.Ok(normalized.state) }
+            else s.growthError(normalized.state)?.let { Outcome.Err("Limite atingido", "$it Exclua itens antigos antes de criar novos.") }
+                ?: run { newRev = versions.assign(normalized.state); Outcome.Ok(normalized.state) }
         }
         if (conflict) return HttpResponse.json(linkedMapOf("error" to true, "conflict" to true, "rev" to versions.of(backend.state()),
             "title" to "Alteração não salva", "message" to "Os dados foram alterados no celular ao mesmo tempo."), 409)

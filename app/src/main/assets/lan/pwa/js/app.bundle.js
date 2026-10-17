@@ -28,6 +28,7 @@
     DEFAULT_EXPENSE: () => DEFAULT_EXPENSE,
     DEFAULT_INCOME: () => DEFAULT_INCOME,
     Finance: () => Finance,
+    LIMITS: () => LIMITS,
     MAIN_ACCOUNT: () => MAIN_ACCOUNT,
     MAX_ABS_CENTS: () => MAX_ABS_CENTS,
     MONTHS: () => MONTHS,
@@ -45,11 +46,14 @@
     brMonthLabel: () => brMonthLabel,
     brMonthYear: () => brMonthYear,
     card: () => card,
+    centsFromDecimal: () => centsFromDecimal,
     clone: () => clone,
     dayNum: () => dayNum,
     dom: () => dom,
     fromDayNum: () => fromDayNum,
     fullDate: () => fullDate,
+    growthError: () => growthError,
+    hasSafeMoneyTotals: () => hasSafeMoneyTotals,
     isCard: () => isCard,
     isFlow: () => isFlow,
     isProjected: () => isProjected,
@@ -174,12 +178,13 @@
   var THEMES = [
     ["auto", "Sistema"],
     ["light", "Claro"],
-    ["materialBlue", "Material You"],
+    ["gruvbox", "Gruvbox"],
     ["oledGray", "OLED Cinza"],
+    ["gruvboxOled", "Gruvbox OLED"],
     ["tokyo", "Tokyo Night"],
     ["nord", "Nord"]
   ];
-  var themeOf = (s) => s === "dark" ? "oledGray" : THEMES.some((t) => t[0] === s) ? s : "auto";
+  var themeOf = (s) => s === "dark" ? "oledGray" : s === "materialBlue" ? "light" : THEMES.some((t) => t[0] === s) ? s : "auto";
   var themeLabel = (id) => (THEMES.find((t) => t[0] === id) || THEMES[0])[1];
   var seq = 0;
   function newId() {
@@ -201,7 +206,9 @@
       recurringId: o.recurringId ?? "",
       groupId: o.groupId ?? "",
       parcelN: o.parcelN ?? 0,
-      parcelTotal: o.parcelTotal ?? 0
+      parcelTotal: o.parcelTotal ?? 0,
+      /** data prevista preservada quando um lançamento pendente é realizado em outro dia (null = não há) */
+      scheduledDate: o.scheduledDate ?? null
     };
   }
   var isFlow = (t) => !t.cardPayment;
@@ -234,6 +241,27 @@
   var account = (s, id) => s.accounts.find((a) => a.id === id);
   var card = (s, id) => s.cards.find((c) => c.id === id);
   var sumOf = (l) => l.reduce((n, t) => n + t.value, 0);
+  var LIMITS = { txs: 5e4, accounts: 100, cards: 100, recurring: 1e3, goals: 1e3, categoriesPerKind: 500 };
+  function hasSafeMoneyTotals(s) {
+    let total = 0;
+    const add = (v) => {
+      const a = Math.abs(v);
+      if (!Number.isSafeInteger(v) || a > MAX_ABS_CENTS) return false;
+      total += a;
+      return total <= Number.MAX_SAFE_INTEGER;
+    };
+    return s.txs.every((t) => add(t.value)) && s.accounts.every((a) => add(a.initial)) && s.cards.every((c) => add(c.limit)) && s.goals.every((g) => add(g.target) && add(g.saved) && add(g.monthly)) && s.recurring.every((r) => add(r.value)) && [...s.limits.values()].every(add);
+  }
+  function growthError(s, next) {
+    const grew = (a, b, max) => b > max && b > a;
+    if (grew(s.txs.length, next.txs.length, LIMITS.txs)) return `Limite de ${LIMITS.txs.toLocaleString("pt-BR")} lançamentos atingido.`;
+    if (grew(s.accounts.length, next.accounts.length, LIMITS.accounts)) return `Limite de ${LIMITS.accounts} contas atingido.`;
+    if (grew(s.cards.length, next.cards.length, LIMITS.cards)) return `Limite de ${LIMITS.cards} cartões atingido.`;
+    if (grew(s.recurring.length, next.recurring.length, LIMITS.recurring)) return `Limite de ${LIMITS.recurring.toLocaleString("pt-BR")} recorrências atingido.`;
+    if (grew(s.goals.length, next.goals.length, LIMITS.goals)) return `Limite de ${LIMITS.goals.toLocaleString("pt-BR")} metas atingido.`;
+    if (["expense", "income"].some((k) => grew(s.cats[k].length, next.cats[k].length, LIMITS.categoriesPerKind))) return `Limite de ${LIMITS.categoriesPerKind} categorias atingido.`;
+    return null;
+  }
   var PROJECTED_PREFIX = "prev:";
   var isProjected = (t) => typeof t.id === "string" && t.id.startsWith(PROJECTED_PREFIX);
   var Projection = {
@@ -321,7 +349,8 @@
         return { ...r, last };
       });
       if (!add.length && !changed) return [s, 0];
-      return [{ ...s, txs: [...s.txs, ...add], recurring: recs }, add.length];
+      const next = { ...s, txs: [...s.txs, ...add], recurring: recs };
+      return hasSafeMoneyTotals(next) && !growthError(s, next) ? [next, add.length] : [s, 0];
     },
     /** divide [total] em [n] parcelas; a diferença de centavos fica na primeira */
     splitInstallments(total, n) {
@@ -386,13 +415,14 @@
         if (inv.open > 0 && inv.due <= limit && inv.closed) out.push({ type: "INVOICE_DUE", title: `Fatura ${c.name}`, amount: inv.open, date: inv.due, refId: c.id });
       return out.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
     },
-    nextDue(s, today2) {
+    /** Próximos compromissos da tela inicial: contas pendentes e faturas abertas, em ordem de vencimento. */
+    upcomingDues(s, today2, limit = 3) {
+      if (limit <= 0) return [];
       const bills = s.txs.filter((t) => !t.paid && !isCard(t) && t.kind === "expense").map((t) => ({ type: t.date < today2 ? "BILL_OVERDUE" : "BILL_DUE", title: t.desc, amount: t.value, date: t.date, refId: t.id }));
       const invs = s.cards.flatMap((c) => Finance.cardStatus(s, c, today2).invoices.filter((i) => i.open > 0).map((i) => ({ type: "INVOICE_DUE", title: `Fatura ${c.name}`, amount: i.open, date: i.due, refId: c.id })));
-      let best = null;
-      for (const r of [...bills, ...invs]) if (!best || r.date < best.date) best = r;
-      return best;
-    }
+      return [...bills, ...invs].map((r, i) => [r, i]).sort((a, b) => a[0].date < b[0].date ? -1 : a[0].date > b[0].date ? 1 : a[1] - b[1]).slice(0, limit).map((x) => x[0]);
+    },
+    nextDue: (s, today2) => Finance.upcomingDues(s, today2, 1)[0] ?? null
   };
   var Csv = {
     cell(v) {
@@ -416,7 +446,21 @@
     }
   };
   var err = (message, title = "Revise os dados") => ({ ok: false, title, message });
-  var ok = (state) => ({ ok: true, state });
+  var ok = (state) => hasSafeMoneyTotals(state) ? { ok: true, state } : err("O total dos valores excede o limite seguro. Reduza algum valor antes de salvar.", "Limite financeiro excedido");
+  var okGrow = (before, next) => {
+    const e = growthError(before, next);
+    return e ? err(`${e} Exclua itens antigos antes de criar novos.`, "Limite atingido") : ok(next);
+  };
+  function transactionDates(old, requested, paid, isC, today2) {
+    if (isC) return [requested, null];
+    if (!paid) return [old?.paid ? old.scheduledDate ?? requested : requested, null];
+    if (old) {
+      if (!old.paid) return [today2, old.date !== today2 ? old.date : null];
+      return [requested, old.scheduledDate ?? null];
+    }
+    if (requested > today2) return [today2, requested];
+    return [requested, null];
+  }
   var blank = (s) => !s || !String(s).trim();
   var clean = (s, max) => [...String(s ?? "").trim()].slice(0, max).join("");
   var sameName = (a, b) => a.toLowerCase() === b.toLowerCase();
@@ -428,46 +472,58 @@
   var withCats = (s, k, list) => ({ ...s, cats: { ...s.cats, [k]: list } });
   var Ops = {
     /** d: {kind, desc, value, category, date, paid, accountId, cardId, reps, repsMode:'TOTAL'|'EACH', recurring} */
-    saveTx(s, editId, d) {
-      const desc = clean(d.desc, 200), value = Money.parse(d.value);
+    /** Novos lançamentos só vêm como realizados por padrão quando a data é hoje. */
+    defaultPaid: (date, today2) => date === today2,
+    saveTx(s, editId, d, today2 = todayStr()) {
+      const value = Money.parse(d.value);
       const isC = d.kind === "expense" && !!d.cardId;
-      if (!desc) return err("Informe uma descrição.", "Campo obrigatório");
       if (value == null || value <= 0) return err("Informe um valor maior que zero. Ex.: 59,90", "Valor inválido");
       if (!validDate(d.date)) return err("Informe uma data válida.", "Data inválida");
-      if (isC && !card(s, d.cardId)) return err("Cadastre um cartão em Ajustes antes de lançar no cartão.", "Sem cartão");
+      if (isC && !card(s, d.cardId)) return err("Cadastre um cartão em Meu dinheiro antes de lançar no cartão.", "Sem cartão");
       const accountId = account(s, d.accountId) ? d.accountId : s.accounts[0].id;
       const category = blank(d.category) ? catsOf(s, d.kind)[0] : d.category;
+      const desc = clean(d.desc, 200) || category;
       const cardId = isC ? d.cardId : "";
       const paid = isC || !!d.paid;
       if (editId != null) {
         const t = s.txs.find((x) => x.id === editId);
         if (!t) return err("Lançamento não encontrado.");
-        const upd = t.cardPayment ? { ...t, desc, value, category, date: d.date, accountId, paid: true } : { ...t, kind: d.kind, desc, value, category, date: d.date, paid, accountId, cardId };
+        let upd;
+        if (t.cardPayment) upd = { ...t, desc, value, category, date: d.date, accountId, paid: true };
+        else {
+          const [date, scheduledDate2] = transactionDates(t, d.date, paid, isC, today2);
+          upd = { ...t, kind: d.kind, desc, value, category, date, paid, accountId, cardId, scheduledDate: scheduledDate2 };
+        }
         return ok({ ...s, txs: s.txs.map((x) => x.id === editId ? upd : x) });
       }
       const n = Math.min(60, Math.max(1, d.reps || 1));
       if (n > 1 && d.recurring) return err("Escolha parcelas ou repetição mensal, não os dois.", "Revise o lançamento");
-      const base2 = tx({ id: newId(), kind: d.kind, value, date: d.date, desc, category, paid, accountId, cardId });
+      const [entryDate, scheduledDate] = transactionDates(null, d.date, paid, isC, today2);
+      const base2 = tx({ id: newId(), kind: d.kind, value, date: entryDate, desc, category, paid, accountId, cardId, scheduledDate });
       let added;
       if (n > 1) {
         const values = d.repsMode === "EACH" ? Array(n).fill(value) : Finance.splitInstallments(value, n);
         if (values.some((v) => v <= 0)) return err("O valor é pequeno demais para tantas parcelas.", "Valor inválido");
         const group = newId();
-        added = values.map((v, i) => ({
-          ...base2,
-          id: newId(),
-          value: v,
-          date: plusMonths(d.date, i),
-          paid: isC || i === 0 && !!d.paid,
-          desc: `${desc} (${i + 1}/${n})`,
-          groupId: group,
-          parcelN: i + 1,
-          parcelTotal: n
-        }));
+        added = values.map((v, i) => {
+          const instPaid = isC || i === 0 && !!d.paid;
+          return {
+            ...base2,
+            id: newId(),
+            value: v,
+            date: i === 0 ? entryDate : plusMonths(d.date, i),
+            paid: instPaid,
+            scheduledDate: i === 0 && instPaid ? scheduledDate : null,
+            desc: `${[...desc].slice(0, 200 - ` (${i + 1}/${n})`.length).join("").trimEnd()} (${i + 1}/${n})`,
+            groupId: group,
+            parcelN: i + 1,
+            parcelTotal: n
+          };
+        });
       } else added = [base2];
       let rec = s.recurring;
       if (d.recurring) rec = [...rec, { id: newId(), kind: d.kind, desc, value, category, accountId, cardId, day: dom(d.date), active: true, start: d.date, last: ymOf(d.date) }];
-      return ok({ ...s, txs: [...s.txs, ...added], recurring: rec });
+      return okGrow(s, { ...s, txs: [...s.txs, ...added], recurring: rec });
     },
     laterParcels(s, id) {
       const t = s.txs.find((x) => x.id === id);
@@ -481,7 +537,12 @@
     /** Compra no cartão e pagamento de fatura não alternam pago/pendente: desmarcar um pagamento de fatura reabria
      *  a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes (igual ao app Android 1.1.1). */
     canTogglePaid: (t) => !isCard(t) && isFlow(t) && !isProjected(t),
-    togglePaid: (s, id) => ({ ...s, txs: s.txs.map((x) => x.id === id && Ops.canTogglePaid(x) ? { ...x, paid: !x.paid } : x) }),
+    /** Ao confirmar, a data vira a de hoje e a original fica como prevista; ao voltar a pendente, a prevista é restaurada. */
+    togglePaid: (s, id, today2 = todayStr()) => ({ ...s, txs: s.txs.map((x) => {
+      if (x.id !== id || !Ops.canTogglePaid(x)) return x;
+      if (x.paid) return { ...x, paid: false, date: x.scheduledDate ?? x.date, scheduledDate: null };
+      return { ...x, paid: true, scheduledDate: x.date !== today2 ? x.date : null, date: today2 };
+    }) }),
     saveGoal(s, id, name, target, move, deadline, monthly) {
       const n = clean(name, 60), t = Money.parse(target), m2 = blank(monthly) ? 0 : Money.parse(monthly);
       if (!n) return err("Informe o nome da meta.");
@@ -490,15 +551,17 @@
       const mv = blank(move) ? 0 : Money.parse(move);
       if (mv == null) return err("Valor a guardar inválido.");
       if (deadline && !validDate(deadline)) return err("Informe um prazo válido ou deixe em branco.");
-      if (id == null) return ok({ ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m2 }] });
-      return ok({ ...s, goals: s.goals.map((g) => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m2, saved: Math.max(0, g.saved + mv) } : g) });
+      if (id == null) return okGrow(s, { ...s, goals: [...s.goals, { id: newId(), name: n, target: t, saved: 0, deadline: deadline || null, monthly: m2 }] });
+      const saved = Math.max(0, (s.goals.find((g) => g.id === id)?.saved ?? 0) + mv);
+      if (saved > MAX_ABS_CENTS) return err("O valor guardado excede o limite seguro.", "Limite financeiro excedido");
+      return ok({ ...s, goals: s.goals.map((g) => g.id === id ? { ...g, name: n, target: t, deadline: deadline || null, monthly: m2, saved } : g) });
     },
     deleteGoal: (s, id) => ({ ...s, goals: s.goals.filter((g) => g.id !== id) }),
     saveAccount(s, id, name, initial) {
       const n = clean(name, 40), ini = blank(initial) ? 0 : Money.parse(initial);
       if (!n) return err("Informe o nome da conta.");
       if (ini == null) return err("Saldo inicial inválido. Ex.: 1.250,00 ou -300");
-      if (id == null) return ok({ ...s, accounts: [...s.accounts, { id: newId(), name: n, initial: ini }] });
+      if (id == null) return okGrow(s, { ...s, accounts: [...s.accounts, { id: newId(), name: n, initial: ini }] });
       return ok({ ...s, accounts: s.accounts.map((a) => a.id === id ? { ...a, name: n, initial: ini } : a) });
     },
     deleteAccount(s, id) {
@@ -518,7 +581,7 @@
       if (!n) return err("Informe o nome do cartão.");
       if (lim == null || lim < 0) return err("Limite inválido.");
       if (c == null || d == null || c < 1 || c > 31 || d < 1 || d > 31) return err("Os dias de fechamento e vencimento devem estar entre 1 e 31.");
-      if (id == null) return ok({ ...s, cards: [...s.cards, { id: newId(), name: n, limit: lim, close: c, due: d }] });
+      if (id == null) return okGrow(s, { ...s, cards: [...s.cards, { id: newId(), name: n, limit: lim, close: c, due: d }] });
       return ok({ ...s, cards: s.cards.map((x) => x.id === id ? { ...x, name: n, limit: lim, close: c, due: d } : x) });
     },
     deleteCard(s, id) {
@@ -533,7 +596,7 @@
       if (v == null || v <= 0) return err("Informe um valor maior que zero.");
       if (!validDate(date)) return err("Informe uma data válida.");
       const acc = account(s, accountId) ? accountId : s.accounts[0].id;
-      return ok({ ...s, txs: [...s.txs, tx({ id: newId(), kind: "expense", value: v, date, desc: `Pagamento fatura ${c.name}`, category: CARD_PAYMENT_CAT, paid: true, accountId: acc, cardPayment: c.id })] });
+      return okGrow(s, { ...s, txs: [...s.txs, tx({ id: newId(), kind: "expense", value: v, date, desc: `Pagamento fatura ${c.name}`, category: CARD_PAYMENT_CAT, paid: true, accountId: acc, cardPayment: c.id })] });
     },
     saveRecurring(s, id, kind, desc, value, day, category, accountId, cardId, active, start, today2) {
       const ds = clean(desc, 120), v = Money.parse(value), dd = intOf(day);
@@ -559,7 +622,7 @@
         active,
         last: !r.active && active ? Ops.resumedLast(r.last, today2) : r.last
       } : r) };
-      return ok(Finance.generateRecurring(next, today2)[0]);
+      return okGrow(s, Finance.generateRecurring(next, today2)[0]);
     },
     /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
      *  (Antes, reativar em outubro uma recorrência pausada em março criava 7 lançamentos pendentes de uma vez.) */
@@ -586,7 +649,7 @@
       const n = clean(name, 40);
       if (!n) return err("Digite o nome da categoria.", "Nome vazio");
       if (catsOf(s, kind).some((c) => sameName(c, n))) return err("Essa categoria já existe.", "Categoria duplicada");
-      return ok(withCats(s, kind, [...catsOf(s, kind), n]));
+      return okGrow(s, withCats(s, kind, [...catsOf(s, kind), n]));
     },
     renameCategory(s, kind, old, name) {
       const n = clean(name, 40);
@@ -644,10 +707,32 @@
     return null;
   }
   var MAX_ABS_CENTS = 999999999999999;
+  function centsFromDecimal(text) {
+    const m2 = /^([+-]?)(\d*)(?:\.(\d*))?(?:[eE]([+-]?\d+))?$/.exec(String(text).trim());
+    if (!m2 || !m2[2] && !m2[3]) return null;
+    const exp = m2[4] ? parseInt(m2[4], 10) : 0;
+    if (Math.abs(exp) > 400) return null;
+    let digits = (m2[2] || "") + (m2[3] || "");
+    let point = (m2[2] || "").length + exp + 2;
+    digits = digits.replace(/^0+(?=\d)/, (s) => {
+      point -= s.length;
+      return "";
+    });
+    if (point <= 0) {
+      digits = "0".repeat(1 - point) + digits;
+      point = 1;
+    }
+    const intPart = digits.slice(0, point).padEnd(point, "0"), next = digits[point] ?? "0";
+    if (intPart.replace(/^0+/, "").length > 16) return null;
+    let c = parseInt(intPart || "0", 10) + (next >= "5" ? 1 : 0);
+    if (!Number.isSafeInteger(c) || c > MAX_ABS_CENTS) return null;
+    return m2[1] === "-" && c !== 0 ? -c : c;
+  }
   var cents = (v) => {
     if (typeof v === "boolean") return 0;
-    const n = num(v);
-    return n == null || Math.abs(n) > MAX_ABS_CENTS / 100 ? 0 : Money.fromReais(n);
+    if (typeof v === "number") return Number.isFinite(v) ? centsFromDecimal(String(v)) ?? 0 : 0;
+    if (typeof v === "string") return NUM_RE.test(v.trim()) ? centsFromDecimal(v) ?? 0 : 0;
+    return 0;
   };
   var intIn = (v, a, b, def) => {
     const n = num(v);
@@ -661,9 +746,18 @@
   };
   var parseDate = (v) => validDate(v) ? v : null;
   var parseYm = (v) => typeof v === "string" && YM_RE.test(v) ? ymOf(v + "-01") : null;
-  function normalize(raw) {
+  function normalize(raw, { enforceLimits = true } = {}) {
     if (!isObj(raw)) throw new BackupError("Formato inválido");
     if (!Array.isArray(raw.txs)) throw new BackupError("Backup sem lista de lançamentos");
+    const tooMany = (list, max, what) => {
+      if (enforceLimits && Array.isArray(list) && list.length > max) throw new BackupError(`Muitos ${what} no backup`);
+    };
+    tooMany(raw.txs, LIMITS.txs, "lançamentos");
+    tooMany(raw.accounts, LIMITS.accounts, "contas");
+    tooMany(raw.cards, LIMITS.cards, "cartões");
+    tooMany(raw.recurring, LIMITS.recurring, "recorrências");
+    tooMany(raw.goals, LIMITS.goals, "metas");
+    if (isObj(raw.cats)) for (const k of ["income", "expense"]) tooMany(raw.cats[k], LIMITS.categoriesPerKind, "categorias");
     const d = { txs: 0, goals: 0, accounts: 0, cards: 0, recurring: 0 };
     const used = /* @__PURE__ */ new Set();
     const idFor = (v) => {
@@ -750,6 +844,8 @@
       const p = isObj(o.parcel) ? o.parcel : null;
       const pTotal = p ? intIn(p.total, 1, 120, 0) : 0, pN = p ? intIn(p.n, 1, 120, 0) : 0;
       const okP = pTotal > 0 && pN >= 1 && pN <= pTotal;
+      const paid = cardId ? true : o.paid !== false;
+      const scheduledDate = paid && !cardId && !cardPayment ? parseDate(o.scheduledDate) : null;
       txs.push(tx({
         id: idFor(o.id),
         kind,
@@ -757,14 +853,15 @@
         date,
         desc: str(o.desc, 200) || "Sem descrição",
         category: str(o.category, 40) || (cardPayment ? CARD_PAYMENT_CAT : "Outros"),
-        paid: cardId ? true : o.paid !== false,
+        paid,
         accountId: accOf(o.accountId),
         cardId,
         cardPayment,
         recurringId: safeId(o.recurringId),
         groupId: safeId(o.groupId),
         parcelN: okP ? pN : 0,
-        parcelTotal: okP ? pTotal : 0
+        parcelTotal: okP ? pTotal : 0,
+        scheduledDate
       }));
     }
     const goals = [];
@@ -783,9 +880,10 @@
     }
     const al = num(raw.autoLock), autoLock = al != null && AUTOLOCK_OPTIONS.includes(Math.round(al)) ? Math.round(al) : 0;
     const state = { txs, goals, accounts, cards, recurring, cats, limits, privacy: raw.privacy === true, autoLock, theme: themeOf(raw.theme) };
+    if (!hasSafeMoneyTotals(state)) throw new BackupError("O total dos valores excede o limite seguro");
     return { state, dropped: d, droppedTotal: d.txs + d.goals + d.accounts + d.cards + d.recurring };
   }
-  function parseBackup(text) {
+  function parseBackup(text, opts) {
     if (typeof text !== "string") throw new BackupError("Arquivo vazio");
     if (text.length > BACKUP_MAX_BYTES) throw new BackupError("Arquivo grande demais");
     if (text.charCodeAt(0) === 65279) text = text.slice(1);
@@ -809,7 +907,7 @@
     } catch (e) {
       throw new BackupError("JSON inválido: " + e.message);
     }
-    return normalize(raw);
+    return normalize(raw, opts);
   }
   function toJson(s, meta) {
     const R = (c) => `\0R${Money.reaisJson(c)}\0`;
@@ -820,6 +918,7 @@
         if (t.recurringId) x.recurringId = t.recurringId;
         if (t.groupId) x.groupId = t.groupId;
         if (t.parcelTotal > 0) x.parcel = { n: t.parcelN, total: t.parcelTotal };
+        if (t.scheduledDate) x.scheduledDate = t.scheduledDate;
         return x;
       }),
       goals: s.goals.map((g) => ({ id: g.id, name: g.name, target: R(g.target), saved: R(g.saved), deadline: g.deadline || "", monthly: R(g.monthly) })),
@@ -933,15 +1032,15 @@
     /** valor curto para o quadradinho do dia (sem "R$"), arredondado ao mais próximo: 182 · 1,5 mil · 15 mil · 1,2 mi */
     compact(c) {
       const reais = Math.floor((Math.abs(c) + 50) / 100), sign = c < 0 ? "−" : "";
-      const short = (unit, suffix) => {
+      const short2 = (unit, suffix) => {
         const tenths = Math.floor((reais * 10 + unit / 2) / unit);
         if (tenths >= 100) return `${Math.floor((reais + unit / 2) / unit)} ${suffix}`;
         return tenths % 10 === 0 ? `${tenths / 10} ${suffix}` : `${Math.floor(tenths / 10)},${tenths % 10} ${suffix}`;
       };
       if (reais < 1e3) return sign + reais;
-      if (Math.floor((reais + 500) / 1e3) < 1e3) return sign + short(1e3, "mil");
-      if (Math.floor((reais + 5e5) / 1e6) < 1e3) return sign + short(1e6, "mi");
-      return sign + short(1e9, "bi");
+      if (Math.floor((reais + 500) / 1e3) < 1e3) return sign + short2(1e3, "mil");
+      if (Math.floor((reais + 5e5) / 1e6) < 1e3) return sign + short2(1e6, "mi");
+      return sign + short2(1e9, "bi");
     },
     /** "+5,2 mil", "−120"; zero fica "0" */
     signed: (c) => c > 0 ? "+" + MonthCalendar.compact(c) : c < 0 ? MonthCalendar.compact(c) : "0",
@@ -2577,6 +2676,7 @@ Public License instead of this License.  But first, please read
     verifyPin: () => verifyPin,
     wipeDevice: () => wipeDevice
   });
+  var OWN = { enforceLimits: false };
   var DB_NAME = "finan-plus";
   var DB_VERSION = 1;
   var LS_PLAIN = "finanplus_plain";
@@ -2584,6 +2684,7 @@ Public License instead of this License.  But first, please read
   var LEGACY = ["mf_v2", "mf_txs"];
   var enc = new TextEncoder();
   var dec = new TextDecoder();
+  var BILLPW_AD = "finan-plus/billpw/v1";
   function b64e(u) {
     let s = "";
     for (let i = 0; i < u.length; i += 32768) s += String.fromCharCode.apply(null, u.subarray(i, i + 32768));
@@ -2638,7 +2739,7 @@ Public License instead of this License.  But first, please read
   var ConflictError = class extends Error {
   };
   var newRev = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (b) => b.toString(16).padStart(2, "0")).join("");
-  var _Store_instances, problem_fn, ensureKey_fn, verify_fn, cleanupPlain_fn;
+  var _Store_instances, problem_fn, ensureKey_fn, verify_fn, cleanupPlain_fn, billMap_fn;
   var Store = class {
     constructor() {
       __privateAdd(this, _Store_instances);
@@ -2693,13 +2794,13 @@ Public License instead of this License.  But first, please read
             this.key = key;
             this.savedAt = box.savedAt || 0;
             this.rev = cur?.rev;
-            const n = normalize(JSON.parse(text));
+            const n = normalize(JSON.parse(text), OWN);
             return { status: "ok", state: n.state, dropped: n.droppedTotal };
           }
           this.key = key || await __privateMethod(this, _Store_instances, ensureKey_fn).call(this);
           const plain2 = readPlain() ?? legacy;
           if (plain2) {
-            const n = normalize(plain2.raw);
+            const n = normalize(plain2.raw, OWN);
             await this.save(n.state);
             await __privateMethod(this, _Store_instances, verify_fn).call(this);
             __privateMethod(this, _Store_instances, cleanupPlain_fn).call(this, true);
@@ -2713,7 +2814,7 @@ Public License instead of this License.  But first, please read
       this.mode = ls() ? "plain" : "none";
       const plain = readPlain() ?? legacy;
       if (plain) {
-        const n = normalize(plain.raw);
+        const n = normalize(plain.raw, OWN);
         return { status: "ok", state: n.state, dropped: n.droppedTotal, migrated: plain.from === LS_PLAIN ? null : plain.from, legacyPin: plain.pin };
       }
       return { status: "new", state: newState() };
@@ -2722,7 +2823,7 @@ Public License instead of this License.  But first, please read
     async reload() {
       if (this.mode !== "idb") {
         const p = readPlain();
-        return p ? normalize(p.raw).state : newState();
+        return p ? normalize(p.raw, OWN).state : newState();
       }
       const key = await idbGet(this.db, "key"), box = await idbGet(this.db, "data");
       if (!box) {
@@ -2731,7 +2832,7 @@ Public License instead of this License.  But first, please read
         return newState();
       }
       const text = await decrypt(key, box);
-      const n = normalize(JSON.parse(text));
+      const n = normalize(JSON.parse(text), OWN);
       this.key = key;
       this.rev = box.rev;
       this.savedAt = box.savedAt || 0;
@@ -2799,6 +2900,7 @@ Public License instead of this License.  But first, please read
         s.put({ data: box || null, previous: prev || null, key: oldKey || null, at: Date.now() }, "unreadable-" + Date.now());
         s.delete("data");
         s.delete("previous");
+        s.delete("billpw");
         s.put(key, "key");
       });
       this.key = key;
@@ -2829,6 +2931,35 @@ Public License instead of this License.  But first, please read
         this.key = key;
         this.rev = void 0;
       }
+    }
+    // ---------------------------------------------------------------- senhas de fatura (FATURAS.md)
+    // Senhas de PDF de fatura que a pessoa pediu para lembrar, uma por cartão. Só com criptografia
+    // (IndexedDB + WebCrypto): ficam cifradas com a mesma chave não extraível dos dados, num registro
+    // à parte ("billpw"), e nunca vão para o backup. "Apagar tudo" as apaga junto (wipe limpa o banco).
+    get canRememberBillPasswords() {
+      return this.mode === "idb" && !!this.key && !!this.db;
+    }
+    async billPassword(cardId) {
+      const m2 = await __privateMethod(this, _Store_instances, billMap_fn).call(this);
+      return typeof m2[cardId] === "string" ? m2[cardId] : null;
+    }
+    async hasBillPassword(cardId) {
+      return await this.billPassword(cardId) != null;
+    }
+    /** [password] vazio ou null esquece a senha do cartão */
+    async setBillPassword(cardId, password) {
+      if (!this.canRememberBillPasswords) return false;
+      const m2 = await __privateMethod(this, _Store_instances, billMap_fn).call(this);
+      if (password) m2[cardId] = String(password);
+      else delete m2[cardId];
+      if (!Object.keys(m2).length) {
+        await idbTx(this.db, (st2) => st2.delete("billpw"));
+        return true;
+      }
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: enc.encode(BILLPW_AD) }, this.key, enc.encode(JSON.stringify(m2))));
+      await idbTx(this.db, (st2) => st2.put({ v: 1, iv, ct }, "billpw"));
+      return true;
     }
     /** pede ao navegador para não apagar os dados quando faltar espaço */
     static async persist() {
@@ -2864,7 +2995,7 @@ Public License instead of this License.  But first, please read
   verify_fn = async function() {
     const box = await idbGet(this.db, "data");
     const text = await decrypt(this.key, box);
-    normalize(JSON.parse(text));
+    normalize(JSON.parse(text), OWN);
   };
   cleanupPlain_fn = function(all = false) {
     const l = ls();
@@ -2873,6 +3004,18 @@ Public License instead of this License.  But first, please read
       l.removeItem(LS_PLAIN);
       if (all) for (const k of LEGACY) l.removeItem(k);
     } catch {
+    }
+  };
+  billMap_fn = async function() {
+    if (!this.canRememberBillPasswords) return {};
+    const box = await idbGet(this.db, "billpw");
+    if (!box) return {};
+    try {
+      const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: box.iv, additionalData: enc.encode(BILLPW_AD) }, this.key, box.ct);
+      const m2 = JSON.parse(dec.decode(pt));
+      return m2 && typeof m2 === "object" ? m2 : {};
+    } catch {
+      return {};
     }
   };
   function readPlain() {
@@ -3062,7 +3205,10 @@ Public License instead of this License.  But first, please read
     "visibility": ["0 -960 960 960", "M480.09-336.92q67.99 0 115.49-47.59t47.5-115.58q0-67.99-47.59-115.49t-115.58-47.5q-67.99 0-115.49 47.59t-47.5 115.58q0 67.99 47.59 115.49t115.58 47.5ZM480-392q-45 0-76.5-31.5T372-500q0-45 31.5-76.5T480-608q45 0 76.5 31.5T588-500q0 45-31.5 76.5T480-392Zm0 172q-126.31 0-231.04-67.39-104.73-67.38-167.19-177.3-5-8.62-7.31-17.37-2.3-8.75-2.3-17.96t2.3-17.94q2.31-8.73 7.31-17.35 62.46-109.92 167.19-177.3Q353.69-780 480-780q126.31 0 231.04 67.39 104.73 67.38 167.19 177.3 5 8.62 7.31 17.37 2.3 8.75 2.3 17.96t-2.3 17.94q-2.31 8.73-7.31 17.35-62.46 109.92-167.19 177.3Q606.31-220 480-220Zm0-280Zm0 220q113 0 207.5-59.5T832-500q-50-101-144.5-160.5T480-720q-113 0-207.5 59.5T128-500q50 101 144.5 160.5T480-280Z"],
     "visibility-off": ["0 -960 960 960", "M595.08-615.08q24.38 24.39 37.69 59.27 13.31 34.89 10.07 70.04 0 11.54-8.3 19.54-8.31 8-19.85 8-11.54 0-19.54-8t-8-19.54q3.85-26.38-4.34-50-8.19-23.61-25.19-40.61t-41-25.81q-24-8.81-50.62-4.58-11.54.39-19.92-7.73-8.39-8.11-8.77-19.65-.39-11.54 7.42-19.93 7.81-8.38 19.35-8.76 34.92-4 70.19 9.11 35.27 13.12 60.81 38.65ZM480-720q-21.31 0-41.81 2.08-20.5 2.07-40.81 6.84-12.77 2.62-23-3.65t-14.07-18.04q-3.85-12.15 2.54-23.11 6.38-10.96 18.53-13.58 24.16-5.77 48.81-8.15Q454.85-780 480-780q128.92 0 236.85 67 107.92 67 165.99 181.31 4 7.61 5.81 15.34 1.81 7.73 1.81 16.35 0 8.62-1.5 16.35-1.5 7.73-5.5 15.34-18.38 38.46-44.69 71.73t-57.93 61.12q-9.3 8.31-21.26 6.88-11.97-1.42-19.66-11.96-7.69-10.54-6.38-22.61 1.31-12.08 10.61-20.39 27.08-24.54 49.39-53.65Q815.85-466.31 832-500q-50-101-144.5-160.5T480-720Zm0 500q-126.31 0-231.54-67.5Q143.23-355 81.16-465.31q-5-7.61-7.31-16.54-2.31-8.92-2.31-18.15 0-9.23 2-17.85 2-8.61 7-16.84 22.31-40.77 50.54-77.66 28.23-36.88 64.92-66.11l-90.31-90.93q-8.3-8.92-8.19-21.19.12-12.27 8.81-20.96 8.69-8.69 21.08-8.69 12.38 0 21.07 8.69l663.08 663.08q8.31 8.31 8.81 20.57.5 12.27-8.81 21.58-8.69 8.69-21.08 8.69-12.38 0-21.07-8.69L628.62-245.85q-35.39 13.69-72.74 19.77Q518.54-220 480-220ZM238.16-636.31q-35.16 27.16-63.2 61.42Q146.92-540.62 128-500q50 101 144.5 160.5T480-280q25.77 0 50.73-3.46 24.96-3.46 49.58-10.69L529.69-346q-12.15 5.31-24.27 7.19-12.11 1.89-25.42 1.89-68.08 0-115.58-47.5T316.92-500q0-13.31 2.08-25.42 2.08-12.12 7-24.27l-87.84-86.62ZM541-531Zm-131.77 65.77Z"],
     "warning": ["0 -960 960 960", "M137.02-140q-10.17 0-18.27-4.97t-12.59-13.11q-4.68-8.08-5.15-17.5-.47-9.42 5.08-18.66l342.43-591.52q5.56-9.24 13.9-13.66 8.35-4.42 17.58-4.42 9.23 0 17.58 4.42 8.34 4.42 13.9 13.66l342.43 591.52q5.55 9.24 5.08 18.66-.47 9.42-5.15 17.5-4.49 8.14-12.59 13.11-8.1 4.97-18.27 4.97H137.02ZM178-200h604L480-720 178-200Zm302-47.69q13.73 0 23.02-9.29t9.29-23.02q0-13.73-9.29-23.02T480-312.31q-13.73 0-23.02 9.29T447.69-280q0 13.73 9.29 23.02t23.02 9.29Zm.01-104.62q12.76 0 21.37-8.62 8.62-8.63 8.62-21.38v-140q0-12.75-8.63-21.37-8.63-8.63-21.38-8.63-12.76 0-21.37 8.63-8.62 8.62-8.62 21.37v140q0 12.75 8.63 21.38 8.63 8.62 21.38 8.62ZM480-460Z"],
-    "work": ["0 -960 960 960", "M172.31-140Q142-140 121-161q-21-21-21-51.31v-415.38Q100-658 121-679q21-21 51.31-21H340v-67.69Q340-798 361-819q21-21 51.31-21h135.38Q578-840 599-819q21 21 21 51.31V-700h167.69Q818-700 839-679q21 21 21 51.31v415.38Q860-182 839-161q-21 21-51.31 21H172.31Zm0-60h615.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-415.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H172.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v415.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85ZM400-700h160v-67.69q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H412.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46V-700ZM160-200v-440 440Z"]
+    "work": ["0 -960 960 960", "M172.31-140Q142-140 121-161q-21-21-21-51.31v-415.38Q100-658 121-679q21-21 51.31-21H340v-67.69Q340-798 361-819q21-21 51.31-21h135.38Q578-840 599-819q21 21 21 51.31V-700h167.69Q818-700 839-679q21 21 21 51.31v415.38Q860-182 839-161q-21 21-51.31 21H172.31Zm0-60h615.38q4.62 0 8.46-3.85 3.85-3.84 3.85-8.46v-415.38q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H172.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46v415.38q0 4.62 3.85 8.46 3.84 3.85 8.46 3.85ZM400-700h160v-67.69q0-4.62-3.85-8.46-3.84-3.85-8.46-3.85H412.31q-4.62 0-8.46 3.85-3.85 3.84-3.85 8.46V-700ZM160-200v-440 440Z"],
+    "south-west": ["0 -960 960 960", "M246.15-210q-15.36 0-25.76-10.39Q210-230.79 210-246.15V-560q0-12.75 8.63-21.37 8.63-8.63 21.38-8.63 12.76 0 21.37 8.63Q270-572.75 270-560v247.85l452.92-452.93q8.7-8.69 21.08-8.69 12.38 0 21.08 8.69 8.69 8.7 8.69 21.08 0 12.38-8.69 21.08L312.15-270H560q12.75 0 21.37 8.63 8.63 8.63 8.63 21.38 0 12.76-8.63 21.37Q572.75-210 560-210H246.15Z"],
+    "north-east": ["0 -960 960 960", "M680-637.85 243.23-201.08q-8.31 8.31-20.88 8.5-12.58.19-21.27-8.5t-8.69-21.07q0-12.39 8.69-21.08L637.85-680H390q-12.75 0-21.38-8.63-8.62-8.63-8.62-21.38 0-12.76 8.62-21.37Q377.25-740 390-740h313.84q15.37 0 25.76 10.4 10.4 10.39 10.4 25.76V-390q0 12.75-8.63 21.38-8.63 8.62-21.38 8.62-12.76 0-21.37-8.62Q680-377.25 680-390v-247.85Z"],
+    "track-changes": ["0 -960 960 960", "M480.07-100q-78.84 0-148.21-29.92t-120.68-81.21q-51.31-51.29-81.25-120.63Q100-401.1 100-479.93q0-78.84 29.93-148.21 29.92-69.37 81.22-120.68t120.65-81.25Q401.15-860 480-860q12.75 0 21.37 8.63Q510-842.75 510-830v298.31q14.15 8.69 22.08 21.68 7.92 12.99 7.92 30.06 0 24.49-17.73 42.22T480-420q-24.54 0-42.27-17.73Q420-455.46 420-479.91q0-17.04 7.92-30.37 7.93-13.33 22.08-21.41v-104.85q-55.85 10.54-92.92 54.19Q320-538.69 320-480q0 66 47 113t113 47q66 0 113-47t47-113q0-28.31-9.23-52.62-9.23-24.3-24.92-45.07-7.7-10.54-7.27-22.93.42-12.38 9.03-20.99 9.39-9.39 21.66-9.2 12.27.2 20.34 10.73Q673-591 686.5-555.73 700-520.46 700-480q0 91.67-64.14 155.83Q571.72-260 480.09-260q-91.63 0-155.86-64.17Q260-388.33 260-480q0-84.23 54.5-145.73 54.5-61.5 135.5-72.04v-101q-122.46 11.15-206.23 102.12Q160-605.69 160-480q0 134 93 227t227 93q134 0 227-93t93-227q0-60.69-20.54-113.92-20.54-53.23-58.23-95.62-8.69-9.92-9.27-22.88-.58-12.96 8.73-22.27 9.31-9.31 21.77-8.62 12.46.7 21.15 10.62 45 51.08 70.7 115.15Q860-553.46 860-480q0 78.85-29.92 148.2t-81.21 120.65q-51.29 51.3-120.63 81.22Q558.9-100 480.07-100Z"]
   };
   function icon(name, size = 22, cls = "") {
     const i = ICONS[name] || ICONS["help"];
@@ -3075,12 +3221,27 @@ Public License instead of this License.  But first, please read
   var ESC = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
   var esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ESC[c]);
   var attr = esc;
-  function toast(msg2, ms = 2600) {
+  function toast(msg2, ms = 2600, o = {}) {
     const box = $("#toasts");
     if (!box) return;
     const t = document.createElement("div");
-    t.className = "toast";
-    t.textContent = msg2;
+    t.className = "toast" + (o.action ? " withAction" : "");
+    const txt = document.createElement("span");
+    txt.textContent = msg2;
+    t.append(txt);
+    if (o.action) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "toastAct";
+      b.textContent = o.action;
+      b.onclick = () => {
+        b.disabled = true;
+        t.classList.remove("show");
+        setTimeout(() => t.remove(), 300);
+        o.onAction?.();
+      };
+      t.append(b);
+    }
     box.append(t);
     requestAnimationFrame(() => t.classList.add("show"));
     setTimeout(() => {
@@ -3200,7 +3361,7 @@ Public License instead of this License.  But first, please read
   var why = (text) => `<details class="why"><summary>${icon("help", 16)}<span>Por quê?</span></summary><p>${esc(text)}</p></details>`;
 
   // js/ctx.js
-  var APP_VERSION = "1.3.1";
+  var APP_VERSION = "1.4.0";
   var ctx = {
     state: null,
     // dados (AppState do core)
@@ -3354,6 +3515,7 @@ Public License instead of this License.  But first, please read
     CARD_PAYMENT_CAT: () => CARD_PAYMENT_CAT,
     SHORTCUTS: () => SHORTCUTS,
     accountEditor: () => accountEditor,
+    addChoiceSheet: () => addChoiceSheet,
     cardEditor: () => cardEditor,
     deleteCategory: () => deleteCategory,
     download: () => download,
@@ -3674,7 +3836,7 @@ Public License instead of this License.  But first, please read
     pen.newPage();
     header(pen, r, opt.now);
     kpis(pen, r);
-    section(pen, "Despesas por categoria", "Valores realizados. Média mensal comparada com o limite mensal definido em Ajustes.", 160);
+    section(pen, "Despesas por categoria", "Valores realizados. Média mensal comparada com o limite mensal definido em Meu dinheiro.", 160);
     if (!r.expenseByCategory.length) note(pen, "Sem despesas realizadas no período.");
     else {
       donut(pen, r.expenseByCategory, r.expense);
@@ -4027,6 +4189,603 @@ ${xref}
     return { bytes, pages: pen.pages };
   }
 
+  // js/bill.js
+  var SOURCE_LABEL = { boleto: "código do boleto", pix: "Pix copia e cola", text: "texto da fatura" };
+  var digitsOf = (s) => String(s ?? "").replace(/\D/g, "");
+  function mod10(s) {
+    let sum3 = 0, w = 2;
+    for (let i = s.length - 1; i >= 0; i--) {
+      let p = +s[i] * w;
+      if (p > 9) p = Math.floor(p / 10) + p % 10;
+      sum3 += p;
+      w = w === 2 ? 1 : 2;
+    }
+    return (10 - sum3 % 10) % 10;
+  }
+  function weighted11(s) {
+    let sum3 = 0, w = 2;
+    for (let i = s.length - 1; i >= 0; i--) {
+      sum3 += +s[i] * w;
+      w = w === 9 ? 2 : w + 1;
+    }
+    return sum3;
+  }
+  var mod11Bank = (s) => {
+    const dv = 11 - weighted11(s) % 11;
+    return dv === 0 || dv === 10 || dv === 11 ? 1 : dv;
+  };
+  var mod11Utility = (s) => {
+    const r = weighted11(s) % 11;
+    return r === 0 || r === 1 ? 0 : 11 - r;
+  };
+  var OLD_BASE = dayNum("1997-10-07");
+  var NEW_BASE = dayNum("2022-05-29");
+  function dueFromFactor(factor, today2) {
+    if (!(factor > 0)) return null;
+    const t = dayNum(today2), a = OLD_BASE + factor, b = NEW_BASE + factor;
+    return fromDayNum(Math.abs(a - t) <= Math.abs(b - t) ? a : b);
+  }
+  var SEGMENTS = { 1: "Prefeitura", 2: "Água e esgoto", 3: "Energia elétrica e gás", 4: "Telefone e internet", 5: "Órgão do governo", 6: "Carnê ou cobrança", 7: "Multa de trânsito" };
+  var BANKS = {
+    "001": "Banco do Brasil",
+    "004": "Banco do Nordeste",
+    "021": "Banestes",
+    "033": "Santander",
+    "041": "Banrisul",
+    "070": "BRB",
+    "077": "Inter",
+    "104": "Caixa",
+    "197": "Stone",
+    "208": "BTG Pactual",
+    "212": "Banco Original",
+    "237": "Bradesco",
+    "260": "Nubank",
+    "290": "PagBank",
+    "323": "Mercado Pago",
+    "336": "C6 Bank",
+    "341": "Itaú",
+    "380": "PicPay",
+    "389": "Mercantil do Brasil",
+    "403": "Cora",
+    "422": "Safra",
+    "655": "Banco Votorantim",
+    "748": "Sicredi",
+    "756": "Sicoob"
+  };
+  function bankBarcode(b, today2) {
+    if (b[3] !== "9") return null;
+    if (mod11Bank(b.slice(0, 4) + b.slice(5)) !== +b[4]) return null;
+    const value = parseInt(b.slice(9, 19), 10);
+    return { type: "bank", barcode: b, amount: value > 0 ? value : null, due: dueFromFactor(parseInt(b.slice(5, 9), 10), today2), bank: BANKS[b.slice(0, 3)] || null, segment: null };
+  }
+  function bankLine(d, today2) {
+    if (mod10(d.slice(0, 9)) !== +d[9] || mod10(d.slice(10, 20)) !== +d[20] || mod10(d.slice(21, 31)) !== +d[31]) return null;
+    return bankBarcode(d.slice(0, 4) + d[32] + d.slice(33, 47) + d.slice(4, 9) + d.slice(10, 20) + d.slice(21, 31), today2);
+  }
+  function utilityDv(ident, s) {
+    return ident === "6" || ident === "7" ? mod10(s) : ident === "8" || ident === "9" ? mod11Utility(s) : null;
+  }
+  function utilityBarcode(b) {
+    const dv = utilityDv(b[2], b.slice(0, 3) + b.slice(4));
+    if (dv == null || dv !== +b[3]) return null;
+    const value = b[2] === "6" || b[2] === "8" ? parseInt(b.slice(4, 15), 10) : 0;
+    return { type: "utility", barcode: b, amount: value > 0 ? value : null, due: null, bank: null, segment: SEGMENTS[b[1]] || null };
+  }
+  function utilityLine(d) {
+    let bc = "";
+    for (let i = 0; i < 4; i++) {
+      const bl = d.slice(i * 12, i * 12 + 12), dv = utilityDv(d[2], bl.slice(0, 11));
+      if (dv == null || dv !== +bl[11]) return null;
+      bc += bl.slice(0, 11);
+    }
+    return utilityBarcode(bc);
+  }
+  function parseBoleto(input2, today2) {
+    const d = digitsOf(input2);
+    if (d.length === 47) return bankLine(d, today2);
+    if (d.length === 48) return d[0] === "8" ? utilityLine(d) : null;
+    if (d.length === 44) return d[0] === "8" ? utilityBarcode(d) : bankBarcode(d, today2);
+    return null;
+  }
+  function crc16(s) {
+    let crc = 65535;
+    for (const b of new TextEncoder().encode(s)) {
+      crc ^= b << 8;
+      for (let k = 0; k < 8; k++) crc = crc & 32768 ? (crc << 1 ^ 4129) & 65535 : crc << 1 & 65535;
+    }
+    return crc.toString(16).toUpperCase().padStart(4, "0");
+  }
+  function tlv(s) {
+    const out = {};
+    let i = 0;
+    while (i < s.length) {
+      if (i + 4 > s.length) return null;
+      const id = s.slice(i, i + 2), len = +s.slice(i + 2, i + 4);
+      if (!/^\d\d$/.test(s.slice(i + 2, i + 4)) || i + 4 + len > s.length) return null;
+      out[id] = s.slice(i + 4, i + 4 + len);
+      i += 4 + len;
+    }
+    return out;
+  }
+  function parsePix(input2) {
+    const s = String(input2 ?? "").trim();
+    if (!s.startsWith("000201")) return null;
+    const at = s.length - 8;
+    if (at < 6 || s.slice(at, at + 4) !== "6304") return null;
+    if (crc16(s.slice(0, at + 4)) !== s.slice(at + 4).toUpperCase()) return null;
+    const tags = tlv(s);
+    if (!tags || !tags["26"]) return null;
+    const sub = tlv(tags["26"]);
+    if (!sub || String(sub["00"] || "").toLowerCase() !== "br.gov.bcb.pix") return null;
+    let amount = null;
+    const a = tags["54"];
+    if (a && /^\d{1,13}(\.\d{1,2})?$/.test(a)) {
+      const [w, f = ""] = a.split(".");
+      amount = parseInt(w, 10) * 100 + parseInt((f + "00").slice(0, 2), 10);
+    }
+    return { amount: amount > 0 ? amount : null, name: (tags["59"] || "").trim() || null, city: (tags["60"] || "").trim() || null, dynamic: "25" in sub };
+  }
+  var short = (s) => {
+    const t = String(s).replace(/\s+/g, " ").trim();
+    return t.length > 90 ? t.slice(0, 87) + "…" : t;
+  };
+  var fold = (s) => s.toLowerCase().normalize("NFD").replace(/\p{Mn}+/gu, "");
+  var fromPixInfo = (p, raw) => ({ amount: p.amount != null ? { value: p.amount, source: "pix", excerpt: short(raw) } : null, due: null, payee: p.name, segment: null, dynamicPix: p.dynamic && p.amount == null });
+  var fromBoletoInfo = (b, raw) => ({
+    amount: b.amount != null ? { value: b.amount, source: "boleto", excerpt: short(raw) } : null,
+    due: b.due ? { value: b.due, source: "boleto", excerpt: short(raw) } : null,
+    payee: b.bank,
+    segment: b.segment,
+    dynamicPix: false
+  });
+  var isEmptyBill = (i) => !i.amount && !i.due;
+  function billFromCode(input2, today2) {
+    const t = String(input2 ?? "").trim();
+    const p = parsePix(t) || parsePix(t.replace(/[\r\n]/g, ""));
+    if (p) return fromPixInfo(p, t);
+    const b = parseBoleto(t, today2);
+    return b ? fromBoletoInfo(b, t) : null;
+  }
+  var CODE_RUN = /\d[\d .-]{41,80}\d/g;
+  function findBoleto(text, today2) {
+    let best = null;
+    for (const m2 of text.replace(/\n/g, " ").matchAll(CODE_RUN)) {
+      const d = digitsOf(m2[0]);
+      for (const len of [47, 48, 44]) {
+        for (let st2 = 0; st2 + len <= d.length; st2++) {
+          const b = parseBoleto(d.slice(st2, st2 + len), today2);
+          if (!b) continue;
+          const info = fromBoletoInfo(b, m2[0].trim());
+          if (info.amount) return info;
+          if (!best) best = info;
+        }
+      }
+    }
+    return best;
+  }
+  function findPix(text) {
+    for (const v of [text.replace(/[\r\n]/g, ""), text.replace(/\s/g, "")]) {
+      let from = 0;
+      for (; ; ) {
+        const i = v.indexOf("000201", from);
+        if (i < 0) break;
+        for (let k = v.indexOf("6304", i); k >= 0 && k + 8 <= v.length; k = v.indexOf("6304", k + 1)) {
+          const cand = v.slice(i, k + 8), p = parsePix(cand);
+          if (p) return fromPixInfo(p, cand);
+        }
+        from = i + 6;
+      }
+    }
+    return null;
+  }
+  var MONEY = /(?<![\d,.])(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+),(\d{2})(?!\d)/g;
+  var AMOUNT_LABELS = [
+    ["total desta fatura", 100],
+    ["total da fatura", 100],
+    ["valor total da fatura", 100],
+    ["total da sua fatura", 100],
+    ["valor da fatura", 95],
+    ["valor total a pagar", 95],
+    ["total a pagar", 90],
+    ["valor a pagar", 90],
+    ["valor do documento", 85],
+    ["valor cobrado", 80],
+    ["pagamento total", 80],
+    ["valor total", 60],
+    ["total geral", 60]
+  ];
+  var AMOUNT_SKIP = ["minimo", "limite", "anterior", "parcelamento", "parcelar", "juros", "encargo", "multa", "iof", "cet ", "rotativo", "disponivel", "saque", "desconto", "proxima", "proximo"];
+  var skips = (s) => AMOUNT_SKIP.some((w) => s.includes(w));
+  var moneyAt = (s, from) => {
+    MONEY.lastIndex = Math.min(from, s.length);
+    const m2 = MONEY.exec(s);
+    return m2;
+  };
+  var moneyOf = (m2) => parseInt(m2[1].replace(/\./g, ""), 10) * 100 + parseInt(m2[2], 10);
+  function findAmount(lines) {
+    let best = null, bestW = -1;
+    const norm = lines.map(fold);
+    norm.forEach((l, i) => {
+      for (const [label, w] of AMOUNT_LABELS) {
+        if (w <= bestW) continue;
+        const at = l.indexOf(label);
+        if (at < 0) continue;
+        if (skips(l.slice(Math.max(0, at - 25), at))) continue;
+        const end = at + label.length;
+        const same = moneyAt(l, end);
+        let v = null;
+        if (same) {
+          if (!skips(l.slice(end, same.index))) v = [moneyOf(same), lines[i]];
+        } else for (let k = 1; k <= 2 && !v; k++) {
+          const n = norm[i + k];
+          if (n == null) break;
+          const m2 = moneyAt(n, 0);
+          if (!m2) continue;
+          if (!skips(n.slice(0, m2.index))) v = [moneyOf(m2), lines[i] + " " + lines[i + k]];
+        }
+        if (v && v[0] > 0) {
+          best = { value: v[0], source: "text", excerpt: short(v[1]) };
+          bestW = w;
+        }
+      }
+    });
+    return best;
+  }
+  var DUE_LABELS = ["data de vencimento", "vencimento", "vence em", "pague ate", "pagar ate", "pagamento ate"];
+  var NUM_DATE = /(?<!\d)(\d{1,2})[/.-](\d{1,2})[/.-](\d{4}|\d{2})(?!\d)/;
+  var MONTH_ABBR = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+  var NAME_DATE = /(?<!\d)(\d{1,2})(?:\s+de)?\s+(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\.?(?:(?:\s+de)?\s+(\d{4}))?/;
+  function safeDate(y, m2, d) {
+    if (!(y >= 2e3 && y <= 2100 && m2 >= 1 && m2 <= 12 && d >= 1)) return null;
+    if (d > ymLen(y * 12 + m2 - 1)) return null;
+    return `${y}-${pad2(m2)}-${pad2(d)}`;
+  }
+  function dateIn(s, today2) {
+    const f = fold(s), a = NUM_DATE.exec(f), b = NAME_DATE.exec(f);
+    const first = a && (!b || a.index <= b.index) ? a : b;
+    if (!first) return null;
+    if (first === a) {
+      let y = +a[3];
+      if (y < 100) y += 2e3;
+      return safeDate(y, +a[2], +a[1]);
+    }
+    const m2 = MONTH_ABBR.indexOf(b[2]) + 1, d = +b[1];
+    if (b[3]) return safeDate(+b[3], m2, d);
+    const y0 = +today2.slice(0, 4), min = fromDayNum(dayNum(today2) - 60);
+    for (const y of [y0 - 1, y0, y0 + 1]) {
+      const c = safeDate(y, m2, d);
+      if (c && c >= min) return c;
+    }
+    return null;
+  }
+  function findDue(lines, today2) {
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i], l = fold(raw);
+      for (const label of DUE_LABELS) {
+        const at = l.indexOf(label);
+        if (at < 0) continue;
+        const before = l.slice(Math.max(0, at - 25), at);
+        if (before.includes("proxim") || before.includes("anterior") || l.slice(at).startsWith(label + " da fatura anterior")) break;
+        const d0 = dateIn(l.slice(at + label.length), today2);
+        if (d0) return { value: d0, source: "text", excerpt: short(raw) };
+        for (let k = 1; k <= 2; k++) {
+          const n = lines[i + k];
+          if (n == null) break;
+          if (fold(n).includes("proxim")) break;
+          const d = dateIn(n, today2);
+          if (d) return { value: d, source: "text", excerpt: short(raw + " " + n) };
+        }
+        break;
+      }
+    }
+    return null;
+  }
+  function billFromText(text, today2) {
+    const lines = String(text).split("\n").map((l) => l.replace(/ /g, " ").replace(/[ \t]+/g, " ").trim()).filter(Boolean);
+    const boleto = findBoleto(String(text), today2);
+    const pix = boleto?.amount ? null : findPix(String(text));
+    const amount = boleto?.amount || pix?.amount || findAmount(lines);
+    const due = boleto?.due || findDue(lines, today2);
+    return { amount, due, payee: pix?.payee || boleto?.payee || null, segment: boleto?.segment || null, dynamicPix: !!pix?.dynamicPix && !amount };
+  }
+  var BillMatch = {
+    /** mês da fatura do cartão que vence no mês de [due]; sem vencimento, a fatura em aberto (ou a do mês) */
+    invoiceYm(s, c, due, today2) {
+      if (due) {
+        const target = ymOf(due);
+        for (const ym of [target, target - 1, target - 2]) if (ymOf(Finance.invoiceDue(c, ym)) === target) return ym;
+      }
+      return Finance.cardStatus(s, c, today2).current?.ym ?? Finance.invoiceYm(c, today2);
+    },
+    /** total da fatura [ym] no Finan+ (compras do cartão naquele mês de fatura) */
+    appTotal: (s, c, ym) => s.txs.filter((t) => t.cardId === c.id && t.kind === "expense" && Finance.invoiceYm(c, t.date) === ym).reduce((n, t) => n + t.value, 0),
+    /** data de uma compra que cai na fatura [ym]: o dia do fechamento */
+    dateInInvoice: (c, ym) => Finance.invoiceClose(c, ym)
+  };
+
+  // js/billpdf.js
+  var MAX_PAGES = 12;
+  var MAX_BYTES = 25 * 1024 * 1024;
+  var loading = null;
+  function loadPdfJs() {
+    if (globalThis.pdfjsLib) return Promise.resolve(globalThis.pdfjsLib);
+    loading ?? (loading = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "js/vendor/pdfjs.js";
+      s.onload = () => globalThis.pdfjsLib ? resolve(globalThis.pdfjsLib) : reject(new Error("PDF.js não carregou"));
+      s.onerror = () => {
+        loading = null;
+        reject(new Error("Não foi possível carregar o leitor de PDF."));
+      };
+      document.head.append(s);
+    }));
+    return loading;
+  }
+  function linesFromItems(items) {
+    const rows = [];
+    for (const it of items) {
+      if (!it || typeof it.str !== "string" || !it.str.trim()) continue;
+      const x = it.transform?.[4] ?? 0, y = it.transform?.[5] ?? 0, h = Math.abs(it.height || it.transform?.[3] || 10);
+      let row = rows.find((r) => Math.abs(r.y - y) <= Math.max(2, h * 0.4));
+      if (!row) {
+        row = { y, parts: [] };
+        rows.push(row);
+      }
+      row.parts.push({ x, s: it.str });
+    }
+    rows.sort((a, b) => b.y - a.y);
+    return rows.map((r) => r.parts.sort((a, b) => a.x - b.x).map((p) => p.s.trim()).join(" ")).join("\n");
+  }
+  async function readPdfText(bytes, password = "", lib = null) {
+    const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+    if (data.length > MAX_BYTES) return { status: "error", message: "O arquivo é grande demais para uma fatura (mais de 25 MB)." };
+    if (String.fromCharCode(...data.subarray(0, 5)) !== "%PDF-") return { status: "error", message: "Este arquivo não é um PDF." };
+    let pdfjs;
+    try {
+      pdfjs = lib || await loadPdfJs();
+    } catch (e) {
+      return { status: "error", message: e.message };
+    }
+    let doc = null;
+    try {
+      doc = await pdfjs.getDocument({ data: new Uint8Array(data), password: password || void 0, isEvalSupported: false, disableFontFace: true, useSystemFonts: false, stopAtErrors: false, verbosity: 0 }).promise;
+      const parts = [];
+      for (let p = 1; p <= Math.min(doc.numPages, MAX_PAGES); p++) {
+        const page = await doc.getPage(p);
+        const tc = await page.getTextContent();
+        parts.push(linesFromItems(tc.items));
+        page.cleanup();
+      }
+      const text = parts.join("\n");
+      return text.trim() ? { status: "text", text } : { status: "noText" };
+    } catch (e) {
+      if (e?.name === "PasswordException") return { status: password ? "wrongPassword" : "needsPassword" };
+      return { status: "error", message: "Não foi possível ler este PDF. Ele pode estar danificado." };
+    } finally {
+      try {
+        await doc?.destroy();
+      } catch {
+      }
+    }
+  }
+
+  // js/billsheet.js
+  var canRemember = () => typeof ctx.store?.setBillPassword === "function" && !!ctx.store.canRememberBillPasswords;
+  var note2 = (text, warn) => `<p class="infoBox${warn ? " warn" : ""}">${icon(warn ? "warning" : "check", 18)}<span>${esc(text)}</span></p>`;
+  var privacy = () => `<p class="hint billPrivacy">${icon("shield", 16)}<span>Tudo acontece neste aparelho, sem internet. O PDF é lido só na memória e não fica guardado.</span></p>`;
+  function billImportSheet(o = {}) {
+    const st2 = { cardId: o.cardId && card(ctx.state, o.cardId) ? o.cardId : "", bytes: null, vaultFailed: false };
+    chooseStep(st2);
+  }
+  function chooseStep(st2) {
+    const s = ctx.state;
+    const body = `<form id="billForm" novalidate>
+    ${s.cards.length ? field("É a fatura de um cartão?", select("cardId", [["", "Não (boleto ou conta)"], ...s.cards.map((c) => [c.id, c.name])], st2.cardId)) : ""}
+    <div class="sheetActions single">${btn("Escolher PDF", { act: "pick", cls: "primary", icon: "receipt-long" })}</div>
+    ${field("Ou cole o código do boleto ou o Pix copia e cola", `<textarea name="code" rows="2" maxlength="600" autocomplete="off" spellcheck="false"></textarea>`)}
+    <div class="sheetActions single">${btn("Ler código", { submit: true })}</div>
+    ${privacy()}</form>`;
+    const d = openSheet({ title: "Ler fatura ou boleto", subtitle: "O valor e o vencimento saem do PDF ou do código. Você confere antes de salvar.", body });
+    const f = d.querySelector("#billForm");
+    if (f.cardId) f.cardId.onchange = () => {
+      st2.cardId = f.cardId.value;
+      st2.vaultFailed = false;
+    };
+    d.querySelector('[data-act="pick"]').onclick = async () => {
+      const file = await pickFile("application/pdf,.pdf");
+      if (!file) return;
+      if (file.size > MAX_BYTES) return notice("Não foi possível ler", "O arquivo é grande demais para uma fatura (mais de 25 MB).");
+      st2.bytes = new Uint8Array(await file.arrayBuffer());
+      st2.vaultFailed = false;
+      openPdf(st2, null, false);
+    };
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const info = billFromCode(f.code.value, ctx.today);
+      if (!info) return notice("Código não reconhecido", "Confira se copiou a linha digitável inteira (47 ou 48 números) ou o Pix copia e cola completo. Um número errado não passa na conferência.");
+      resultStep(st2, info);
+    };
+  }
+  function busySheet() {
+    openSheet({ title: "Ler fatura ou boleto", body: `<p class="billBusy" role="status"><span class="spinner" aria-hidden="true"></span>Lendo a fatura…</p>` });
+  }
+  async function openPdf(st2, password, fromVault) {
+    busySheet();
+    const r = await readPdfText(st2.bytes, password || "");
+    if (ctx.locked) return;
+    if (r.status === "text") {
+      if (st2.cardId && !fromVault && password && canRemember()) {
+        try {
+          await ctx.store.setBillPassword(st2.cardId, st2.remember ? password : null);
+        } catch {
+        }
+      }
+      st2.bytes = null;
+      return resultStep(st2, billFromText(r.text, ctx.today));
+    }
+    if (r.status === "needsPassword") {
+      const saved = st2.cardId && !st2.vaultFailed && canRemember() ? await ctx.store.billPassword(st2.cardId).catch(() => null) : null;
+      if (saved && password == null) return openPdf(st2, saved, true);
+      st2.remember = !!(st2.cardId && saved);
+      return passwordStep(st2, null);
+    }
+    if (r.status === "wrongPassword") {
+      if (fromVault) {
+        st2.vaultFailed = true;
+        st2.remember = true;
+        return passwordStep(st2, "A senha lembrada não abriu esta fatura. Digite a senha atual.");
+      }
+      return passwordStep(st2, "Senha incorreta. Confira e tente de novo.");
+    }
+    if (r.status === "noText") {
+      st2.bytes = null;
+      await notice("PDF sem texto", "Esta fatura parece ser uma imagem (escaneada). Digite o valor e o vencimento, ou cole o código do boleto.");
+      return resultStep(st2, { amount: null, due: null, payee: null, segment: null, dynamicPix: false });
+    }
+    st2.bytes = null;
+    chooseStep(st2);
+    notice("Não foi possível ler", r.message);
+  }
+  function passwordStep(st2, error) {
+    const c = card(ctx.state, st2.cardId);
+    const remember = c && canRemember();
+    const body = `<form id="pwForm" novalidate>
+    <p>Esta fatura tem senha. Digite para abrir.</p>
+    ${field("Senha do PDF", input("pw", "", { type: "password", max: 64 }), { hint: "Muitos bancos usam os primeiros dígitos do seu CPF." })}
+    <p class="formError" role="alert"${error ? "" : " hidden"}>${esc(error || "")}</p>
+    ${remember ? check("remember", `Lembrar a senha para ${c.name}`, !!st2.remember, { sub: "Fica cifrada só neste aparelho e não vai para o backup. Para esquecer, desmarque aqui ou use “Esquecer senha” no cartão." }) : ""}
+    <div class="sheetActions">${btn("Voltar", { act: "back" })}${btn("Abrir", { submit: true, cls: "primary" })}</div></form>`;
+    const d = openSheet({ title: "Ler fatura ou boleto", body });
+    const f = d.querySelector("#pwForm");
+    setTimeout(() => f.pw.focus(), 0);
+    d.querySelector('[data-act="back"]').onclick = () => {
+      st2.bytes = null;
+      chooseStep(st2);
+    };
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const pw = f.pw.value;
+      if (!pw) {
+        const p = f.querySelector(".formError");
+        p.textContent = "Digite a senha.";
+        p.hidden = false;
+        return;
+      }
+      st2.remember = !!f.remember?.checked;
+      openPdf(st2, pw, false);
+    };
+  }
+  function resultStep(st2, info) {
+    const s = ctx.state, c = card(s, st2.cardId), today2 = ctx.today;
+    const from = (x, what) => x ? `<small class="hint billFrom">${what} do ${esc(SOURCE_LABEL[x.source])}: “${esc(x.excerpt)}”</small>` : "";
+    const same = info.amount && info.due && info.amount.source === info.due.source && info.amount.excerpt === info.due.excerpt;
+    const desc = c ? `Fatura ${c.name}` : info.segment || (info.payee && info.amount?.source === "pix" ? info.payee : "Boleto");
+    const msg2 = isEmptyBill(info) && info.dynamicPix ? "Pix dinâmico: o valor fica no banco de quem cobra e não vem no código. Digite o valor." : isEmptyBill(info) ? "Não encontrei o valor nem o vencimento. Preencha abaixo." : !info.amount ? "Não encontrei o valor. Digite abaixo." : !info.due ? "Não encontrei o vencimento. Confira a data abaixo." : "";
+    const payeeNote = !c && info.payee && info.amount?.source !== "pix" ? `<small class="hint billFrom">Boleto emitido pelo banco ${esc(info.payee)} (nem sempre é quem cobra).</small>` : "";
+    const cats = s.cats.expense;
+    const cat0 = info.segment && cats.includes("Moradia") ? "Moradia" : cats.find((x) => x.toLowerCase() === "outros") || cats[0];
+    const body = `<form id="billRes" novalidate>
+    ${msg2 ? note2(msg2, true) : ""}
+    ${field("Descrição", input("desc", desc.slice(0, 200), { max: 200 }))}
+    ${field("Valor (R$)", moneyInput("value", info.amount ? Money.input(info.amount.value) : ""))}${same ? "" : from(info.amount, "Valor")}
+    ${field("Vencimento", input("due", info.due?.value || today2, { type: "date", required: true }))}${from(info.due, same ? "Valor e vencimento" : "Vencimento")}${payeeNote}
+    ${c ? '<div id="cmp" class="billCompare" aria-live="polite"></div><p class="billFrom" id="cardHint"></p><div class="sheetActions" id="cardActs"></div>' : `<div id="catHint"></div>${field("Categoria", select("category", cats.map((x) => [x, x]), cat0))}
+      ${field("Conta", select("accountId", s.accounts.map((a) => [a.id, a.name]), s.accounts[0].id))}
+      ${check("paid", "Já paga", false)}
+      <p class="billFrom" id="pendHint"></p>
+      <div class="sheetActions">${btn("Ler outra", { act: "again" })}${btn("Salvar como conta a pagar", { submit: true, cls: "primary", id: "saveBill" })}</div>`}
+    </form>`;
+    const d = openSheet({ title: "Ler fatura ou boleto", subtitle: "Confira e ajuste antes de salvar.", body });
+    const f = d.querySelector("#billRes");
+    if (c) {
+      const cmp2 = d.querySelector("#cmp"), acts = d.querySelector("#cardActs");
+      const render2 = () => {
+        const due = f.due.value || null, ym = BillMatch.invoiceYm(s, c, due, today2), app = BillMatch.appTotal(s, c, ym);
+        const bank = Money.parse(f.value.value), diff = bank == null ? null : bank - app, mes = brMonthLabel(ym);
+        cmp2.innerHTML = `<b>Fatura de ${esc(mes)} · ${esc(c.name)}</b><span>No Finan+: ${money(app)}</span>${bank != null ? `<span>No PDF: ${money(bank)}</span>` : ""}
+        <strong class="${diff === 0 ? "ok" : diff < 0 ? "bad" : ""}">${diff == null ? "Informe o valor para comparar." : diff === 0 ? "Confere com as compras lançadas." : diff > 0 && app === 0 ? "Nenhuma compra deste cartão lançada nesta fatura no Finan+." : diff > 0 ? `Faltam ${money(diff)} em compras no Finan+.` : `O Finan+ tem ${money(-diff)} a mais do que o banco. Confira as compras do cartão.`}</strong>`;
+        acts.innerHTML = btn("Ler outra", { act: "again" }) + (diff != null && diff > 0 ? btn(app === 0 ? "Lançar a fatura no cartão" : "Lançar a diferença no cartão", { submit: true, cls: "primary" }) : btn("Fechar", { act: "close", cls: "primary" }));
+        acts.querySelector('[data-act="again"]').onclick = () => chooseStep(st2);
+        acts.querySelector('[data-act="close"]')?.addEventListener("click", () => closeSheet());
+        d.querySelector("#cardHint").textContent = diff > 0 ? `Entra como uma compra na fatura de ${mes}, para o Finan+ bater com o banco.` : "";
+        return { ym, app, diff, mes };
+      };
+      f.value.oninput = render2;
+      f.due.onchange = render2;
+      render2();
+      f.onsubmit = (e) => {
+        e.preventDefault();
+        const { ym, app, diff, mes } = render2();
+        if (!(diff > 0)) return;
+        const cat = s.cats.expense.find((x) => x.toLowerCase() === "outros") || s.cats.expense[0];
+        const draft = {
+          kind: "expense",
+          desc: app === 0 ? f.desc.value.trim() || `Fatura ${c.name}` : `Diferença da fatura ${c.name} (${mes})`,
+          value: Money.input(diff),
+          category: cat,
+          date: BillMatch.dateInInvoice(c, ym),
+          paid: true,
+          accountId: s.accounts[0].id,
+          cardId: c.id
+        };
+        save(Ops.saveTx(ctx.state, null, draft, ctx.today), app === 0 ? "Fatura lançada no cartão" : "Diferença lançada no cartão");
+      };
+      return;
+    }
+    const hintBox = d.querySelector("#catHint");
+    const categorizer = ctx.device?.assistCategory ? new Categorizer(s, "expense", ctx.dict) : null;
+    const hint = () => {
+      const g = categorizer && f.desc.value.trim().length >= 2 ? categorizer.suggest(f.desc.value) : null;
+      if (!g || g.category === f.category.value) {
+        hintBox.innerHTML = "";
+        return;
+      }
+      hintBox.innerHTML = `<div class="catHint">${icon("auto-awesome", 16)}<div><b>Sugestão: ${esc(g.category)}</b></div>${btn("Usar", { act: "use-cat", cls: "primary small" })}</div>`;
+      hintBox.querySelector('[data-act="use-cat"]').onclick = () => {
+        f.category.value = g.category;
+        hint();
+      };
+    };
+    const pend = () => {
+      const paid = f.paid.checked;
+      d.querySelector("#saveBill span").textContent = paid ? "Salvar despesa" : "Salvar como conta a pagar";
+      d.querySelector("#pendHint").textContent = !paid && f.due.value ? `Fica pendente até ${brDate(f.due.value)} e entra nos avisos de vencimento.` : "";
+    };
+    f.desc.oninput = hint;
+    f.category.onchange = hint;
+    f.paid.onchange = pend;
+    f.due.onchange = pend;
+    hint();
+    pend();
+    d.querySelector('[data-act="again"]').onclick = () => chooseStep(st2);
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const draft = { kind: "expense", desc: f.desc.value, value: f.value.value, category: f.category.value, date: f.due.value, paid: f.paid.checked, accountId: f.accountId.value };
+      save(Ops.saveTx(ctx.state, null, draft, ctx.today), f.paid.checked ? "Despesa salva" : "Conta a pagar salva");
+    };
+  }
+  function save(o, msg2) {
+    if (!o.ok) return notice(o.title, o.message);
+    ctx.replace(o.state);
+    closeSheet();
+    toast(msg2);
+  }
+  async function cardHasBillPassword(cardId) {
+    if (!canRemember()) return false;
+    try {
+      return await ctx.store.hasBillPassword(cardId);
+    } catch {
+      return false;
+    }
+  }
+  async function forgetBillPassword(cardId) {
+    if (!canRemember()) return;
+    try {
+      await ctx.store.setBillPassword(cardId, null);
+    } catch {
+    }
+  }
+
   // js/editors.js
   var today = () => ctx.today;
   function apply(o, msg2) {
@@ -4054,35 +4813,72 @@ ${xref}
       }
     });
   }
-  var actions = (save, del) => `<div class="sheetActions">${del ? btn(del, { act: "sheet-delete", cls: "danger" }) : ""}${btn(save, { submit: true, cls: "primary" })}</div>`;
+  var actions = (save2, del) => `<div class="sheetActions">${del ? btn(del, { act: "sheet-delete", cls: "danger" }) : ""}${btn(save2, { submit: true, cls: "primary" })}</div>`;
   var onDelete = (d, fn) => d.querySelector('[data-act="sheet-delete"]')?.addEventListener("click", fn);
+  function addChoiceSheet() {
+    const row = (act, data, ic, cls, title, sub) => `<button type="button" class="choiceRow glass" data-choice="${act}"${data ? ` data-kind="${data}"` : ""}>
+    <span class="tile ${cls}" aria-hidden="true">${icon(ic, 22)}</span><span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`;
+    const d = openSheet({ title: "Adicionar movimentação", subtitle: "Escolha o que deseja registrar.", body: `<div class="choiceList">
+    ${row("tx", "expense", "arrow-downward", "out", "Despesa", "Dinheiro que saiu")}
+    ${row("tx", "income", "arrow-upward", "in", "Receita", "Dinheiro que entrou")}
+    ${row("recurring", "", "repeat", "", "Nova recorrência", "Configure uma movimentação que se repete")}</div>` });
+    d.querySelectorAll("[data-choice]").forEach((b) => b.onclick = () => {
+      if (b.dataset.choice === "recurring") recurringEditor();
+      else txEditor(b.dataset.kind);
+    });
+  }
   function txEditor(kind = "expense", id = null, date = null) {
     const s = ctx.state, t = id ? s.txs.find((x) => x.id === id) : null;
     if (id && !t) return;
     const isPayment = !!t?.cardPayment;
     let k = t?.kind ?? kind;
+    const startDate = t?.date ?? date ?? today();
+    let paid = t ? t.paid : Ops.defaultPaid(startDate, today()), touched = false;
     const cats = (kk) => {
       const l = [...s.cats[kk]];
       if (t && t.kind === kk && !l.includes(t.category)) l.push(t.category);
       return l;
     };
+    const titleOf = () => isPayment ? "Pagamento de fatura" : `${t ? "Editar" : "Nova"} ${k === "income" ? "receita" : "despesa"}`;
+    const subOf = () => isPayment ? "" : k === "income" ? "Registre uma entrada de dinheiro" : "Registre uma saída de dinheiro";
     const body = `<form id="txForm" novalidate>
-    ${isPayment ? `<p class="infoBox">${icon("credit-card", 18)}<span>Pagamento de fatura: debita a conta e abate da fatura do cartão. Não conta como despesa nova.</span></p>` : `<div class="seg" role="tablist" aria-label="Tipo">${[["expense", "Despesa"], ["income", "Receita"]].map(([v, l]) => `<button type="button" role="tab" data-kind="${v}" class="${k === v ? "selected" : ""}" aria-selected="${k === v}">${l}</button>`).join("")}</div>`}
-    ${field("Descrição", input("desc", t?.desc ?? "", { placeholder: "Ex.: Mercado", max: 200 }))}
-    <div id="catHint"></div>
-    ${field("Valor (R$)", moneyInput("value", t ? Money.input(t.value) : ""))}
-    ${field("Categoria", select("category", cats(k).map((c) => [c, c]), t?.category ?? s.cats[k][0]))}
-    <div id="payModeWrap">${field("Forma de pagamento", select("payMode", [["account", "Conta / dinheiro"], ["card", "Cartão de crédito"]], t?.cardId ? "card" : "account"))}</div>
-    <div id="cardWrap">${field("Cartão", select("cardId", s.cards.map((c) => [c.id, c.name]), t?.cardId || s.cards[0]?.id || ""))}</div>
-    <div id="accWrap">${field(isPayment ? "Pago com a conta" : "Conta", select("accountId", s.accounts.map((a) => [a.id, a.name]), t?.accountId ?? s.accounts[0].id))}</div>
-    ${field("Data", input("date", t?.date ?? date ?? today(), { type: "date", required: true }))}
-    <div id="paidWrap">${check("paid", "", t ? t.paid : !(date && date > today()))}</div>
-    ${t ? "" : `<div class="row2">${field("Parcelas", input("reps", "1", { inputmode: "numeric", max: 2 }), { hint: "Até 60" })}
-      <div id="repsModeWrap" hidden>${field("O valor informado é", select("repsMode", [["TOTAL", "O total da compra (divide entre as parcelas)"], ["EACH", "O valor de cada parcela"]], "TOTAL"))}</div></div>
-      ${check("recurring", "Repetir mensalmente", false, { sub: "Cria uma recorrência a partir desta data" })}`}
-    ${actions("Salvar lançamento", t ? "Excluir lançamento" : null)}</form>`;
-    const d = openSheet({ title: t ? "Editar lançamento" : "Novo lançamento", subtitle: isPayment ? "" : "Registre uma receita ou despesa", body });
+    ${isPayment ? `<p class="infoBox">${icon("credit-card", 18)}<span>Este pagamento abate o valor da fatura e da conta, sem registrar uma nova despesa.</span></p>` : `<div class="seg" role="tablist" aria-label="Tipo">${[["expense", "Despesa"], ["income", "Receita"]].map(([v, l]) => `<button type="button" role="tab" data-kind="${v}" class="${k === v ? "selected" : ""}" aria-selected="${k === v}">${l}</button>`).join("")}</div>`}
+    ${t ? "" : `<div id="billWrap" class="billShortcut">${btn("Ler fatura ou boleto", { act: "bill", icon: "receipt-long" })}</div>`}
+    <div class="formCard valueCard">${field(k === "income" ? "Valor da receita (R$)" : "Valor da despesa (R$)", moneyInput("value", t ? Money.input(t.value) : ""), { id: "valueField" })}</div>
+    <div class="formCard">
+      <div id="catHint"></div>
+      ${field("Categoria", select("category", cats(k).map((c) => [c, c]), t?.category ?? s.cats[k][0]))}
+      ${field("Data", input("date", startDate, { type: "date", required: true }))}
+      ${field("Descrição (opcional)", input("desc", t?.desc ?? "", { placeholder: k === "income" ? "Ex.: Salário" : "Ex.: Mercado", max: 200 }))}
+      <button type="button" class="btn link moreToggle" id="moreBtn" aria-expanded="false" aria-controls="moreBox"><span>Mais opções</span>${icon("expand-more", 18)}</button>
+    </div>
+    <div id="moreBox" hidden>
+      <div class="formCard"><h4 class="formHead">Detalhes adicionais</h4>
+        <div id="payModeWrap">${field("Forma de pagamento", select("payMode", [["account", "Conta / dinheiro"], ["card", "Cartão de crédito"]], t?.cardId ? "card" : "account"))}</div>
+        <div id="cardWrap">${field("Cartão", select("cardId", s.cards.map((c) => [c.id, c.name]), t?.cardId || s.cards[0]?.id || ""))}</div>
+        <div id="accWrap">${field(isPayment ? "Pago com a conta" : "Conta", select("accountId", s.accounts.map((a) => [a.id, a.name]), t?.accountId ?? s.accounts[0].id))}</div>
+        ${t?.scheduledDate ? `<p class="muted small">Data prevista original: ${brDate(t.scheduledDate)}. Ela será restaurada se o lançamento voltar a ficar pendente.</p>` : ""}
+      </div>
+      <div class="formCard" id="paidWrap" role="radiogroup" aria-labelledby="paidHead"><h4 class="formHead" id="paidHead"></h4>
+        <label class="radioRow"><input type="radio" name="paidSel" value="1"><span id="paidYes"></span></label>
+        <label class="radioRow"><input type="radio" name="paidSel" value="0"><span id="paidNo"></span></label>
+        <small class="muted" id="paidNote"></small></div>
+      ${t ? "" : `<div class="formCard"><h4 class="formHead">Parcelamento e repetição</h4>
+        <div class="row2">${field("Número de parcelas", input("reps", "1", { inputmode: "numeric", max: 2 }), { hint: "Até 60" })}
+        <div id="repsModeWrap" hidden>${field("O valor informado é", select("repsMode", [["TOTAL", "O total da compra (divide entre as parcelas)"], ["EACH", "O valor de cada parcela"]], "TOTAL"))}</div></div>
+        ${check("recurring", "Repetir mensalmente", false, { sub: "Cria uma recorrência a partir desta data" })}</div>`}
+    </div>
+    <div class="sheetActions">${t ? btn("Excluir lançamento", { act: "sheet-delete", cls: "danger" }) : ""}${btn("", { submit: true, cls: "primary", id: "saveBtn" })}</div></form>`;
+    const d = openSheet({ title: titleOf(), subtitle: subOf(), body });
     const f = d.querySelector("#txForm");
+    const more = d.querySelector("#moreBox"), moreBtn = d.querySelector("#moreBtn");
+    const setMore = (open) => {
+      more.hidden = !open;
+      moreBtn.setAttribute("aria-expanded", open);
+      moreBtn.querySelector("span").textContent = open ? "Menos opções" : "Mais opções";
+    };
+    setMore(!!t);
+    moreBtn.onclick = () => setMore(more.hidden);
     const categorizers = {};
     const sug = () => ctx.device.assistCategory && !isPayment ? categorizers[k] ?? (categorizers[k] = new Categorizer(s, k, ctx.dict)) : null;
     const sync = () => {
@@ -4092,9 +4888,22 @@ ${xref}
       d.querySelector("#cardWrap").hidden = !useCard;
       d.querySelector("#accWrap").hidden = useCard;
       d.querySelector("#paidWrap").hidden = useCard || isPayment;
-      d.querySelector("#paidWrap b").textContent = k === "income" ? "Receita já recebida" : "Despesa já paga";
+      d.querySelector("#accWrap span").textContent = isPayment ? "Pago com a conta" : k === "income" ? "Conta de destino" : "Conta";
+      d.querySelector("#paidHead").textContent = k === "income" ? "Situação da receita" : "Situação da despesa";
+      d.querySelector("#paidYes").textContent = k === "income" ? "Já recebida" : "Já paga";
+      d.querySelector("#paidNo").textContent = k === "income" ? "A receber" : "A pagar";
+      f.querySelector(`input[name=paidSel][value="${paid ? 1 : 0}"]`).checked = true;
+      d.querySelector("#paidNote").textContent = paid ? "O valor será considerado no saldo realizado da conta." : "O valor ficará pendente até ser recebido ou pago.";
+      d.querySelector("#valueField span").textContent = k === "income" ? "Valor da receita (R$)" : "Valor da despesa (R$)";
+      d.querySelector("#saveBtn").innerHTML = `<span>${isPayment ? "Registrar pagamento" : k === "income" ? "Salvar receita" : "Salvar despesa"}</span>`;
+      d.querySelector("#sheetTitle").textContent = titleOf();
+      const sub = d.querySelector(".dialogHead .dlgMsg");
+      if (sub) sub.textContent = subOf();
+      f.desc.placeholder = k === "income" ? "Ex.: Salário" : "Ex.: Mercado";
       const r = d.querySelector("#repsModeWrap");
       if (r) r.hidden = !(parseInt(f.reps.value, 10) > 1);
+      const b = d.querySelector("#billWrap");
+      if (b) b.hidden = k !== "expense";
     };
     const hint = () => {
       const box = d.querySelector("#catHint"), c = sug(), desc = f.desc.value;
@@ -4124,6 +4933,18 @@ ${xref}
       sync();
       hint();
     });
+    f.querySelectorAll("input[name=paidSel]").forEach((i) => i.onchange = () => {
+      paid = i.value === "1";
+      touched = true;
+      sync();
+    });
+    f.date.onchange = () => {
+      if (!t && !touched) {
+        paid = Ops.defaultPaid(f.date.value, today());
+        sync();
+      }
+    };
+    d.querySelector('[data-act="bill"]')?.addEventListener("click", () => billImportSheet());
     f.payMode.onchange = sync;
     if (f.reps) f.reps.oninput = () => {
       f.reps.value = f.reps.value.replace(/\D/g, "");
@@ -4140,14 +4961,15 @@ ${xref}
         value: v.value,
         category: v.category,
         date: v.date,
-        paid: !!f.paid.checked,
+        paid,
         accountId: v.accountId,
         cardId: useCard ? v.cardId : "",
         reps: parseInt(v.reps || "1", 10) || 1,
         repsMode: v.repsMode || "TOTAL",
         recurring: !!f.recurring?.checked
       };
-      apply(Ops.saveTx(ctx.state, t?.id ?? null, draft), t ? "Lançamento atualizado" : "Lançamento salvo");
+      const label = k === "income" ? "Receita" : "Despesa";
+      apply(Ops.saveTx(ctx.state, t?.id ?? null, draft, today()), t ? `${label} atualizada` : `${label} salva`);
     });
     onDelete(d, async () => {
       if (!await ask("Excluir lançamento", "Excluir este lançamento?", { ok: "Excluir", danger: true })) return;
@@ -4172,7 +4994,7 @@ ${xref}
     <div class="presetRow">${btn("Este mês", { act: "moves-preset", data: { p: "month" } })}${btn("30 dias", { act: "moves-preset", data: { p: "30" } })}${btn("Tudo", { act: "moves-preset", data: { p: "all" } })}</div>
     ${field("Situação", select("st", [["", "Todos"], ["paid", "Realizados"], ["pending", "Pendentes"]], f.st || ""))}
     <div class="sheetActions">${btn("Pronto", { submit: true, cls: "primary" })}</div></form>`;
-    const d = openSheet({ title: "Período e filtros", subtitle: "O período também vale para Relatórios.", body });
+    const d = openSheet({ title: "Período e filtros", subtitle: "O período também vale para o Resumo.", body });
     const form = d.querySelector("#f");
     const sync = () => {
       form.from.value = f.from || "";
@@ -4242,14 +5064,29 @@ ${xref}
     const body = `<form id="f" novalidate>${field("Nome", input("name", c?.name ?? "", { max: 40 }))}
     ${field("Limite (R$)", moneyInput("limit", c ? Money.input(c.limit) : ""))}
     <div class="row2">${field("Fecha dia", input("close", String(c?.close ?? 5), { inputmode: "numeric", max: 2 }))}${field("Vence dia", input("due", String(c?.due ?? 12), { inputmode: "numeric", max: 2 }))}</div>
+    ${c ? `<div class="billShortcut">${btn("Ler a fatura deste cartão (PDF)", { act: "bill", icon: "receipt-long" })}</div>
+      <p class="hint billPw" hidden><span>Senha do PDF da fatura lembrada neste aparelho.</span>${btn("Esquecer senha", { act: "forget-pw", cls: "danger small" })}</p>` : ""}
     ${actions("Salvar", c ? "Excluir cartão" : null)}</form>`;
     const d = openSheet({ title: c ? "Editar cartão" : "Novo cartão", subtitle: "Compras feitas após o dia de fechamento entram na fatura seguinte.", body });
     guard(d.querySelector("#f"), (v) => apply(Ops.saveCard(ctx.state, c?.id ?? null, v.name, v.limit, v.close, v.due), "Cartão salvo"));
+    if (c) {
+      d.querySelector('[data-act="bill"]').onclick = () => billImportSheet({ cardId: c.id });
+      const pwRow = d.querySelector(".billPw");
+      cardHasBillPassword(c.id).then((has) => {
+        pwRow.hidden = !has;
+      });
+      pwRow.querySelector('[data-act="forget-pw"]').onclick = async () => {
+        await forgetBillPassword(c.id);
+        pwRow.hidden = true;
+        toast("Senha esquecida");
+      };
+    }
     onDelete(d, async () => {
       const o = Ops.deleteCard(ctx.state, c.id);
       if (!o.ok) return notice(o.title, o.message);
       if (await ask("Excluir cartão", `Excluir o cartão “${c.name}”?`, { ok: "Excluir", danger: true })) {
         ctx.replace(o.state);
+        forgetBillPassword(c.id);
         closeSheet();
       }
     });
@@ -4471,7 +5308,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   var SHORTCUTS = [
     ["Lançamentos", [["N  ·  Ctrl+N", "Nova despesa"], ["R  ·  Ctrl+Shift+N", "Nova receita"], ["M  ·  Ctrl+M", "Nova meta"], ["/  ·  Ctrl+F", "Buscar lançamentos"], ["K  ·  Ctrl+K", "Perguntar ao assistente"]]],
-    ["Navegação", [["1 … 5  ·  Ctrl+1 … 5", "Início, Lançamentos, Relatórios, Assistente, Ajustes"], ["Ctrl+,", "Ajustes"], ["Esc", "Fechar a janela aberta"]]],
+    ["Navegação", [["1 … 6  ·  Ctrl+1 … 6", "Início, Lançamentos, Meu dinheiro, Resumo, Assistente, Ajustes"], ["Ctrl+,", "Ajustes"], ["Esc", "Fechar a janela aberta"]]],
     ["Privacidade e dados", [["H  ·  Ctrl+H", "Ocultar ou mostrar valores"], ["Ctrl+L", "Bloquear agora (com PIN)"], ["Ctrl+P", "Relatório em PDF"], ["Ctrl+E", "Exportar CSV"], ["Ctrl+S", "Salvar backup JSON"], ["Ctrl+O", "Restaurar backup"]]],
     ["Geral", [["?  ·  Ctrl+/", "Atalhos de teclado"]]]
   ];
@@ -4487,6 +5324,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   }
   function whatsNew() {
     const items = [
+      '1.4.0: o mesmo visual e as mesmas regras da versão 1.6.0 do app Android. Nova aba Meu dinheiro (contas, cartões, limites, metas e categorias); Relatórios virou Resumo, com o fluxo do dinheiro; no celular, o botão + abre Despesa, Receita ou Nova recorrência. Formulário mais simples, com descrição opcional e "Mais opções". Lançamento de outro dia começa pendente; ao confirmar, a data real e a prevista ficam guardadas, com Desfazer. Backup com valores exatos (sem perder centavos) e limites de tamanho.',
       '1.3.1: receitas e despesas fixas (recorrências) aparecem nos próximos meses como "Previsto" no calendário, na Lista e no saldo previsto. Clique num previsto para abrir a recorrência. Nada é gravado antes da hora: o lançamento real é criado quando o mês chega.',
       '1.3.0: simulador "E se…?" em Relatórios: economizar por mês, quanto tempo para comprar algo, mudança na renda e antecipar uma dívida, sem mudar seus dados (dá para transformar em meta). Relatórios com o mesmo ‹ mês › de Lançamentos e comparação justa (mês atual contra os mesmos dias do mês anterior).',
       "1.2.1: o assistente não avisa mais que as despesas vão passar das receitas com base em uma ou duas compras: a projeção precisa de pelo menos 5 despesas no mês (3 por categoria com limite), e uma compra grande isolada conta uma vez.",
@@ -4772,6 +5610,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   };
   var assistOn = () => ctx.device.assistTips || ctx.device.assistAsk;
   var visibleTips = (all) => all.filter((t) => !ctx.device.dismissedTips.includes(t.id));
+  var WAVES = `<svg class="balanceWaves" viewBox="0 0 230 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+<defs><linearGradient id="wavesFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="currentColor" stop-opacity=".2"/><stop offset="1" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>
+<path d="M0 78C30 70 45 40 75 46C105 52 112 92 142 88C170 84 178 50 200 44C214 40 222 48 230 54V120H0Z" fill="url(#wavesFill)"/>
+<path d="M0 92C35 86 55 66 85 70C115 74 125 100 155 98C185 96 195 74 230 72" fill="none" stroke="currentColor" stroke-opacity=".22" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+<path d="M0 78C30 70 45 40 75 46C105 52 112 92 142 88C170 84 178 50 200 44C214 40 222 48 230 54" fill="none" stroke="currentColor" stroke-opacity=".55" stroke-width="2.5" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
   function homeView() {
     const s = ctx.state, today2 = ctx.today, ym = ymOf(today2);
     const bal = Finance.currentBalance(s), fut = Finance.futureBalance(s, ymLast(ym), today2);
@@ -4779,50 +5622,48 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const pend = Period.monthPending(s, ym, today2);
     const used = fl.income > 0 ? fl.expense * 100 / fl.income : 0;
     const saved = fl.income > 0 ? Math.max(0, (fl.income - fl.expense) * 100 / fl.income) : 0;
-    const sub = (label, v, cls) => v > 0 ? `<small class="statSub">${label} <b class="${cls}">${money(v)}</b></small>` : "";
+    const first = ymFirst(ym), ids = new Set(s.accounts.map((a) => a.id));
+    const prevEnd = s.txs.some((t) => t.date < first) ? bal - s.txs.filter((t) => ids.has(t.accountId) && !isCard(t) && t.paid && t.date >= first).reduce((n, t) => t.kind === "income" ? n + t.value : n - t.value, 0) : null;
+    const diff = prevEnd === null ? 0 : fut - prevEnd;
+    const compareChip = hidden() ? "" : prevEnd === null ? '<span class="compareChip">1º mês · sem comparação</span>' : `<span class="compareChip ${diff >= 0 ? "up" : "down"}">${diff >= 0 ? "+" : "−"}${Money.format(Math.abs(diff))} vs. fim de ${MONTHS[(ym - 1) % 12]}</span>`;
+    const explain = !hidden() && (pend.toReceive > 0 || pend.toPay > 0) && bal + pend.toReceive - pend.toPay === fut ? `<small class="forecastExplain">Hoje ${Money.format(bal)} + ${Money.format(pend.toReceive)} a receber − ${Money.format(pend.toPay)} a pagar</small>` : "";
     const hero = `<section class="hero glass" aria-label="Resumo do mês">
     ${ctx.cols > 1 ? `<div class="heroTop"><span class="todayLabel" id="todayLabel">${esc(fullDate(today2))}</span><span class="statusPill">${icon("shield", 14)}Privado</span></div>` : ""}
-    <div class="balanceGrid">
-      <div class="balanceCard"><span>Saldo atual</span><b class="${bal < 0 ? "negative" : ""}">${money(bal)}</b></div>
-      <div class="balanceCard future"><span>Saldo previsto</span><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b><small class="statSub">no fim do mês</small></div>
-    </div>
-    <div class="stats">
-      <div><span>${icon("arrow-upward", 14)}Receitas do mês</span><b class="green">${money(fl.income)}</b>${sub("a receber", pend.toReceive, "green")}</div>
-      <div><span>${icon("arrow-downward", 14)}Despesas do mês</span><b class="red">${money(fl.expense)}</b>${sub("a pagar", pend.toPay, "red")}</div>
-    </div>
-    ${fl.income > 0 ? `<div class="progress" role="progressbar" aria-label="Receitas usadas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
-    <div class="monthProgressText"><small>${esc(`Neste mês você usou ${pct1(used)}% das receitas.`)}</small><b class="savedPill">${pct0(saved)}% economizado</b></div>` : ""}
-  </section>`;
-    const blocks = { hero, due: dueCard(), assist: homeAssistCard(), wallet: walletSection(), limits: limitsSection(), goals: goalsSection(), start: startSection() };
-    const order3 = [[blocks.hero, blocks.due], [blocks.assist, blocks.wallet], [blocks.limits, blocks.goals, blocks.start]];
-    const order2 = [[blocks.hero, blocks.due, blocks.limits, blocks.start], [blocks.assist, blocks.wallet, blocks.goals]];
-    const body = ctx.cols >= 3 ? cols(...order3) : ctx.cols === 2 ? cols(...order2) : [blocks.hero, blocks.due, blocks.assist, blocks.wallet, blocks.limits, blocks.goals, blocks.start].join("");
+    <div class="balanceWrap">${WAVES}
+    <div class="balanceMain"><span class="tile" aria-hidden="true">${icon("account-balance-wallet", 22)}</span><span>Saldo atual</span></div>
+    <b class="balanceBig${bal < 0 ? " negative" : ""}">${money(bal)}</b></div>
+    <div class="forecastBox"><span class="tile" aria-hidden="true">${icon("bar-chart", 20)}</span>
+      <span class="meta"><small>Saldo previsto até ${brDate(ymLast(ym))}</small><b class="${fut < 0 ? "negative" : ""}">${money(fut)}</b>
+      <small class="forecastNote">Considera valores pendentes, faturas e recorrências até esta data.</small>${compareChip}</span></div>
+    ${explain}
+    ${fl.income > 0 ? `<div class="progress${hidden() ? " sensitive" : ""}" role="progressbar" aria-label="Despesas sobre as receitas" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(Math.min(100, used))}"><i style="width:${Math.min(100, used)}%"${used > 100 ? ' class="over"' : ""}></i></div>
+    <div class="monthProgressText"><small>${esc(hidden() ? "Valores ocultos." : `Despesas equivalem a ${pct1(used)}% das receitas recebidas.`)}</small>${hidden() ? "" : `<b class="savedPill">${pct0(saved)}% economizado</b>`}</div>` : ""}
+  </section>
+  <div class="flowGrid">
+    ${pendingCard("in", "arrow-upward", "Falta receber", pend.toReceive, fl.income, "recebido", true)}
+    ${pendingCard("out", "arrow-downward", "Falta pagar", pend.toPay, fl.expense, "pago", false)}
+  </div>`;
+    const blocks = { hero, due: dueCard(), assist: homeAssistCard() };
+    const body = ctx.cols >= 2 ? cols([blocks.hero, blocks.due], [blocks.assist]) : [blocks.hero, blocks.due, blocks.assist].join("");
     return `<h2 id="homeTitle" class="srOnly">Início</h2>${body}`;
   }
-  function upcoming(s, today2, days = 30) {
-    const limit = addDays(today2, days), out = [];
-    for (const t of s.txs) {
-      if (t.paid || isCard(t) || !isFlow(t) || t.date > limit) continue;
-      out.push({ kind: t.kind, title: t.desc, amount: t.value, date: t.date, late: t.date < today2, act: "edit-tx", id: t.id, sub: t.category });
-    }
-    for (const c of s.cards) for (const inv of Finance.cardStatus(s, c, today2).invoices)
-      if (inv.open > 0 && inv.due <= limit) out.push({ kind: "invoice", title: `Fatura ${c.name}`, amount: inv.open, date: inv.due, late: inv.due < today2, act: "pay-invoice", id: c.id, sub: `${brMonthLabel(inv.ym)}${inv.closed ? " · fechada" : " · aberta"}` });
-    return out.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  function pendingCard(cls, ic, label, pending2, realized, doneWord, showProgress) {
+    const total = pending2 + realized, frac = total > 0 ? realized * 100 / total : 0;
+    const foot = showProgress && total > 0 ? `<span class="flowBar${hidden() ? " sensitive" : ""}" aria-hidden="true"><i style="width:${frac}%"></i></span><small class="flowPct">${hidden() ? "Progresso oculto" : `${pct0(frac)}% ${doneWord}`}</small>` : `<small class="flowPct">${!showProgress && pending2 > 0 ? "Contas e faturas em aberto neste mês" : !showProgress ? "Tudo pago neste mês" : "Nada registrado neste mês"}</small>`;
+    return `<button type="button" class="flowCard ${cls}" data-act="go" data-view="moves"><span class="flowTop"><span class="tile" aria-hidden="true">${icon(ic, 20)}</span><span class="flowLabel">${label}</span></span><b>${money(pending2)}</b><span class="flowFill"></span>${foot}</button>`;
   }
   function dueCard() {
-    const list = upcoming(ctx.state, ctx.today);
-    if (!list.length && ctx.cols === 1) return "";
-    const rows = list.slice(0, 8).map((r) => {
-      const ic = r.kind === "invoice" ? "credit-card" : r.kind === "income" ? "arrow-upward" : "receipt-long";
-      const when = r.date === ctx.today ? "hoje" : r.date === addDays(ctx.today, 1) ? "amanhã" : brDayMonth(r.date);
-      return `<button type="button" class="dueRow${r.late ? " late" : ""}" data-act="${r.act}" data-id="${attr(r.id)}">
-      <span class="dueIc ${r.kind}">${icon(ic, 18)}</span>
-      <span class="meta"><b>${esc(r.title)}</b><small>${esc(r.sub)} · ${r.late ? `<span class="red">em atraso desde ${brDayMonth(r.date)}</span>` : `vence ${esc(when)}`}</small></span>
-      <span class="amount ${r.kind === "income" ? "green" : ""}">${r.kind === "income" ? "+" : ""}${money(r.amount)}</span></button>`;
+    const s = ctx.state, list = Finance.upcomingDues(s, ctx.today, 3);
+    const rows = list.map((r) => {
+      const late = r.date < ctx.today, inv = r.type === "INVOICE_DUE";
+      return `<button type="button" class="dueRow glass${late ? " late" : ""}" data-act="${inv ? "pay-invoice" : "edit-tx"}" data-id="${attr(r.refId)}">
+      <span class="dueIc">${icon(late ? "warning" : "calendar-month", 18)}</span>
+      <span class="meta"><b>${esc(r.title)}</b><small class="${late ? "red" : ""}">${late ? "Vencido em" : "Vence em"} ${brDate(r.date)}</small><small class="dueGo">Ver pagamento ›</small></span>
+      <span class="amount red">${money(r.amount)}</span></button>`;
     }).join("");
-    return `<section class="section">${sectionHead(null, "Vencimentos (30 dias)", list.length ? btn("Ver todos", { act: "open-moves", data: { st: "pending" }, cls: "soft small" }) : "")}
-    <div class="glass compactBox dueList">${rows || '<p class="muted center">Nada a pagar ou receber nos próximos 30 dias.</p>'}
-    ${list.length > 8 ? `<p class="muted small center">e mais ${list.length - 8} vencimento(s)</p>` : ""}</div></section>`;
+    const more = list.length ? btn("Ver todos", { act: "open-moves", data: { st: "pending" }, cls: "soft small" }) : "";
+    return `<section class="section">${sectionHead(null, "Próximos vencimentos", more)}
+    <div class="dueList">${rows || `<div class="dueRow glass"><span class="dueIc ok">${icon("check", 18)}</span><span class="meta"><b>Nenhum pagamento pendente</b><small>Quando houver uma conta ou fatura, ela aparecerá aqui.</small></span></div>`}</div></section>`;
   }
   function homeAssistCard() {
     const d = ctx.device;
@@ -4833,11 +5674,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       const rep = Insights.report(s, today2, money);
       tips = visibleTips(Insights.tips(s, today2, money));
       const lines = rep.highlights.length ? rep.highlights : rep.lines.slice(0, 1);
-      inner = `<ul class="reportLines">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>${tips[0] ? tipItem(tips[0]) : ""}`;
+      inner = `<div class="reportTiles">${lines.map((l, i) => `<button type="button" class="reportTile" data-act="go" data-view="assist"><span class="tile" aria-hidden="true">${icon(i === 0 ? "receipt-long" : "calendar-month", 19)}</span><span class="txt">${esc(l)}</span>${icon("chevron-right", 18)}</button>`).join("")}</div>${tips[0] ? tipItem(tips[0]) : ""}`;
     } else inner = '<p class="assistAskTxt">Pergunte sobre seus gastos.</p>';
     const link = d.assistTips ? tips.length > 1 ? `Ver as ${tips.length} dicas` : "Abrir assistente" : "Perguntar";
     return `<section class="glass assistCard" aria-label="Assistente">
-    <div class="assistHead">${icon("auto-awesome", 16)}<small class="eyebrow">Assistente</small></div>${inner}
+    <div class="assistHead">${icon("auto-awesome", 22)}<h3 class="assistTitle">Assistente</h3></div>${inner}
     <button type="button" class="btn link moreLink" data-act="go" data-view="assist"${d.assistTips ? "" : ' data-focus="ask"'}><span>${esc(link)}</span>${icon("chevron-right", 18)}</button></section>`;
   }
   function tipItem(t, o = {}) {
@@ -4848,70 +5689,64 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     <b>${esc(t.title)}</b><p>${esc(t.text)}</p>
     <div class="tipFoot">${why(t.why)}${canOpen && !o.dismissed ? btn("Ver lançamentos", { act: "open-moves", data: { q: t.query ?? "", from: t.from ?? "", to: t.to ?? "" }, cls: "link small", icon: "chevron-right", iconSize: 16 }) : ""}</div></article>`;
   }
-  function walletSection() {
-    const s = ctx.state, today2 = ctx.today;
-    const accs = s.accounts.map((a) => {
-      const b = Finance.accountBalance(s, a);
-      return `<button type="button" class="walletCard" data-act="edit-account" data-id="${attr(a.id)}">
-    <small>${icon("account-balance-wallet", 14)}Conta</small><b class="${b < 0 ? "negative" : ""}">${money(b)}</b><span class="sub">${esc(a.name)}</span></button>`;
+  var moneyHead = (ic, title, sub, action = "") => `<div class="moneyHead"><span class="tile" aria-hidden="true">${icon(ic, 22)}</span><div><h3>${esc(title)}</h3><small>${esc(sub)}</small></div>${action}</div>`;
+  var catsOpen = { on: false };
+  function moneyView() {
+    const s = ctx.state, today2 = ctx.today, usage = Finance.budgetUsage(s, ymOf(today2));
+    const head = `<div class="pageTitle"><h2 id="moneyTitle">Meu dinheiro</h2><p>Contas, cartões e seus planos financeiros em um só lugar.</p></div>`;
+    const accRows = s.accounts.map((a) => manage(a.name, `Conta · Saldo ${money(Finance.accountBalance(s, a))}`, btn("Editar", { act: "edit-account", data: { id: a.id }, cls: "soft small" }))).join("");
+    const cardRows = s.cards.map((c) => {
+      const st2 = Finance.cardStatus(s, c, today2);
+      return manage(c.name, `Cartão · limite ${money(c.limit)} · usado ${money(st2.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn("Editar", { act: "edit-card", data: { id: c.id }, cls: "soft small" }));
     }).join("");
-    const cards = s.cards.map((c) => {
-      const st2 = Finance.cardStatus(s, c, today2), cur = st2.current;
-      return `<div class="walletCard cardItem"><small>${icon("credit-card", 14)}${esc(c.name)}</small>
-      <b>${cur ? money(cur.open) : money(0)}</b>
-      <span class="sub">${cur ? `Fatura ${esc(brMonthLabel(cur.ym))} · vence ${brDayMonth(cur.due)}${cur.closed ? " · fechada" : ""}` : "Sem fatura em aberto"}</span>
-      <span class="sub">Disponível ${money(st2.available)}</span>
-      <div class="cardActions">${cur ? btn("Pagar fatura", { act: "pay-invoice", data: { id: c.id }, cls: "primary small" }) : ""}${btn("", { act: "edit-card", data: { id: c.id }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Editar cartão ${c.name}` })}</div></div>`;
+    const invoices = s.cards.map((c) => {
+      const cur = Finance.cardStatus(s, c, today2).current;
+      return cur ? `<div class="invoiceRow"><div><small>Fatura ${esc(c.name)} · ${esc(brMonthLabel(cur.ym))} · vence ${brDate(cur.due)}</small><b>${money(cur.open)}</b></div>${btn("Pagar fatura", { act: "pay-invoice", data: { id: c.id }, cls: "primary small" })}</div>` : "";
     }).join("");
-    const head = sectionHead(null, "Contas e cartões", btn("Gerenciar", { act: "go", data: { view: "prefs", fold: "contas" }, cls: "soft small" }));
-    if (s.accounts.length === 1 && !s.cards.length) {
-      const a = s.accounts[0], b = Finance.accountBalance(s, a);
-      return `<section class="section">${head}<button type="button" class="walletRow glass" data-act="edit-account" data-id="${attr(a.id)}">
-      <span class="badge" aria-hidden="true">${icon("account-balance", 20)}</span><span class="meta"><b>${esc(a.name)}</b><small>Conta</small></span>
-      <b class="amount${b < 0 ? " negative" : ""}">${money(b)}</b></button></section>`;
-    }
-    return `<section class="section">${head}
-    <div class="${ctx.cols === 1 ? "hscroll" : "walletGrid"}">${accs}${cards}</div></section>`;
-  }
-  function limitsSection() {
-    const s = ctx.state, usage = Finance.budgetUsage(s, ymOf(ctx.today));
-    const rows = [...s.limits].map(([cat, lim]) => {
+    const wallet = `<section class="glass moneyCard">${moneyHead("account-balance", "Contas e cartões", "Saldo das contas e situação dos cartões")}
+    ${s.cards.length ? "" : '<p class="muted small">Sem cartão cadastrado. Você pode adicionar um para acompanhar faturas e vencimentos.</p>'}
+    <div class="manageList">${accRows}${cardRows}</div>
+    <div class="btnGrid">${btn("Adicionar conta", { act: "new-account", icon: "add", iconSize: 18 })}${btn("Adicionar cartão", { act: "new-card", icon: "add", iconSize: 18 })}</div>${invoices}</section>`;
+    const limitRows = [...s.limits].map(([cat, lim]) => {
       const u = usage.get(cat) || 0, p = lim > 0 ? u * 100 / lim : 0;
       const cls = u > lim ? "over" : p >= 80 ? "warn" : "";
-      const status = u > lim ? "Limite ultrapassado" : p >= 100 ? "Limite atingido" : p >= 80 ? `Atenção: ${pct0(p)}% usado` : `${pct0(p)}% usado`;
+      const status = u > lim ? "Limite ultrapassado" : p >= 100 ? "Limite atingido" : hidden() ? p >= 80 ? "Atenção: perto do limite" : "Dentro do limite" : p >= 80 ? `Atenção: ${pct0(p)}% usado` : `${pct0(p)}% usado`;
       return `<button type="button" class="budgetLine ${cls}" data-act="edit-limit" data-cat="${attr(cat)}">
       <div><b>${esc(cat)}</b><span>${money(u)} / ${money(lim)}</span></div>
-      <div class="budgetTrack"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
+      <div class="budgetTrack${hidden() ? " sensitive" : ""}"><i style="width:${Math.min(100, p)}%"></i></div><small>${status}</small></button>`;
     }).join("");
-    if (!s.limits.size) return "";
-    return `<section class="section">${sectionHead(null, "Limites do mês", btn("", { act: "new-limit", cls: "icon small", icon: "add", label: "Novo limite" }))}
-    <div class="glass compactBox"><p class="muted small">Inclui o que ainda está pendente.</p>${rows}</div></section>`;
-  }
-  function goalsSection() {
-    const s = ctx.state;
-    const rows = s.goals.map((g) => {
-      const p = g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0, plan = Finance.goalPlan(g, ctx.today);
-      const info = (g.deadline ? `Até ${brDate(g.deadline)}` : "Sem prazo") + (plan.pastDue ? " · prazo vencido" : "");
-      const planTxt = plan.done ? `${icon("check", 14)} Meta atingida` : [
-        plan.needed != null ? `Precisa de ${esc(money(plan.needed))}/mês` : null,
-        plan.eta != null ? `Plano: conclui em ${esc(brMonthLabel(plan.eta))}${plan.late ? ` ${icon("warning", 14)} após o prazo` : ""}` : null
+    const limits = `<section class="glass moneyCard">${moneyHead("track-changes", "Limites mensais", "Acompanhe quanto gasta por categoria", s.limits.size ? btn("Adicionar limite", { act: "new-limit", icon: "add", iconSize: 18, cls: "soft small" }) : "")}
+    ${s.limits.size ? `<p class="muted small">Inclui lançamentos pendentes deste mês.</p>${limitRows}` : `<p class="muted small">Defina quanto deseja gastar por categoria para acompanhar seus gastos do mês.</p>${btn("Criar meu primeiro limite", { act: "new-limit", icon: "add", iconSize: 18, cls: "soft wide" })}`}</section>`;
+    const goalRows = s.goals.map((g) => {
+      const p = g.target > 0 ? Math.min(100, g.saved * 100 / g.target) : 0, plan = Finance.goalPlan(g, today2);
+      const planTxt = plan.done ? "Meta atingida" : [
+        plan.needed != null ? `Precisa de ${money(plan.needed)}/mês` : null,
+        plan.eta != null ? `Conclui em ${brMonthLabel(plan.eta)}${plan.late ? " (após o prazo)" : ""}` : null
       ].filter(Boolean).join(" · ");
       return `<button type="button" class="tx goal" data-act="edit-goal" data-id="${attr(g.id)}">
       <div class="goalTop"><b>${esc(g.name)}</b><span>${money(g.saved)} / ${money(g.target)}</span></div>
-      <div class="bar2"><i style="width:${p}%"></i></div>
-      <div class="goalInfo"><span>${esc(info)}</span><span>${pct0(p)}%</span></div>${planTxt ? `<small class="goalPlan">${planTxt}</small>` : ""}</button>`;
+      <div class="bar2${hidden() ? " sensitive" : ""}"><i style="width:${p}%"></i></div>
+      <div class="goalInfo"><span>${g.deadline ? `Até ${brDate(g.deadline)}` : "Sem prazo"}${plan.pastDue ? " · prazo vencido" : ""}</span><span>${esc(planTxt)}</span></div></button>`;
     }).join("");
-    if (!s.goals.length) return "";
-    return `<section class="section">${sectionHead(null, "Metas", btn("", { act: "new-goal", cls: "icon small", icon: "add", label: "Nova meta" }))}
-    <div class="list">${rows}</div></section>`;
-  }
-  function startSection() {
-    const s = ctx.state;
-    const row = (act, ic, title, sub) => `<button type="button" class="startRow" data-act="${act}"><span class="badge" aria-hidden="true">${icon(ic, 20)}</span>
-    <span class="meta"><b>${esc(title)}</b><small>${esc(sub)}</small></span>${icon("chevron-right", 20)}</button>`;
-    const rows = (s.limits.size ? "" : row("new-limit", "payments", "Definir um limite mensal", "Acompanhe quanto gasta por categoria")) + (s.goals.length ? "" : row("new-goal", "flag", "Criar uma meta", "Junte para um objetivo com prazo"));
-    if (!rows) return "";
-    return `<section class="section">${sectionHead(null, "Comece por aqui")}<div class="glass compactBox startBox">${rows}</div></section>`;
+    const goals = `<section class="glass moneyCard">${moneyHead("flag", "Metas", "Acompanhe seus objetivos financeiros", s.goals.length ? btn("Criar meta", { act: "new-goal", icon: "add", iconSize: 18, cls: "soft small" }) : "")}
+    ${s.goals.length ? `<div class="list">${goalRows}</div>` : `<p class="muted small">Uma meta ajuda a acompanhar um objetivo, como uma viagem ou uma reserva.</p>${btn("Criar minha primeira meta", { act: "new-goal", icon: "add", iconSize: 18, cls: "soft wide" })}`}</section>`;
+    const sim = `<section class="glass moneyCard">${moneyHead("auto-awesome", "Simular meu dinheiro", "Teste cenários sem alterar seus dados")}
+    <p class="muted small">Explore compras, mudanças na renda, economias e quitação de dívidas.</p>${btn("Abrir simulação", { act: "simulator", icon: "auto-awesome", iconSize: 18, cls: "soft" })}</section>`;
+    const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map((c) => manage(
+      c,
+      `${k === "expense" ? "Despesa" : "Receita"}${categoryUse(k, c)}`,
+      btn("Renomear", { act: "rename-cat", data: { kind: k, cat: c }, cls: "soft small", label: `Renomear ${c}` }) + btn("Excluir", { act: "delete-cat", data: { kind: k, cat: c }, cls: "soft small dangerB", label: `Excluir ${c}` })
+    )).join("")}</div>`;
+    const open = catsOpen.on;
+    const cats = `<section class="glass moneyCard" id="catsCard">${moneyHead(
+      "tune",
+      "Categorias",
+      "Organize relatórios e lançamentos",
+      `<button type="button" class="btn soft small" data-act="cats-fold" aria-expanded="${open}" aria-controls="catsBody">${icon("expand-more", 18)}<span>${open ? "Minimizar" : "Maximizar"}</span></button>`
+    )}
+    <div id="catsBody"${open ? "" : " hidden"}><form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== "income" ? " selected" : ""}>Despesa</option><option value="income"${ctx.catKind === "income" ? " selected" : ""}>Receita</option></select>
+    ${btn("Adicionar categoria", { submit: true, cls: "primary wide" })}</form>${catList("expense", "Despesas")}${catList("income", "Receitas")}</div></section>`;
+    return head + (ctx.cols === 1 ? [wallet, limits, goals, sim, cats].join("") : cols([wallet, goals, sim], [limits, cats]));
   }
   function movesDefaults() {
     const ym = ymOf(ctx.today);
@@ -4961,7 +5796,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       ${col("Receitas", fl.income, "green", "a receber", pend.toReceive, "green", pend.toReceive > 0)}
       ${col("Despesas", fl.expense, "red", "a pagar", pend.toPay, "red", pend.toPay > 0)}
       ${col("Saldo", bal, bal < 0 ? "negative" : "", "previsto", forecast, forecast < 0 ? "negative" : "accent", hasPend)}</div>
-    ${fl.income > 0 && !hidden() ? `<small class="muted sumNote">As despesas são ${pct1(fl.expense * 100 / fl.income)}% das receitas do período.</small>` : ""}</section>`;
+    ${(fl.income > 0 || fl.expense > 0) && !hidden() ? `<small class="muted sumNote">${esc(resultText(fl))}</small>` : ""}</section>`;
     const shown = all.slice(0, f.limit), groups = [];
     for (const t of shown) {
       const g = groups.at(-1);
@@ -4971,31 +5806,60 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const rows = groups.map((g) => {
       const net = Period.cashNet(g.txs), cash = g.txs.some((t) => !isCard(t));
       return `<h4 class="dayHead"><span>${esc((g.date === today2 ? "Hoje · " : "") + MonthCalendar.dayTitle(g.date, today2))}</span>
-      ${cash && !hidden() ? `<b class="${net < 0 ? "red" : "green"}">${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}</b>` : ""}</h4>${g.txs.map((t) => txRow(t, { noDate: true })).join("")}`;
+      ${cash && !hidden() ? `<b class="${net < 0 ? "red" : "green"}" title="Resultado das movimentações deste dia" aria-label="Resultado das movimentações deste dia: ${net > 0 ? "mais " : net < 0 ? "menos " : ""}${attr(Money.format(Math.abs(net)))}">${net > 0 ? "+ " : net < 0 ? "− " : ""}${Money.format(Math.abs(net))}</b>` : ""}</h4>${g.txs.map((t) => txRow(t, { noDate: true })).join("")}`;
     }).join("");
     return {
       totals,
       count: all.length,
-      list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: "moves-more", cls: "soft wide" }) : "") : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês, ajuste os filtros ou adicione uma movimentação.</span></div>`
+      list: rows ? rows + (all.length > shown.length ? btn(`Mostrar mais (${all.length - shown.length} restantes)`, { act: "moves-more", cls: "soft wide" }) : "") : `<div class="empty glass"><b>Nenhum lançamento neste período</b><span>Troque o mês ou ajuste os filtros. Você também pode começar por aqui:</span>
+        <div class="btnGrid">${btn("Despesa", { act: "new-tx", data: { kind: "expense" }, icon: "arrow-downward", iconSize: 18 })}${btn("Receita", { act: "new-tx", data: { kind: "income" }, icon: "arrow-upward", iconSize: 18 })}</div></div>`
     };
   }
   function txRow(t, o = {}) {
     const s = ctx.state, payment = !isFlow(t), cardT = isCard(t), prev = isProjected(t);
     const where = cardT ? `Cartão ${card(s, t.cardId)?.name ?? ""}` : account(s, t.accountId)?.name ?? "";
     const late = !t.paid && !cardT && t.date < ctx.today;
-    const status = prev ? "Previsto · recorrência" : payment ? "Pagamento de fatura" : cardT ? "" : t.paid ? "" : late ? '<span class="red">Em atraso</span>' : t.kind === "income" ? "A receber" : "A pagar";
-    const meta = [esc(t.category), esc(where), o.noDate ? "" : brDate(t.date), status].filter(Boolean).join(" · ");
-    const toggle = prev ? `<span class="chk card" title="Previsto: o lançamento é criado quando o mês chegar">${icon("repeat", 16)}</span>` : cardT ? `<span class="chk card" title="Compra no cartão">${icon("credit-card", 16)}</span>` : payment ? `<span class="chk on" title="Pagamento de fatura">${icon("check", 16)}</span>` : `<button type="button" class="chk${t.paid ? " on" : ""}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-pressed="${t.paid}" aria-label="${t.paid ? t.kind === "income" ? "Recebido" : "Pago" : t.kind === "income" ? "Marcar como recebido" : "Marcar como pago"}: ${attr(t.desc)}">${icon("check", 16)}</button>`;
+    const statusTxt = prev ? "Prevista · recorrência" : payment ? "Pagamento de fatura" : cardT ? "No cartão" : !t.paid ? late ? t.kind === "income" ? "Vencida · a receber" : "Vencida · a pagar" : t.kind === "income" ? "A receber" : "A pagar" : t.kind === "income" ? "Recebida" : "Paga";
+    const stCls = late ? "red" : t.paid && !cardT && !payment && !prev ? "green" : cardT ? "accent" : "";
+    const status = `<span class="txStatus ${stCls}">${esc(statusTxt)}</span>`;
+    const when = (o.noDate ? "" : brDate(t.date)) + (t.paid && t.scheduledDate ? `${o.noDate ? "" : " · "}previsto ${brDate(t.scheduledDate)}` : "");
+    const meta = [status, esc(t.category), esc(where), when].filter(Boolean).join(" · ");
+    const toggle = prev ? `<span class="chk card" title="Previsto: o lançamento é criado quando o mês chegar">${icon("repeat", 16)}</span>` : cardT ? `<span class="chk card" title="Compra no cartão">${icon("credit-card", 16)}</span>` : payment ? `<span class="chk on" title="Pagamento de fatura">${icon("check", 16)}</span>` : `<button type="button" class="chk${t.paid ? " on" : ""}" data-act="toggle-paid" data-id="${attr(t.id)}" aria-label="${t.paid ? `Desfazer confirmação: ${t.kind === "income" ? "recebido" : "pago"}` : t.kind === "income" ? "Marcar como recebido" : "Marcar como pago"}: ${attr(t.desc)}">${icon("check", 16)}</button>`;
     return `<div class="tx ${t.kind}${t.paid ? "" : " pending"}${payment ? " payment" : ""}${prev ? " projected" : ""}" data-act="${prev ? "edit-recurring" : "edit-tx"}" data-id="${attr(prev ? t.recurringId : t.id)}" role="button" tabindex="0" aria-label="${attr(t.desc)}, ${prev ? "previsto, " : ""}${t.kind === "income" ? "receita" : "despesa"} de ${attr(money(t.value))} em ${brDate(t.date)}">
     ${glyph(t.category)}<span class="meta"><b>${esc(t.desc)}</b><small>${meta}</small></span>
     <span class="amount">${t.kind === "income" ? "+" : "−"}${money(t.value)}</span>${toggle}</div>`;
+  }
+  function resultText(fl) {
+    if (fl.income === fl.expense) return "Neste período, você gastou o mesmo valor que recebeu.";
+    if (fl.expense > fl.income) return `Você gastou ${Money.format(fl.expense - fl.income)} a mais do que recebeu.`;
+    return `Depois das despesas, sobraram ${Money.format(fl.income - fl.expense)}.`;
+  }
+  var FLOW_COLORS = ["#00afc1", "var(--red)", "#278ae5", "var(--green)", "#8c9499", "var(--accent)"];
+  function flowCard(inRange, s, f, fl) {
+    const by = /* @__PURE__ */ new Map();
+    for (const t of inRange) if (t.kind === "income" && t.paid && isFlow(t)) by.set(t.category || "Sem categoria", (by.get(t.category || "Sem categoria") || 0) + t.value);
+    const ins = [...by].sort((a, b) => b[1] - a[1]).map(([n, v], i) => [n, v, FLOW_COLORS[i % 6]]);
+    const outs = Finance.categoryTotals(s, f.from, f.to).map(([n, v], i) => [n, v, FLOW_COLORS[(i + 1) % 6]]);
+    const left = Math.max(0, fl.income - fl.expense);
+    if (left > 0) outs.push(["Sobrou", left, "var(--green)"]);
+    const scale = Math.max(fl.income, fl.expense, 1);
+    const bar = (parts) => `<div class="flowSeg${hidden() ? " sensitive" : ""}" aria-hidden="true">${parts.map(([, v, c]) => `<i style="width:${v * 100 / scale}%;background:${c}"></i>`).join("")}</div>`;
+    const legend = (parts, total) => `<ul class="flowLegend">${parts.map(([n, v, c]) => `<li><i style="background:${c}"></i><span>${esc(n)}</span><b>${money(v)}<small>${hidden() || total <= 0 ? "••%" : Math.min(100, Math.floor(v * 100 / total)) + "%"}</small></b></li>`).join("")}</ul>`;
+    const desc = `Fluxo do dinheiro. Entradas realizadas: ${hidden() ? "valores ocultos" : Money.format(fl.income)}. Despesas realizadas: ${hidden() ? "valores ocultos" : Money.format(fl.expense)}` + (left > 0 ? `. Sobra: ${hidden() ? "valor oculto" : Money.format(left)}` : fl.expense > fl.income ? `. Despesas acima das receitas: ${hidden() ? "valor oculto" : Money.format(fl.expense - fl.income)}` : "");
+    return `<section class="comparison glass flowBox" role="group" aria-label="${attr(desc)}">${eyebrow("Análises")}<h3>Fluxo do dinheiro</h3>
+    <p class="muted small">De onde veio (em cima) e para onde foi (embaixo).</p>
+    <h4 class="subhead">De onde veio</h4>${bar(ins)}${legend(ins, fl.income)}
+    <div class="flowPill"><span>${hidden() ? "Entradas ocultas" : `Entrou ${esc(Money.format(fl.income))}`}</span></div>
+    <h4 class="subhead">Para onde foi</h4>${outs.length ? bar(outs) + legend(outs, Math.max(fl.income, fl.expense)) : '<p class="muted small">Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.</p>'}
+    ${fl.expense > fl.income ? '<p class="small red">As despesas passaram o valor recebido neste período.</p>' : ""}
+    <small class="muted">Considera apenas lançamentos pagos ou recebidos; não associa uma entrada a uma despesa específica.</small></section>`;
   }
   function reportsView() {
     movesDefaults();
     const s = ctx.state, f = ctx.moves, today2 = ctx.today;
     const inRange = s.txs.filter((t) => (!f.from || t.date >= f.from) && (!f.to || t.date <= f.to));
     const fl = Finance.flow(inRange);
-    const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Relatórios</h2>${btn("PDF", { act: "pdf", cls: "pill", icon: "receipt-long", iconSize: 18, label: "Exportar relatório em PDF" })}</div>
+    const head = `<div class="pageTitle reportsHead"><h2 id="reportsTitle">Resumo</h2>${btn("PDF", { act: "pdf", cls: "pill", icon: "receipt-long", iconSize: 18, label: "Exportar relatório em PDF" })}</div>
     ${periodBar()}<p class="muted small reportsNote">Só valores realizados (pagos ou recebidos). O período é o mesmo da aba Lançamentos.</p>`;
     let summary;
     if (fl.income === 0 && fl.expense === 0) {
@@ -5010,9 +5874,13 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       const prev = c ? Finance.flow(s.txs.filter((t) => t.date >= c.from && t.date <= c.to)) : null;
       const chg2 = (cur, old) => hidden() ? "Variação oculta" : c ? PeriodCompare.text(cur, old, c) : "";
       const box = (l, ic, v, cls, ch) => `<div class="glass"><small>${icon(ic, 14)}${l}</small><b class="${cls}">${money(v)}</b>${ch ? `<small class="chg">${esc(ch)}</small>` : ""}</div>`;
-      summary = `<section class="reportSum" aria-label="Resumo do período">${box("Receitas", "arrow-upward", fl.income, "green", chg2(fl.income, prev?.income))}${box("Despesas", "arrow-downward", fl.expense, "red", chg2(fl.expense, prev?.expense))}</section>`;
+      const res = fl.income - fl.expense;
+      summary = `<section class="reportSum" aria-label="Resumo do período">${box("Receitas", "arrow-upward", fl.income, "green", chg2(fl.income, prev?.income))}${box("Despesas", "arrow-downward", fl.expense, "red", chg2(fl.expense, prev?.expense))}</section>
+      <section class="glass resultBox"><small class="muted">Resultado do período</small><b class="${res < 0 ? "negative" : "accent"}">${money(res)}</b>
+      <small class="muted">${esc(hidden() ? "Os relatórios consideram somente valores já pagos ou recebidos." : resultText(fl))}</small></section>`;
     }
-    const sim = `<button type="button" class="whatIf" data-act="simulator">${icon("auto-awesome", 22)}<span><b>E se…?</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon("chevron-right", 20)}</button>`;
+    const flow = fl.income > 0 || fl.expense > 0 ? flowCard(inRange, s, f, fl) : "";
+    const sim = `<button type="button" class="whatIf" data-act="simulator">${icon("auto-awesome", 22)}<span><b>Simular meu dinheiro</b><small>Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.</small></span>${icon("chevron-right", 20)}</button>`;
     const cats = Finance.categoryTotals(s, f.from, f.to), total = cats.reduce((n, [, v]) => n + v, 0);
     const slices = cats.slice(0, 7).map(([n, v]) => [n, v]);
     if (cats.length > 7) slices.push([`Outras (${cats.length - 7})`, cats.slice(7).reduce((n, [, v]) => n + v, 0)]);
@@ -5029,7 +5897,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     const evo = `<section class="comparison glass">${eyebrow("Evolução")}<h3>Últimos 6 meses</h3>
     ${empty ? '<p class="muted small">Aparece quando houver pelo menos um mês com valores realizados.</p>' : `<div class="evo${hidden() ? " sensitive" : ""}" role="img" aria-label="Gráfico de receitas e despesas. ${attr(desc)}">${months.map(([m2, x]) => `<div class="evoCol"><div class="pair"><i class="inc" style="height:${x.income * 100 / max}%"></i><i class="exp" style="height:${x.expense * 100 / max}%"></i></div><span>${MONTHS_SHORT[m2 % 12]}</span></div>`).join("")}</div>
     <small class="legendLine"><i class="dot inc"></i>Receitas <i class="dot exp"></i>Despesas</small>`}</section>`;
-    return head + (ctx.cols === 1 ? summary + sim + catCard + evo : cols([summary, sim, evo], [catCard]));
+    return head + (ctx.cols === 1 ? summary + sim + flow + catCard + evo : cols([summary, sim, flow], [catCard, evo]));
   }
   function donutSvg(slices, total) {
     const r = 52, c = 2 * Math.PI * r;
@@ -5072,7 +5940,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     ${a.matches.length ? btn("Ver lançamentos", { act: "open-moves", data: { q: p.category ?? p.words[0] ?? "", from: p.period.from, to: p.period.to, kind: p.kind ?? "" }, cls: "pill small", icon: "chevron-right", iconSize: 16 }) : ""}</div>`;
   }
   var openFolds = /* @__PURE__ */ new Set();
-  function fold(id, title, sub, body, ic) {
+  function fold2(id, title, sub, body, ic) {
     const open = openFolds.has(id);
     return `<section class="fold glass${open ? " open" : ""}" id="fold-${id}">
     <button type="button" class="foldHead" data-act="fold" data-id="${id}" aria-expanded="${open}" aria-controls="foldBody-${id}">
@@ -5083,11 +5951,11 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
   var manage = (title, sub, actions2) => `<div class="manageItem"><div><b>${esc(title)}</b><small>${esc(sub)}</small></div><div class="manageActions">${actions2}</div></div>`;
   function prefsView(env2) {
     const s = ctx.state, d = ctx.device;
-    const appearance = fold("aparencia", "Aparência", `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? " active" : ""}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
+    const appearance = fold2("aparencia", "Aparência", `Tema: ${themeLabel(s.theme)}`, `<div class="themeChoices">${THEMES.map(([id, label]) => `<button type="button" class="themeChoice${s.theme === id ? " active" : ""}" data-act="theme" data-id="${id}" aria-pressed="${s.theme === id}">
       <span>${esc(label)}${s.theme === id ? icon("check", 16) : ""}</span><span class="swatches t-${id}"><i></i><i></i><i></i><i></i></span></button>`).join("")}</div>
     <p class="muted small">“Sistema” acompanha o modo claro/escuro do aparelho.</p>`, "palette");
     const hasPin = !!d.pinHash;
-    const privacy = fold("privacidade", "Privacidade e segurança", (hasPin ? "Bloqueio ativo" : "Bloqueio desativado") + (s.privacy ? " · valores ocultos" : ""), `
+    const privacy2 = fold2("privacidade", "Privacidade e segurança", (hasPin ? "Bloqueio ativo" : "Bloqueio desativado") + (s.privacy ? " · valores ocultos" : ""), `
     <div class="manageItem"><div><b>Bloqueio por PIN</b><small>${hasPin ? "Ativo: o PIN é pedido ao abrir o Finan+" : "Desativado. Defina um PIN de 4 a 8 números."}</small></div>
       <div class="manageActions">${btn(hasPin ? "Remover PIN" : "Definir PIN", { act: hasPin ? "pin-remove" : "pin-set", cls: "soft small" })}${hasPin ? btn("Trocar", { act: "pin-set", cls: "soft small" }) : ""}</div></div>
     ${check("privacy", "Ocultar valores", s.privacy, { sub: "Esconde os valores em reais na tela e nos avisos (Ctrl+H)" })}
@@ -5096,55 +5964,39 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
     <div class="infoBox">${icon("lock", 18)}<p>${env2.remote ? "Modo remoto: os dados ficam no celular (criptografados lá) e chegam por conexão criptografada (HTTPS). Nada financeiro é gravado neste navegador; o PIN abaixo vale só para ele." : env2.encrypted ? "Os dados ficam criptografados (AES-256-GCM) neste navegador, com uma chave que não pode ser lida nem pelo próprio site. Nada é enviado para servidores." : "Atenção: este navegador não oferece as funções de criptografia necessárias. Os dados ficam neste aparelho, mas sem criptografia."} O PIN nunca vai para o backup.</p></div>
     <p class="muted small">Navegadores não permitem bloquear capturas de tela. Ao compartilhar a tela, ligue “Ocultar valores”.</p>`, "shield");
     const nperm = typeof Notification === "undefined" ? "unsupported" : Notification.permission;
-    const notif = env2.remote ? fold("avisos", "Avisos de vencimento", "Feitos pelo celular", `
+    const notif = env2.remote ? fold2("avisos", "Avisos de vencimento", "Feitos pelo celular", `
     <p class="muted small">No modo remoto, os avisos de vencimento chegam pelo próprio celular.</p>
-    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
+    ${btn("Ver vencimentos agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}`, "notifications") : fold2("avisos", "Avisos de vencimento", d.notifications && nperm === "granted" ? "Avisos de vencimento ligados" : "Avisos de vencimento desligados", `
     ${check("notifications", "Avisar vencimentos", d.notifications && nperm === "granted", { sub: "Contas a pagar, valores a receber e faturas, uma vez por dia a partir das 9h, com o Finan+ aberto", disabled: nperm === "unsupported" })}
     ${nperm === "denied" ? '<p class="muted small">As notificações estão bloqueadas para este site. Libere nas configurações do navegador.</p>' : ""}
     ${nperm === "unsupported" ? '<p class="muted small">Este navegador não oferece notificações.</p>' : ""}
     ${btn("Avisar agora", { act: "notify-now", cls: "soft small", icon: "notifications", iconSize: 18 })}
     <p class="muted small">Sites não podem rodar com o navegador fechado sem um servidor. Para manter tudo no aparelho, os avisos aparecem quando o Finan+ é aberto (ou fica aberto) a partir das 9h. O cartão “Vencimentos” do Início mostra os próximos 30 dias.</p>`, "notifications");
     const n = [d.assistCategory, d.assistTips, d.assistAsk].filter(Boolean).length;
-    const assist = fold("assistente", "Assistente", `${n} de 3 funções ligadas`, `
+    const assist = fold2("assistente", "Assistente", `${n} de 3 funções ligadas`, `
     <p class="muted small">Funciona só neste aparelho, sem internet e sem enviar dados. Cada função pode ser desligada.</p>
     ${check("assistCategory", "Sugerir categoria", d.assistCategory, { sub: "Ao digitar a descrição de um lançamento novo" })}
     ${check("assistTips", "Resumo e dicas", d.assistTips, { sub: "No Início: resumo do mês, gastos fora do padrão, fixos, duplicados" })}
     ${check("assistAsk", "Perguntas rápidas", d.assistAsk, { sub: "Ex.: “quanto gastei com mercado em agosto?”" })}
     ${d.dismissedTips.length ? btn(`Restaurar ${d.dismissedTips.length} dica(s) dispensada(s)`, { act: "restore-all-tips", cls: "soft small" }) : ""}
     <details class="learned"><summary>${icon("expand-more", 18)}Ver o que o assistente aprendeu</summary>${learnedHtml()}</details>`, "auto-awesome");
-    const accounts = fold("contas", "Contas e cartões", `${s.accounts.length} conta(s) · ${s.cards.length} cartão(ões)`, `
-    <div class="manageList">${s.accounts.map((a) => manage(a.name, `Saldo ${money(Finance.accountBalance(s, a))}`, btn("Editar", { act: "edit-account", data: { id: a.id }, cls: "soft small" }))).join("")}
-    ${s.cards.map((c) => {
-      const st2 = Finance.cardStatus(s, c, ctx.today);
-      return manage(`Cartão ${c.name}`, `Limite ${money(c.limit)} · usado ${money(st2.used)} · fecha dia ${c.close} · vence dia ${c.due}`, btn("Editar", { act: "edit-card", data: { id: c.id }, cls: "soft small" }));
-    }).join("")}</div>
-    <div class="btnGrid">${btn("Conta", { act: "new-account", icon: "add", iconSize: 18 })}${btn("Cartão", { act: "new-card", icon: "add", iconSize: 18 })}</div>`, "account-balance-wallet");
-    const recurring = fold("recorrencias", "Recorrências", s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : "Nenhuma recorrência cadastrada", `
+    const recurring = fold2("recorrencias", "Recorrências", s.recurring.length ? `${s.recurring.length} recorrência(s) cadastrada(s)` : "Nenhuma recorrência cadastrada", `
     <div class="foldTools">${btn("Nova", { act: "new-recurring", icon: "add", iconSize: 18, cls: "soft small" })}</div>
     ${s.recurring.length ? `<div class="manageList">${s.recurring.map((r) => {
       const where = r.cardId ? `Cartão ${card(s, r.cardId)?.name ?? ""}` : account(s, r.accountId)?.name ?? "";
       return manage(r.desc, `${r.kind === "income" ? "Receita" : "Despesa"} · ${money(r.value)} · dia ${r.day} · ${r.category} · ${where}${r.active ? "" : " · pausada"}`, btn("Editar", { act: "edit-recurring", data: { id: r.id }, cls: "soft small" }));
     }).join("")}</div>` : '<p class="muted small">Você também pode marcar “Repetir mensalmente” ao criar um lançamento.</p>'}`, "repeat");
-    const limits = fold("limites", "Limites mensais", s.limits.size ? `${s.limits.size} limite(s) definido(s)` : "Nenhum limite definido", `
-    <div class="foldTools">${btn("Adicionar", { act: "new-limit", icon: "add", iconSize: 18, cls: "soft small" })}</div>
-    ${s.limits.size ? `<div class="manageList">${[...s.limits].map(([c, v]) => manage(c, `${money(v)} por mês`, btn("Editar", { act: "edit-limit", data: { cat: c }, cls: "soft small" }))).join("")}</div>` : '<p class="muted small">Defina apenas os limites que quiser acompanhar. Despesas pendentes do mês também contam.</p>'}`, "donut-large");
-    const catList = (k, label) => `<h4 class="subhead">${label}</h4><div class="manageList">${s.cats[k].map((c) => manage(
-      c,
-      `${k === "expense" ? "Despesa" : "Receita"}${categoryUse(k, c)}`,
-      btn("", { act: "rename-cat", data: { kind: k, cat: c }, cls: "icon tiny", icon: "edit", iconSize: 16, label: `Renomear ${c}` }) + btn("", { act: "delete-cat", data: { kind: k, cat: c }, cls: "icon tiny dangerIc", icon: "delete", iconSize: 16, label: `Excluir ${c}` })
-    )).join("")}</div>`;
-    const cats = fold("categorias", "Categorias", `${s.cats.expense.length + s.cats.income.length} categorias cadastradas`, `
-    <form id="catForm" class="filters" novalidate><input id="newCat" placeholder="Nova categoria" maxlength="40" aria-label="Nova categoria"><select id="newCatKind" aria-label="Tipo da categoria"><option value="expense"${ctx.catKind !== "income" ? " selected" : ""}>Despesa</option><option value="income"${ctx.catKind === "income" ? " selected" : ""}>Receita</option></select>
-    ${btn("Adicionar categoria", { submit: true, cls: "primary wide" })}</form>${catList("expense", "Despesas")}${catList("income", "Receitas")}`, "category");
-    const data = fold("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
+    const data = fold2("dados", "Dados", "Backup, restauração, CSV e relatório em PDF", `
     <div class="btnGrid">${btn("Exportar CSV", { act: "csv", icon: "table-view", iconSize: 18 })}${btn("Backup JSON", { act: "backup", icon: "download", iconSize: 18 })}
     ${btn("Restaurar", { act: "restore", icon: "upload", iconSize: 18 })}${btn("Relatório em PDF", { act: "pdf", icon: "picture-as-pdf", iconSize: 18 })}
     ${env2.remote ? "" : btn("Apagar tudo", { act: "wipe", cls: "dangerB", icon: "delete", iconSize: 18 })}</div>
     <p class="muted small">O backup JSON é compatível com o app Android e com a versão Linux do Finan+: dá para levar os dados de um para o outro. O arquivo de backup não é criptografado; guarde-o em local seguro.</p>`, "database");
-    const about = fold("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
+    const about = fold2("sobre", "Sobre", `Conheça o Finan+ · versão ${APP_VERSION}`, aboutHtml(env2), "info");
     const head = pageTitle("prefsTitle", "Configurações", "Ajustes", env2.remote ? "Tudo é salvo no celular, pela rede local." : env2.encrypted ? "Tudo fica salvo e criptografado neste aparelho." : "Tudo fica salvo neste aparelho.");
-    const left = [appearance, privacy, notif, assist, about], right = [accounts, recurring, limits, cats, data];
-    return head + (ctx.cols === 1 ? [appearance, privacy, notif, assist, accounts, recurring, limits, cats, data, about].join("") : cols(left, right));
+    const group = (title, ...items) => `<h3 class="prefsGroup">${esc(title)}</h3>${items.join("")}`;
+    const left = [group("Personalização", appearance, notif), group("Planejamento e automação", assist, recurring)];
+    const right = [group("Segurança e dados", privacy2, data), group("Aplicativo", about)];
+    return head + (ctx.cols === 1 ? [...left, ...right].join("") : cols(left, right));
   }
   function categoryUse(k, c) {
     const n = ctx.state.txs.filter((t) => t.kind === k && t.category === c).length;
@@ -5172,7 +6024,7 @@ ${bad} item(ns) inválido(s) será(ão) ignorado(s).` : "") + "\nSubstituir os d
       "Esta é a versão web (PWA): funciona no navegador do celular ou do computador, pode ser instalada como aplicativo e continua funcionando sem internet. Os dados ficam no aparelho, criptografados com AES-256-GCM e chave não extraível guardada pelo próprio navegador, sem conta, cadastro ou servidor.",
       "Inclui avisos de vencimento, bloqueio por PIN, relatório em PDF e backup em JSON compatível com o app Android e com a versão Linux.",
       "O assistente (sugestão de categoria, resumo do mês, dicas de economia e perguntas rápidas) funciona inteiro no aparelho, sem internet e sem modelo de IA externo: são regras e um classificador simples, com código aberto e explicação em cada resposta.",
-      "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com layout próprio para computador e notebook e os temas Material You, OLED, Tokyo Night e Nord."
+      "A interface combina conceitos do Material 3 com elementos visuais inspirados em Liquid Glass, com layout próprio para computador e notebook e os temas Gruvbox, OLED, Gruvbox OLED, Tokyo Night e Nord."
     ];
     return `${paras.map((p) => `<p class="muted">${esc(p)}</p>`).join("")}
     <p><b>Privacidade em primeiro lugar: seus dados financeiros permanecem no seu dispositivo.</b></p>
@@ -5201,11 +6053,12 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   var NAV = [
     ["home", "Início", "home", "home-fill"],
     ["moves", "Lançamentos", "swap-horiz", "swap-horiz-fill"],
-    ["reports", "Relatórios", "pie-chart", "pie-chart-fill"],
+    ["money", "Meu dinheiro", "account-balance", "account-balance"],
+    ["reports", "Resumo", "pie-chart", "pie-chart-fill"],
     ["assist", "Assistente", "auto-awesome", "auto-awesome"],
     ["prefs", "Ajustes", "settings", "settings-fill"]
   ];
-  var VIEW_TITLES = { home: "Início", moves: "Lançamentos", reports: "Relatórios", assist: "Assistente", prefs: "Ajustes" };
+  var VIEW_TITLES = { home: "Início", moves: "Lançamentos", money: "Meu dinheiro", reports: "Resumo", assist: "Assistente", prefs: "Ajustes" };
   function sideNavHtml() {
     return NAV.map(([id, label, ic, icOn], i) => `<button type="button" class="${ctx.view === id ? "active" : ""}" data-act="go" data-view="${id}" aria-current="${ctx.view === id ? "page" : "false"}">
     ${icon(ctx.view === id ? icOn : ic, 22)}<span>${label}</span><kbd>${i + 1}</kbd></button>`).join("");
@@ -5236,9 +6089,8 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   }
   function mobileHeaderHtml() {
     const s = ctx.state;
-    return `<div><h1>Finan+</h1><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
-    <span class="statusPill">${icon("shield", 14)}Privado</span>
-    ${btn("", { act: "toggle-privacy", cls: "icon", icon: s.privacy ? "visibility" : "visibility-off", label: s.privacy ? "Mostrar valores" : "Ocultar valores" })}</div>`;
+    return `<div><h1>Finan+</h1><small class="headTag">Seu dinheiro, sem complicação.</small><small class="headDate">${esc(MonthCalendar.dayTitle(ctx.today, ctx.today))}</small></div><div class="headTools">
+    <button type="button" class="privacyPill${s.privacy ? " on" : ""}" data-act="toggle-privacy" aria-label="${s.privacy ? "Mostrar valores financeiros" : "Ocultar valores financeiros"}">${icon("shield", 15)}<span>${s.privacy ? "Mostrar valores" : "Ocultar valores"}</span></button></div>`;
   }
   function bottomNavHtml() {
     const item = (id) => {
@@ -5246,7 +6098,10 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       const on = ctx.view === id || id === "home" && ctx.view === "assist";
       return `<button type="button" class="${on ? "active" : ""}" data-act="go" data-view="${id}" aria-current="${on ? "page" : "false"}">${icon(on ? icOn : ic, 22)}<span>${label}</span></button>`;
     };
-    return `${item("home")}${item("moves")}<button type="button" class="fab" data-act="new-tx" data-kind="expense" aria-label="Novo lançamento">${icon("add", 28)}</button>${item("reports")}${item("prefs")}`;
+    return `${item("home")}${item("moves")}${item("money")}${item("reports")}${item("prefs")}`;
+  }
+  function fabHtml() {
+    return ctx.view === "home" || ctx.view === "moves" ? `<button type="button" class="fab floatFab" data-act="add-choice" aria-label="Adicionar movimentação">${icon("add", 26)}</button>` : "";
   }
 
   // js/remote.js
@@ -5397,7 +6252,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     }
     this.rev = j.rev;
     this.palette = j.palette && typeof j.palette === "object" ? j.palette : null;
-    return normalize(j.data);
+    return normalize(j.data, { enforceLimits: false });
   };
   var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   function pairFlow(el, message = "") {
@@ -5480,38 +6335,11 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       form(message);
     });
   }
-  var VARS = {
-    bg: "--bg",
-    surface: "--surface",
-    text: "--text",
-    muted: "--muted",
-    accent: "--accent",
-    onAccent: "--onAccent",
-    accent2: "--accent2",
-    red: "--red",
-    green: "--green",
-    track: "--track",
-    glowA: "--glow1",
-    glowB: "--glow2",
-    border: "--line"
-  };
-  var opaque = (c) => String(c).replace(/^rgba\(([^,]+),([^,]+),([^,]+),[^)]+\)$/, "rgba($1,$2,$3,1)");
-  function applyPalette(root, palette, dark) {
-    const p = palette ? dark ? palette.dark : palette.light : null;
-    for (const v of [...Object.values(VARS), "--solid", "--field", "--surface2"]) root.style.removeProperty(v);
-    if (!p) return null;
-    for (const [k, v] of Object.entries(VARS)) if (p[k]) root.style.setProperty(v, p[k]);
-    if (p.surface) {
-      root.style.setProperty("--solid", opaque(p.surface));
-      root.style.setProperty("--field", p.dark ? opaque(p.bg) : opaque(p.surface));
-    }
-    return p.dark ? "oledGray" : "materialBlue";
-  }
 
   // js/app.js
   var env = { encrypted: false, remote: false };
   var REMOTE = isRemote();
-  var VIEWS = { home: "inicio", moves: "lancamentos", reports: "relatorios", assist: "assistente", prefs: "ajustes" };
+  var VIEWS = { home: "inicio", moves: "lancamentos", money: "meu-dinheiro", reports: "relatorios", assist: "assistente", prefs: "ajustes" };
   var HASH_TO_VIEW = Object.fromEntries(Object.entries(VIEWS).map(([k, v]) => [v, k]));
   var channel = null;
   ctx.replace = (state, o = {}) => {
@@ -5569,15 +6397,11 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       notice("Não foi possível salvar", "Verifique o espaço livre do aparelho e tente de novo. Faça um backup JSON para não perder dados.\n(" + (e?.message || e) + ")");
     }
   }
-  var THEME_COLORS = { light: "#d9e5ff", dark: "#0f1524", materialBlue: "#dbe7ff", oledGray: "#181a1f", tokyo: "#1a1b26", nord: "#2e3440" };
+  var THEME_COLORS = { light: "#d9e5ff", dark: "#0f1524", gruvbox: "#282828", oledGray: "#181a1f", gruvboxOled: "#000000", tokyo: "#1a1b26", nord: "#2e3440" };
   var darkMq = matchMedia("(prefers-color-scheme: dark)");
   function applyTheme(theme) {
     const t = themeOf(theme);
     let eff = t === "auto" ? darkMq.matches ? REMOTE ? "oledGray" : "dark" : "light" : t;
-    if (REMOTE) {
-      const base2 = applyPalette(document.documentElement, t === "materialBlue" ? ctx.store?.palette : null, darkMq.matches);
-      if (base2) eff = base2;
-    }
     document.documentElement.dataset.theme = eff;
     document.querySelector("meta[name=theme-color]")?.setAttribute("content", THEME_COLORS[eff] || "#d9e5ff");
     if (ctx.device && ctx.device.themeCache !== theme) updateDevice({ themeCache: theme });
@@ -5636,6 +6460,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     $("#appHeader").innerHTML = mobileHeaderHtml();
     $("#appHeader").hidden = ctx.view !== "home";
     $("#bottomNav").innerHTML = bottomNavHtml();
+    $("#fabSlot").innerHTML = fabHtml();
     for (const v of Object.keys(VIEWS)) {
       const el = $(`#${v}View`);
       el.classList.toggle("activeView", v === ctx.view);
@@ -5643,7 +6468,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
         el.innerHTML = "";
         continue;
       }
-      el.innerHTML = v === "home" ? homeView() : v === "moves" ? movesView() : v === "reports" ? reportsView() : v === "assist" ? assistView() : prefsView(env);
+      el.innerHTML = v === "home" ? homeView() : v === "moves" ? movesView() : v === "money" ? moneyView() : v === "reports" ? reportsView() : v === "assist" ? assistView() : prefsView(env);
     }
     bindView();
     if (keep && (keep.act || keep.el)) {
@@ -5677,6 +6502,18 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       if (form) form.onsubmit = (e) => {
         e.preventDefault();
         askQuestion($("#askInput").value);
+      };
+    }
+    if (ctx.view === "money") {
+      const cf = $("#catForm");
+      if (cf) cf.onsubmit = (e) => {
+        e.preventDefault();
+        ctx.catKind = $("#newCatKind").value;
+        const r = OpsAddCategory(ctx.catKind, $("#newCat").value);
+        if (r) {
+          $("#newCat")?.focus();
+          toast("Categoria adicionada");
+        }
       };
     }
     if (ctx.view === "prefs") {
@@ -5752,8 +6589,31 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   var ACTIONS = {
     "new-tx": (el) => txEditor(el.dataset.kind || "expense", null, el.dataset.date || null),
     "edit-tx": (el) => txEditor("expense", el.dataset.id),
-    "toggle-paid": (el) => {
-      ctx.replace(Ops.togglePaid(ctx.state, el.dataset.id));
+    // confirmar pede confirmação e oferece Desfazer logo depois (a mesma operação, de novo, volta ao que era)
+    "toggle-paid": async (el) => {
+      const id = el.dataset.id, t = ctx.state.txs.find((x) => x.id === id);
+      if (!t || !Ops.canTogglePaid(t)) return;
+      const action = t.kind === "income" ? "recebido" : "pago";
+      const ok2 = await ask(
+        t.paid ? "Desfazer confirmação?" : t.kind === "income" ? "Confirmar recebimento?" : "Confirmar pagamento?",
+        t.paid ? `Marcar “${t.desc}” como pendente novamente?` : `Marcar “${t.desc}” como ${action}?`,
+        { ok: t.paid ? "Marcar pendente" : "Confirmar", danger: t.paid }
+      );
+      if (!ok2) return;
+      ctx.replace(Ops.togglePaid(ctx.state, id, ctx.today));
+      toast(
+        t.paid ? "Movimentação voltou para pendente." : `Movimentação marcada como ${action}.`,
+        6e3,
+        { action: "Desfazer", onAction: () => ctx.replace(Ops.togglePaid(ctx.state, id, ctx.today)) }
+      );
+    },
+    "add-choice": () => addChoiceSheet(),
+    "cats-fold": (el) => {
+      catsOpen.on = !catsOpen.on;
+      const body = $("#catsBody");
+      if (body) body.hidden = !catsOpen.on;
+      el.setAttribute("aria-expanded", catsOpen.on);
+      el.querySelector("span").textContent = catsOpen.on ? "Minimizar" : "Maximizar";
     },
     "new-goal": () => goalEditor(),
     "edit-goal": (el) => goalEditor(el.dataset.id),
@@ -5952,7 +6812,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
   document.addEventListener("contextmenu", (e) => {
     if (e.target.closest?.(".calDay")) e.preventDefault();
   });
-  var SWIPE_TABS = ["home", "moves", "reports", "prefs"];
+  var SWIPE_TABS = ["home", "moves", "money", "reports", "prefs"];
   var swipe = null;
   document.addEventListener("touchstart", (e) => {
     swipe = null;
@@ -5989,7 +6849,7 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
     el.classList.add("tapFx");
     setTimeout(() => el.classList.remove("tapFx"), 360);
   }, { passive: true });
-  var SIMPLE = { n: "n", r: "N", m: "m", "/": "f", k: "k", h: "h", "1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "?": "/" };
+  var SIMPLE = { n: "n", r: "N", m: "m", "/": "f", k: "k", h: "h", "1": "1", "2": "2", "3": "3", "4": "4", "5": "5", "6": "6", "?": "/" };
   document.addEventListener("keydown", (e) => {
     if (ctx.locked || ctx.problem || !ctx.state) return;
     if (dialogOpen()) return;
@@ -6019,9 +6879,10 @@ Este programa é distribuído na esperança de que seja útil, mas SEM NENHUMA G
       o: () => restoreBackup(),
       "1": () => ctx.go("home"),
       "2": () => ctx.go("moves"),
-      "3": () => ctx.go("reports"),
-      "4": () => ctx.go("assist"),
-      "5": () => ctx.go("prefs"),
+      "3": () => ctx.go("money"),
+      "4": () => ctx.go("reports"),
+      "5": () => ctx.go("assist"),
+      "6": () => ctx.go("prefs"),
       ",": () => ctx.go("prefs"),
       "/": () => shortcutsDialog(),
       "?": () => shortcutsDialog()

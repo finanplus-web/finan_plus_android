@@ -21,7 +21,10 @@ Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android
 - **Valores exatos:** números do backup e do acesso pela rede são lidos como texto e convertidos direto para centavos, sem passar por número de ponto flutuante (antes, valores com muitas casas podiam perder centavos).
 - **Teto de segurança:** a soma de todos os valores não pode passar do maior inteiro exato do Finan+ web; salvar, restaurar e gerar recorrências recusam o que passaria disso.
 - **Limites de tamanho no backup externo:** 50.000 lançamentos, 100 contas, 100 cartões, 1.000 recorrências, 1.000 metas e 500 categorias por tipo. O app também não deixa **criar** além desses números, para que todo backup gerado por ele possa ser restaurado. Os dados que o app já tem salvos nunca passam por esses limites: quem já tinha mais itens continua abrindo e editando tudo normalmente.
-- O backup ganhou o campo opcional `scheduledDate` (data prevista). Versões anteriores e o Finan+ web ignoram o campo sem erro.
+- O backup ganhou o campo opcional `scheduledDate` (data prevista). Versões anteriores ignoram o campo sem erro.
+- **Acesso pela rede com o Finan+ web 1.4.0:** a cópia do PWA dentro do app (`app/src/main/assets/lan/pwa`) foi atualizada com `tools/sync-pwa.sh` a partir do Finan+ web 1.4.0 ([PR #19 do finan_plus](https://github.com/finanplus-web/finan_plus/pull/19)), com o mesmo visual desta versão e que preserva a data prevista. A cópia anterior descartava esse campo, e salvar pelo navegador apagaria as datas previstas do celular.
+- **Acesso pela rede e limites:** salvar pelo navegador não passa mais pelos limites de quantidade do backup externo; como no app, só é recusado o que **cria** itens além dos limites (quem já tinha mais itens continua editando).
+- Mensagens que mandavam ir em Ajustes para cadastrar cartão e limites agora apontam para **Meu dinheiro**.
 
 | Arquivo | Mudança |
 |---|---|
@@ -29,6 +32,7 @@ Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android
 | `core/Model.kt` | `Tx.scheduledDate`, `AppState.hasSafeMoneyTotals()`, `AppState.Limits` e `growthError()` |
 | `core/Ops.kt`, `core/Finance.kt` | Data efetiva/prevista ao confirmar, pendente por padrão fora de hoje, descrição opcional, limites na criação, `upcomingDues()` |
 | `data/Repo.kt` | Os dados do próprio app abrem sem limite de quantidade |
+| `lan/LanApi.kt`, `assets/lan/pwa/` | Acesso pela rede: limite só para crescimento; PWA 1.4.0 embutido |
 | `ui/Root.kt`, `ui/screens/*` | Nova navegação, aba `AccountsScreen`, escolha Despesa/Receita/Recorrência, formulário, Resumo, Ajustes |
 | `ui/theme/Theme.kt` | Cores de apoio (sucesso, perigo, aviso), espaçamentos e vermelho Gruvbox mais legível |
 | Testes | `SettlementDateTest`, `LimitsTest` e novos casos em `RegressionTest` |

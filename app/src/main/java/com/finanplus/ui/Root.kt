@@ -31,13 +31,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -338,31 +335,65 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
 private fun AddTransactionPill(nav: Nav, modifier: Modifier = Modifier) {
     val p = Fin.c
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Box(modifier) {
-        Row(
-            Modifier.shadow(10.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
-                .background(p.accent).clickable(role = Role.Button) { expanded = true }
-                .semantics { contentDescription = "Adicionar receita ou despesa" }
-                .padding(horizontal = 16.dp, vertical = 11.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 20.dp)
-            Text("Adicionar", color = p.onAccent, fontWeight = FontWeight.Bold)
-            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, p.onAccent, size = 18.dp)
+    Box(modifier, contentAlignment = Alignment.CenterEnd) {
+        if (expanded) {
+            Row(
+                Modifier.shadow(10.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
+                    .background(p.surface.compositeOver(p.bg)).border(1.dp, p.border, RoundedCornerShape(99.dp))
+                    .padding(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Box(
+                    Modifier.size(40.dp).clip(RoundedCornerShape(50)).clickable(role = Role.Button) { expanded = false }
+                        .semantics { contentDescription = "Fechar opções de lançamento" },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.REMOVE, p.muted, size = 20.dp)
+                }
+                TransactionChoice(
+                    label = "Despesa", icon = com.finanplus.ui.components.Ico.DOWN, tint = p.red,
+                    background = p.red.copy(alpha = 0.12f), modifier = Modifier.widthIn(min = 112.dp),
+                ) { expanded = false; nav.open(Sheet.TxEdit(Kind.EXPENSE)) }
+                TransactionChoice(
+                    label = "Receita", icon = com.finanplus.ui.components.Ico.UP, tint = p.green,
+                    background = p.green.copy(alpha = 0.12f), modifier = Modifier.widthIn(min = 112.dp),
+                ) { expanded = false; nav.open(Sheet.TxEdit(Kind.INCOME)) }
+            }
+        } else {
+            Row(
+                Modifier.shadow(10.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
+                    .background(p.accent).clickable(role = Role.Button) { expanded = true }
+                    .semantics { contentDescription = "Adicionar receita ou despesa" }
+                    .padding(horizontal = 16.dp, vertical = 11.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+            ) {
+                com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 20.dp)
+                Text("Adicionar", color = p.onAccent, fontWeight = FontWeight.Bold)
+                com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, p.onAccent, size = 18.dp)
+            }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text("Despesa") },
-                leadingIcon = { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.EXPENSE, p.red) },
-                onClick = { expanded = false; nav.open(Sheet.TxEdit(Kind.EXPENSE)) },
-            )
-            DropdownMenuItem(
-                text = { Text("Receita") },
-                leadingIcon = { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.INCOME, p.green) },
-                onClick = { expanded = false; nav.open(Sheet.TxEdit(Kind.INCOME)) },
-            )
-        }
+    }
+}
+
+@Composable
+private fun TransactionChoice(
+    label: String,
+    icon: com.finanplus.ui.components.Ico,
+    tint: androidx.compose.ui.graphics.Color,
+    background: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier.clip(RoundedCornerShape(99.dp)).background(background).clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label }.padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        com.finanplus.ui.components.AppIcon(icon, tint, size = 19.dp)
+        Text(label, Modifier.padding(start = 6.dp), color = tint, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 

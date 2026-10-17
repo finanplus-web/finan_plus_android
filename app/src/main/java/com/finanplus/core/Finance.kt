@@ -122,7 +122,9 @@ object Finance {
             }
             if (last == r.last) r else r.copy(last = last)
         }
-        return if (newTxs.isEmpty() && recs == s.recurring) s to 0 else s.copy(txs = s.txs + newTxs, recurring = recs) to newTxs.size
+        if (newTxs.isEmpty() && recs == s.recurring) return s to 0
+        val next = s.copy(txs = s.txs + newTxs, recurring = recs)
+        return if (next.hasSafeMoneyTotals() && s.growthError(next) == null) next to newTxs.size else s to 0
     }
 
     // ---------------- parcelas ----------------
@@ -191,13 +193,18 @@ object Finance {
         return out.sortedBy { it.date }
     }
 
-    /** Próximo compromisso (para o widget): conta pendente ou fatura com vencimento mais próximo a partir de hoje. */
-    fun nextDue(s: AppState, today: LocalDate): Reminder? {
+    /** Próximos compromissos da tela inicial: contas pendentes e faturas abertas, em ordem de vencimento. */
+    fun upcomingDues(s: AppState, today: LocalDate, limit: Int = 3): List<Reminder> {
+        if (limit <= 0) return emptyList()
         val bills = s.txs.filter { !it.paid && !it.isCard && it.kind == Kind.EXPENSE }
             .map { Reminder(if (it.date.isBefore(today)) ReminderType.BILL_OVERDUE else ReminderType.BILL_DUE, it.desc, it.value, it.date, it.id) }
         val invs = s.cards.flatMap { c -> cardStatus(s, c, today).invoices.filter { it.open > 0 }.map { Reminder(ReminderType.INVOICE_DUE, "Fatura ${c.name}", it.open, it.due, c.id) } }
-        return (bills + invs).minByOrNull { it.date }
+        return (bills + invs).sortedBy { it.date }.take(limit)
     }
+
+    /** Próximo compromisso para o widget. */
+    fun nextDue(s: AppState, today: LocalDate): Reminder? = upcomingDues(s, today, 1).firstOrNull()
+
 }
 
 object Csv {

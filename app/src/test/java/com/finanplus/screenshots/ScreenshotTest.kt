@@ -65,15 +65,19 @@ class ScreenshotTest {
             tab("Lançamentos"); shot("lancamentos")
             tab("Calendário"); shot("calendario")
             tab("Lista")
-            tab("Relatórios"); shot("relatorios")
+            tab("Meu dinheiro"); shot("contas")
+            tab("Resumo"); shot("relatorios")
             tab("Ajustes"); shot("ajustes")
-            compose.onNode(hasContentDescription("Novo lançamento")).performClick()
+            tab("Início")
+            compose.onNode(hasContentDescription("Adicionar movimentação")).performClick()
+            shot("adicionar-opcoes")
+            compose.onNode(hasText("Despesa")).performClick()
             shot("novo-lancamento")
         }
         Repo.showForScreenshots(demo.copy(theme = ThemeId.TOKYO))
         ActivityScenario.launch(MainActivity::class.java).use {
             shot("inicio-tokyo")
-            tab("Relatórios"); shot("relatorios-tokyo")
+            tab("Resumo"); shot("relatorios-tokyo")
         }
     }
 }

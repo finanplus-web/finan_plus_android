@@ -5,9 +5,11 @@ package com.finanplus.core
 
 /**
  * JSON mínimo e sem dependências (o núcleo não depende de Android nem de bibliotecas).
- * Objetos viram LinkedHashMap<String, Any?>, listas viram List<Any?>, números viram Double.
+ * Objetos viram LinkedHashMap<String, Any?> e listas viram List<Any?>. Números preservam seu literal.
  */
 object Json {
+    /** Número JSON preservado literalmente para evitar perda de precisão. */
+    data class NumberToken(val text: String)
     /** Número já formatado, escrito sem aspas (ex.: valores em reais "12.50"). */
     class Raw(val text: String)
 
@@ -87,11 +89,13 @@ object Json {
                 }
             }
         }
-        fun num(): Double {
+        fun num(): NumberToken {
             val st = i
             if (s[i] == '-') i++
             while (i < s.length && (s[i].isDigit() || s[i] == '.' || s[i] == 'e' || s[i] == 'E' || s[i] == '+' || s[i] == '-')) i++
-            return s.substring(st, i).toDoubleOrNull()?.takeIf { it.isFinite() } ?: fail("Número inválido")
+            val raw = s.substring(st, i)
+            raw.toDoubleOrNull()?.takeIf { it.isFinite() } ?: fail("Número inválido")
+            return NumberToken(raw)
         }
     }
 
@@ -101,6 +105,7 @@ object Json {
         when (v) {
             null -> sb.append("null")
             is Raw -> sb.append(v.text)
+            is NumberToken -> sb.append(v.text)
             is Boolean -> sb.append(v)
             is Int, is Long -> sb.append(v.toString())
             is Double -> sb.append(if (v.isFinite()) (if (v == Math.floor(v) && Math.abs(v) < 1e15) v.toLong().toString() else v.toString()) else "null")

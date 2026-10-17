@@ -31,10 +31,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsTopHeight
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -58,10 +63,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -87,6 +93,7 @@ import com.finanplus.ui.components.LocalDialogs
 import com.finanplus.ui.components.LocalPrivacy
 import com.finanplus.ui.components.MoneyText
 import com.finanplus.ui.components.br
+import com.finanplus.ui.screens.AccountsScreen
 import com.finanplus.ui.screens.HomeScreen
 import com.finanplus.ui.screens.LockScreen
 import com.finanplus.ui.screens.MovesScreen
@@ -100,12 +107,13 @@ import java.time.LocalDate
 
 enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
     HOME("Início", com.finanplus.ui.components.Ico.HOME), MOVES("Lançamentos", com.finanplus.ui.components.Ico.MOVES),
-    REPORTS("Relatórios", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
+    ACCOUNTS("Meu dinheiro", com.finanplus.ui.components.Ico.BANK), REPORTS("Resumo", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
 }
 
 /** Folhas (formulários) abertas. Serializable para sobreviver a girar a tela e ao bloqueio. */
 sealed interface Sheet : java.io.Serializable {
     /** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário) */
+    data object AddChoice : Sheet
     data class TxEdit(val kind: Kind, val id: String? = null, val date: LocalDate? = null) : Sheet
     /** [name]/[target]/[monthly]: valores iniciais de uma meta nova (ex.: vindos do simulador) */
     data class GoalEdit(val id: String? = null, val name: String = "", val target: Long = 0, val monthly: Long = 0) : Sheet
@@ -178,10 +186,14 @@ class Nav {
 }
 
 val LocalNav = staticCompositionLocalOf { Nav() }
+private val LocalTxSnackbar = staticCompositionLocalOf { SnackbarHostState() }
 
-/** Padding inferior para o conteúdo não ficar sob a barra de navegação flutuante. */
+/** Padding inferior para o conteúdo não ficar sob a navegação e a ação flutuante. */
 @Composable
-fun bottomSpace(): Dp = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 110.dp
+fun bottomSpace(): Dp {
+    val hasAddPill = LocalNav.current.tab in setOf(Tab.HOME, Tab.MOVES)
+    return WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (hasAddPill) 180.dp else 140.dp
+}
 
 @Composable
 fun screenPadding() = PaddingValues(start = 18.dp, end = 18.dp, top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 14.dp, bottom = bottomSpace())
@@ -232,6 +244,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
 
     // Android 13+: pede a permissão de notificação na primeira abertura (uma vez só).
     val ctx = LocalContext.current
+    val txSnackbarState = remember { SnackbarHostState() }
     val prefs = DevicePrefs.get(ctx)
     val askNotif = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> prefs.update { it.copy(notifications = granted) } }
     LaunchedEffect(Unit) {
@@ -256,7 +269,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
         }
     }
     var reaskProblem by remember { mutableIntStateOf(0) }
-    // Abas lado a lado: deslizar para o lado passa para a vizinha (Início › Lançamentos › Relatórios › Ajustes).
+    // Abas lado a lado: deslizar para o lado passa para a vizinha.
     // Os botões da barra inferior continuam funcionando; os dois caminhos mudam o mesmo nav.tab.
     val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = nav.tab.ordinal) { Tab.entries.size }
     // tocou num botão da barra (ou "Voltar" para o Início): leva o pager até a aba
@@ -272,7 +285,11 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
     }
     // a barra acompanha o gesto na hora: marca a página para onde o pager está indo
     val shownTab = Tab.entries[pager.targetPage]
-    CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {
+    CompositionLocalProvider(
+        LocalNav provides nav,
+        LocalTxSnackbar provides txSnackbarState,
+        com.finanplus.ui.components.LocalToday provides today,
+    ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             androidx.compose.foundation.pager.HorizontalPager(
                 pager, Modifier.fillMaxSize(), key = { Tab.entries[it].name },
@@ -283,6 +300,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
                     when (Tab.entries[page]) {
                         Tab.HOME -> HomeScreen(s)
                         Tab.MOVES -> MovesScreen(s)
+                        Tab.ACCOUNTS -> AccountsScreen(s)
                         Tab.REPORTS -> ReportsScreen(s)
                         Tab.PREFS -> SettingsScreen(s, dev, activity)
                     }
@@ -291,6 +309,14 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
             BottomNav(nav, shownTab, Modifier.align(Alignment.BottomCenter))
+            if (shownTab == Tab.HOME || shownTab == Tab.MOVES) AddTransactionFab(
+                nav, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 116.dp),
+            )
+            SnackbarHost(
+                hostState = txSnackbarState,
+                modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding()
+                    .padding(start = 12.dp, end = 82.dp, bottom = 116.dp).widthIn(max = 360.dp),
+            )
             SaveErrorBanner(Modifier.align(Alignment.TopCenter)) { reaskProblem++ }
         }
         nav.sheet?.let { sh -> key(sh) { SheetHost(s, sh) { nav.sheet = null } } }
@@ -301,61 +327,96 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
 @Composable
 private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
-    Row(
-        modifier.navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
-            // sem recorte (clip): o botão + sobe um pouco acima da barra e não pode ser cortado
-            .shadow(16.dp, RoundedCornerShape(28.dp), clip = false)
-            .background(p.surface.compositeOver(p.bg), RoundedCornerShape(28.dp)).border(1.dp, p.border, RoundedCornerShape(28.dp))
-            .padding(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    // Fundo opaco atrás da barra e da área de gesto: o conteúdo rolável não aparece por baixo.
+    Box(
+        modifier.fillMaxWidth().background(p.bg).navigationBarsPadding(),
+        contentAlignment = Alignment.Center,
     ) {
-        NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
-        NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
-        // O + ocupa a coluna do meio, com a mesma largura (weight 1f) das quatro abas:
-        // fica sempre no centro exato da barra, qualquer que seja o tamanho dos rótulos.
-        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(56.dp)
-                    .shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
-                    .clickable(role = Role.Button) { nav.open(Sheet.TxEdit(Kind.EXPENSE)) }.semantics { contentDescription = "Novo lançamento" },
-                contentAlignment = Alignment.Center,
-            ) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 28.dp) }
+        Row(
+            Modifier.padding(horizontal = 12.dp, vertical = 12.dp).widthIn(max = 536.dp).fillMaxWidth()
+                // sem recorte (clip): sombras e áreas de toque permanecem visíveis.
+                .shadow(16.dp, RoundedCornerShape(28.dp), clip = false)
+                .background(p.surface.compositeOver(p.bg), RoundedCornerShape(28.dp)).border(1.dp, p.border, RoundedCornerShape(28.dp))
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NavItem(Tab.HOME, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.MOVES, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.ACCOUNTS, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
+            NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
         }
-        NavItem(Tab.REPORTS, nav, shown, Modifier.weight(1f))
-        NavItem(Tab.PREFS, nav, shown, Modifier.weight(1f))
     }
 }
 
+/** Botão contextual de lançamento; o seletor abre como folha modal. */
 @Composable
 private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
     val on = shown == t
     Column(
-        modifier.height(58.dp).clip(RoundedCornerShape(20.dp)).background(if (on) p.accent.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
-            .clickable(role = Role.Tab) { nav.tab = t }.semantics { selected = on },
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+        modifier.height(58.dp).clip(RoundedCornerShape(20.dp))
+            .background(if (on) p.accent.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
+            .clickable(role = Role.Tab) { nav.tab = t }
+            .semantics { selected = on; contentDescription = t.label },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        // aba selecionada usa o ícone preenchido (estilo Material)
         com.finanplus.ui.components.AppIcon(t.icon, if (on) p.accent else p.muted, size = 22.dp, filled = on)
-        Text(t.label, fontSize = 10.sp, color = if (on) p.accent else p.muted, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            t.label,
+            fontSize = 10.sp,
+            color = if (on) p.accent else p.muted,
+            fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
-/** Linha de lançamento: toque abre a edição; o círculo marca como pago/recebido. */
+@Composable
+private fun AddTransactionFab(nav: Nav, modifier: Modifier = Modifier) {
+    val p = Fin.c
+    Box(
+        modifier.size(56.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
+            .clickable(role = Role.Button, onClickLabel = "Adicionar movimentação") { nav.open(Sheet.AddChoice) }
+            .semantics { contentDescription = "Adicionar movimentação" },
+        contentAlignment = Alignment.Center,
+    ) {
+        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 26.dp)
+    }
+}
+
+/** Linha de lançamento: toque abre a edição; a ação textual pede confirmação antes de mudar a situação. */
 @Composable
 fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val p = Fin.c
     val today = com.finanplus.ui.components.LocalToday.current
     val nav = LocalNav.current
+    val dialogs = LocalDialogs.current
+    val scope = rememberCoroutineScope()
+    val snackbar = LocalTxSnackbar.current
     // recorrência prevista (mês que ainda não chegou): não existe no estado; tocar abre a recorrência
     val projected = t.isProjected
     val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
     val status = when {
-        projected -> "Previsto · recorrência"
-        t.isCard -> "Cartão"
-        t.paid -> if (t.kind == Kind.INCOME) "Recebido" else "Pago"
-        t.date.isBefore(today) -> "Em atraso"
-        else -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
+        projected -> "Prevista · recorrência"
+        t.isCard -> "No cartão"
+        !t.paid && t.date.isBefore(today) -> if (t.kind == Kind.INCOME) "Vencida · a receber" else "Vencida · a pagar"
+        !t.paid -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
+        t.kind == Kind.INCOME -> "Recebida"
+        else -> "Paga"
+    }
+    val statusColor = when {
+        !t.paid && t.date.isBefore(today) -> p.red
+        t.paid && t.kind == Kind.INCOME -> p.green
+        t.paid && t.kind == Kind.EXPENSE -> p.green
+        t.isCard -> p.accent
+        else -> p.muted
+    }
+    val dateLabel = buildString {
+        append(t.date.br())
+        if (t.paid && t.scheduledDate != null) append(" · previsto ").append(t.scheduledDate.br())
     }
     val where = if (t.isCard) "Cartão " + (s.card(t.cardId)?.name ?: "") else s.account(t.accountId)?.name ?: "Conta"
     Row(
@@ -374,7 +435,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                 Text(t.desc, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 // duas linhas fixas: data e situação nunca são cortadas, mesmo com nomes longos
                 Text("${t.category} · $where", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text("${t.date.br()} · $status", style = MaterialTheme.typography.bodySmall, color = if (status == "Em atraso") p.red else p.muted, maxLines = 1)
+                Text("$status · $dateLabel", style = MaterialTheme.typography.bodySmall, color = statusColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.kind == Kind.EXPENSE) p.red else p.green,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
@@ -385,18 +446,43 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
         }
         else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
         else {
-            val label = (if (t.kind == Kind.INCOME) "Recebida" else "Paga") + ": ${t.desc}"
+            val action = if (t.kind == Kind.INCOME) "recebido" else "pago"
             Box(
-                Modifier.padding(end = 6.dp).size(48.dp).clip(CircleShape)
-                    .toggleable(value = t.paid, role = Role.Checkbox, onValueChange = { onToggle() })
-                    .semantics { contentDescription = label },
+                Modifier.padding(end = 4.dp).size(48.dp).clip(CircleShape)
+                    .clickable(role = Role.Button) {
+                        dialogs.confirm(
+                            if (t.paid) "Desfazer confirmação?" else if (t.kind == Kind.INCOME) "Confirmar recebimento?" else "Confirmar pagamento?",
+                            if (t.paid) "Marcar “${t.desc}” como pendente novamente?" else "Marcar “${t.desc}” como $action?",
+                            ok = if (t.paid) "Marcar pendente" else "Confirmar",
+                            danger = t.paid,
+                            onOk = {
+                                onToggle()
+                                scope.launch {
+                                    val result = snackbar.showSnackbar(
+                                        message = if (t.paid) "Movimentação voltou para pendente." else "Movimentação marcada como $action.",
+                                        actionLabel = "Desfazer",
+                                        withDismissAction = true,
+                                        duration = SnackbarDuration.Short,
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) onToggle()
+                                }
+                            },
+                        )
+                    }
+                    .semantics {
+                        contentDescription = if (t.paid) "Desfazer confirmação: $action" else "Marcar como $action"
+                        stateDescription = status
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
-                    Modifier.size(32.dp).clip(CircleShape).background(if (t.paid) p.green else androidx.compose.ui.graphics.Color.Transparent)
+                    Modifier.size(34.dp).clip(CircleShape)
+                        .background(if (t.paid) p.green else androidx.compose.ui.graphics.Color.Transparent)
                         .border(2.dp, if (t.paid) p.green else p.muted, CircleShape),
                     contentAlignment = Alignment.Center,
-                ) { if (t.paid) com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CHECK, p.onAccent, size = 18.dp) }
+                ) {
+                    if (t.paid) com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CHECK, p.onAccent, size = 19.dp)
+                }
             }
         }
     }

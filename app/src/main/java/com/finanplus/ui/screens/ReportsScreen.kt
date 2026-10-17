@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -59,8 +60,8 @@ import com.finanplus.ui.theme.Fin
 import java.time.format.DateTimeFormatter
 
 /**
- * Relatórios: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
- * Resumo com comparação justa, atalho para o simulador "E se…?", despesas por categoria e evolução.
+ * Resumo: o mesmo período da aba Lançamentos (‹ mês › e período livre), só com valores realizados.
+ * Resumo com comparação justa, despesas por categoria e evolução.
  */
 @Composable
 fun ReportsScreen(s: AppState) {
@@ -73,11 +74,14 @@ fun ReportsScreen(s: AppState) {
     val flow = remember(inRange) { Finance.flow(inRange) }
     val cmp = remember(f.from, f.to, today) { PeriodCompare.of(f.from, f.to, today) }
     val prev = remember(s, cmp) { cmp?.let { c -> Finance.flow(s.txs.filter { !it.date.isBefore(c.from) && !it.date.isAfter(c.to) }) } }
+    val categories = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
+    val months = remember(s, today) { Finance.lastMonths(s, today) }
+    val hasHistory = months.any { it.second.income > 0L || it.second.expense > 0L }
 
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         item {
             Row(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Relatórios", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
+                Text("Resumo", Modifier.weight(1f).semantics { heading() }, style = MaterialTheme.typography.headlineMedium)
                 // exportar o mesmo período em PDF (dá para trocar o período na própria folha)
                 Pill("PDF", icon = Ico.RECEIPT, modifier = Modifier.semantics { contentDescription = "Exportar relatório em PDF" }) {
                     nav.open(Sheet.ReportPdf(f.from, f.to))
@@ -128,14 +132,36 @@ fun ReportsScreen(s: AppState) {
                 SumBox("Despesas", Ico.DOWN, flow.expense, p.red, chg(flow.expense, prev?.expense), Modifier.weight(1f))
             }
         }
-        item { WhatIfCard { nav.open(Sheet.Simulator()) } }
-        item {
+        if (flow.income > 0L || flow.expense > 0L) item {
+            val result = flow.balance
+            val explanation = when {
+                hide -> "Os relatórios consideram somente valores já pagos ou recebidos."
+                flow.income == flow.expense -> "Neste período, você gastou o mesmo valor que recebeu."
+                flow.expense > flow.income -> "Você gastou ${Money.format(flow.expense - flow.income)} a mais do que recebeu."
+                else -> "Depois das despesas, sobraram ${Money.format(flow.income - flow.expense)}."
+            }
+            Glass(Modifier.padding(top = 8.dp), radius = 20.dp, padding = 14.dp) {
+                Text("Resultado do período", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                MoneyText(result, color = if (result < 0) p.red else p.accent, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold))
+                Text(explanation, style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+        if (flow.income > 0L || flow.expense > 0L) item {
+            val sources = remember(inRange) {
+                inRange.asSequence()
+                    .filter { it.kind == com.finanplus.core.Kind.INCOME && it.paid && it.isFlow }
+                    .groupBy { it.category.ifBlank { "Sem categoria" } }
+                    .map { (category, txs) -> category to txs.sumOf { it.value } }
+                    .sortedByDescending { it.second }
+            }
+            val expenses = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
+            MoneyFlowCard(sources, expenses, flow.income, flow.expense, hide)
+        }
+        if (categories.isNotEmpty()) item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
                 Column2("Despesas", "Por categoria")
-                val cats = Finance.categoryTotals(s, f.from, f.to)
-                val total = cats.sumOf { it.second }
-                if (cats.isEmpty()) Text("Sem despesas realizadas no período.", color = p.muted, style = MaterialTheme.typography.bodySmall)
-                cats.forEach { (cat, v) ->
+                val total = categories.sumOf { it.second }
+                categories.forEach { (cat, v) ->
                     val lim = s.limits[cat]
                     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(cat, Modifier.widthIn(min = 90.dp, max = 110.dp), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -149,14 +175,9 @@ fun ReportsScreen(s: AppState) {
                 }
             }
         }
-        item {
-            val months = Finance.lastMonths(s, today)
+        if (hasHistory) item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
                 Column2("Evolução", "Últimos 6 meses")
-                if (months.all { it.second.income == 0L && it.second.expense == 0L }) {
-                    Text("Aparece quando houver pelo menos um mês com valores realizados.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-                    return@Glass
-                }
                 val max = maxOf(1L, months.maxOf { maxOf(it.second.income, it.second.expense) })
                 val desc = months.joinToString("; ") { (ym, fl) ->
                     ym.format(DateTimeFormatter.ofPattern("MMMM yyyy", BR)) + if (hide) "" else ": receitas ${Money.format(fl.income)}, despesas ${Money.format(fl.expense)}"
@@ -183,6 +204,111 @@ fun ReportsScreen(s: AppState) {
     }
 }
 
+private data class FlowPart(val label: String, val value: Long, val color: Color)
+
+/** Fluxo agregado do período: mostra origens e destinos sem atribuir uma receita a uma despesa específica. */
+@Composable
+private fun MoneyFlowCard(
+    sources: List<Pair<String, Long>>,
+    expenses: List<Pair<String, Long>>,
+    income: Long,
+    expense: Long,
+    hide: Boolean,
+) {
+    val p = Fin.c
+    val colors = listOf(Color(0xFF00AFC1), p.red, Color(0xFF278AE5), p.green, Color(0xFF8C9499), p.accent)
+    val incomeParts = sources.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[i % colors.size]) }
+    val outputParts = expenses.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[(i + 1) % colors.size]) }.toMutableList()
+    val leftover = (income - expense).coerceAtLeast(0L)
+    if (leftover > 0L) outputParts += FlowPart("Sobrou", leftover, p.green)
+    val scale = maxOf(income, expense, 1L)
+    val description = buildString {
+        append("Fluxo do dinheiro. Entradas realizadas: ")
+        append(if (hide) "valores ocultos" else Money.format(income))
+        append(". Despesas realizadas: ")
+        append(if (hide) "valores ocultos" else Money.format(expense))
+        if (leftover > 0L) append(". Sobra: ").append(if (hide) "valor oculto" else Money.format(leftover))
+        else if (expense > income) append(". Despesas acima das receitas: ").append(if (hide) "valor oculto" else Money.format(expense - income))
+    }
+    Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
+        Column2("Análises", "Fluxo do dinheiro")
+        Text("De onde veio (em cima) e para onde foi (embaixo).", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(bottom = 12.dp))
+        Text("De onde veio", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+        SegmentedFlowBar(incomeParts, scale, hide)
+        FlowLegend(incomeParts, income, hide)
+        Row(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                if (hide) "Entradas ocultas" else "Entrou ${Money.format(income)}",
+                modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(p.text).padding(horizontal = 20.dp, vertical = 8.dp),
+                color = p.bg,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.ExtraBold,
+            )
+        }
+        Text("Para onde foi", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+        if (outputParts.isEmpty()) {
+            Text("Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 6.dp))
+        } else {
+            SegmentedFlowBar(outputParts, scale, hide)
+            FlowLegend(outputParts, maxOf(income, expense), hide)
+        }
+        if (expense > income) {
+            Text("As despesas passaram o valor recebido neste período.", style = MaterialTheme.typography.bodySmall, color = p.red, modifier = Modifier.padding(top = 8.dp))
+        }
+        Text(
+            "Considera apenas lançamentos pagos ou recebidos; não associa uma entrada a uma despesa específica.",
+            style = MaterialTheme.typography.labelSmall,
+            color = p.muted,
+            modifier = Modifier.padding(top = 10.dp).semantics { contentDescription = description },
+        )
+    }
+}
+
+@Composable
+private fun SegmentedFlowBar(parts: List<FlowPart>, scale: Long, hide: Boolean) {
+    val p = Fin.c
+    Canvas(
+        Modifier.fillMaxWidth().height(14.dp).padding(top = 4.dp).sensitive(hide)
+            .semantics { contentDescription = "Gráfico de barras proporcionais do fluxo de dinheiro" },
+    ) {
+        val totalWidth = size.width
+        var left = 0f
+        val radius = CornerRadius(size.height / 2f, size.height / 2f)
+        parts.forEachIndexed { index, part ->
+            val width = totalWidth * (part.value.toDouble() / scale.coerceAtLeast(1L)).toFloat()
+            if (width > 0f) {
+                drawRoundRect(part.color, Offset(left, 0f), Size(width, size.height), radius)
+                left += width
+            }
+        }
+        if (left < totalWidth) drawRoundRect(p.track, Offset(left, 0f), Size(totalWidth - left, size.height), radius)
+    }
+}
+
+@Composable
+private fun FlowLegend(parts: List<FlowPart>, total: Long, hide: Boolean) {
+    val p = Fin.c
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        parts.forEach { part ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Canvas(Modifier.width(12.dp).height(12.dp)) { drawCircle(part.color) }
+                Text(part.label, Modifier.weight(1f).padding(start = 8.dp), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(horizontalAlignment = Alignment.End) {
+                    MoneyText(part.value, style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold))
+                    Text(
+                        if (hide || total <= 0L) "••%" else "${(part.value * 100 / total).coerceAtMost(100)}%",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = p.muted,
+                    )
+                }
+            }
+        }
+    }
+}
+
 /** Receitas ou despesas do período, com a variação embaixo. */
 @Composable
 private fun SumBox(label: String, icon: Ico, value: Long, color: androidx.compose.ui.graphics.Color, change: String, modifier: Modifier) {
@@ -204,24 +330,5 @@ private fun MiniBox(label: String, value: Long, color: androidx.compose.ui.graph
     Column(modifier.clip(RoundedCornerShape(15.dp)).background(p.accent2).padding(horizontal = 12.dp, vertical = 10.dp)) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = p.muted)
         MoneyText(value, color = color, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold))
-    }
-}
-
-/** Atalho para o simulador, na cor de destaque do tema. */
-@Composable
-private fun WhatIfCard(onClick: () -> Unit) {
-    val p = Fin.c
-    Row(
-        Modifier.fillMaxWidth().padding(top = 10.dp).clip(RoundedCornerShape(22.dp)).background(p.accent)
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AppIcon(Ico.ASSIST, p.onAccent, size = 22.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text("E se…?", color = p.onAccent, fontWeight = FontWeight.ExtraBold, style = MaterialTheme.typography.titleMedium)
-            Text("Simule economizar, comprar algo, uma mudança na renda ou antecipar uma dívida, sem mexer nos seus dados.", color = p.onAccent, style = MaterialTheme.typography.bodySmall)
-        }
-        AppIcon(Ico.NEXT, p.onAccent, size = 20.dp)
     }
 }

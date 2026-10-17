@@ -192,7 +192,8 @@ class OpsTest {
         TxDraft(Kind.EXPENSE, desc, value, "Alimentação", d(date), true, "main", card, reps, mode, rec)
 
     @Test fun validationMessages() {
-        assertEquals("Informe uma descrição.", Ops.saveTx(base, null, draft(desc = "   ")).msg())
+        val blankDescription = Ops.saveTx(base, null, draft(desc = "   "))
+        assertEquals("Alimentação", (blankDescription as Outcome.Ok).state.txs.single().desc)
         assertTrue(Ops.saveTx(base, null, draft(value = "0")).msg().contains("maior que zero"))
         assertTrue(Ops.saveTx(base, null, draft(card = "nope")).msg().contains("Cadastre um cartão"))
         assertTrue(Ops.saveTx(base, null, draft(reps = 3, rec = true)).msg().contains("parcelas ou repetição"))

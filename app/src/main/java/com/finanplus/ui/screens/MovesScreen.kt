@@ -107,8 +107,16 @@ fun MovesScreen(s: AppState) {
         if (list.isEmpty()) item {
             Glass(Modifier.fillMaxWidth().padding(top = 14.dp), radius = 24.dp) {
                 Text("Nenhum lançamento neste período", fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.CenterHorizontally))
-                Text("Troque o mês, ajuste os filtros ou adicione uma movimentação no +.", color = p.muted, style = MaterialTheme.typography.bodySmall,
+                Text("Troque o mês ou ajuste os filtros. Você também pode começar por aqui:", color = p.muted, style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 2.dp))
+                Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pill("Despesa", Modifier.weight(1f), icon = com.finanplus.ui.components.Ico.DOWN) {
+                        nav.open(Sheet.TxEdit(Kind.EXPENSE))
+                    }
+                    Pill("Receita", Modifier.weight(1f), icon = com.finanplus.ui.components.Ico.UP) {
+                        nav.open(Sheet.TxEdit(Kind.INCOME))
+                    }
+                }
             }
         }
         groups.forEach { (date, txs) ->
@@ -197,8 +205,12 @@ private fun PeriodSummary(flow: com.finanplus.core.Flow, pending: com.finanplus.
             SummaryCol("Saldo", flow.balance, if (flow.balance < 0) p.red else p.text, "previsto", forecast, if (forecast < 0) p.red else p.accent, Modifier.weight(1f),
                 showSub = pending.toReceive > 0 || pending.toPay > 0)
         }
-        if (flow.income > 0 && !hide) Text(
-            "As despesas são ${"%.1f".format(BR, flow.expense * 100.0 / flow.income)}% das receitas do período.",
+        if ((flow.income > 0 || flow.expense > 0) && !hide) Text(
+            when {
+                flow.income == flow.expense -> "Neste período, você gastou o mesmo valor que recebeu."
+                flow.expense > flow.income -> "Você gastou ${Money.format(flow.expense - flow.income)} a mais do que recebeu."
+                else -> "Depois das despesas, sobraram ${Money.format(flow.income - flow.expense)}."
+            },
             style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 10.dp),
         )
     }

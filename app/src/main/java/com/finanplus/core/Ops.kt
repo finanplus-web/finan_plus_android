@@ -12,7 +12,11 @@ sealed class Outcome {
 }
 
 private fun err(msg: String, title: String = "Revise os dados") = Outcome.Err(title, msg)
-private fun ok(s: AppState) = Outcome.Ok(s)
+private fun ok(s: AppState): Outcome = if (s.hasSafeMoneyTotals()) Outcome.Ok(s)
+else err("O total dos valores excede o limite seguro. Reduza algum valor antes de salvar.", "Limite financeiro excedido")
+/** Como [ok], conferindo também se a alteração cria itens além de [AppState.Limits]. */
+private fun ok(before: AppState, next: AppState): Outcome =
+    before.growthError(next)?.let { err("$it Exclua itens antigos antes de criar novos.", "Limite atingido") } ?: ok(next)
 private fun sameName(a: String, b: String) = a.lowercase() == b.lowercase()
 
 enum class RepsMode { TOTAL, EACH }
@@ -32,46 +36,72 @@ data class TxDraft(
     val recurring: Boolean = false,
 )
 
+/** Data efetiva se realizado; data prevista se pendente. */
+private fun transactionDates(old: Tx?, requested: LocalDate, paid: Boolean, card: Boolean, today: LocalDate): Pair<LocalDate, LocalDate?> {
+    if (card) return requested to null
+    if (!paid) return (if (old?.paid == true) old.scheduledDate ?: requested else requested) to null
+    if (old != null) {
+        if (!old.paid) return today to old.date.takeIf { it != today }
+        return requested to old.scheduledDate
+    }
+    if (requested.isAfter(today)) return today to requested
+    return requested to null
+}
+
 /** Todas as alterações de dados passam por aqui, com as mesmas validações do PWA. */
 object Ops {
+    /** Novos lançamentos ficam pendentes por padrão fora da data de hoje. */
+    fun defaultPaid(date: LocalDate?, today: LocalDate): Boolean = date == today
+
     // ---------------- lançamentos ----------------
-    fun saveTx(s: AppState, editId: String?, d: TxDraft): Outcome {
-        val desc = d.desc.trim().take(TX_DESC_MAX)
+    fun saveTx(s: AppState, editId: String?, d: TxDraft, today: LocalDate = LocalDate.now()): Outcome {
         val value = Money.parse(d.value)
         val card = d.kind == Kind.EXPENSE && d.cardId.isNotEmpty()
-        if (desc.isEmpty()) return err("Informe uma descrição.", "Campo obrigatório")
         if (value == null || value <= 0) return err("Informe um valor maior que zero. Ex.: 59,90", "Valor inválido")
         val date = d.date ?: return err("Informe uma data válida.", "Data inválida")
         if (card && s.card(d.cardId) == null) return err("Cadastre um cartão em Ajustes antes de lançar no cartão.", "Sem cartão")
         val accountId = if (s.account(d.accountId) != null) d.accountId else s.accounts[0].id
         val category = d.category.ifBlank { s.cats.of(d.kind)[0] }
+        // Descrição é opcional no formulário rápido; usar a categoria como rótulo preserva a legibilidade da lista.
+        val desc = d.desc.trim().take(TX_DESC_MAX).ifBlank { category }
         val cardId = if (card) d.cardId else ""
         val paid = card || d.paid
 
         if (editId != null) {
             val t = s.txs.firstOrNull { it.id == editId } ?: return err("Lançamento não encontrado.")
-            val upd = if (t.cardPayment.isNotEmpty())
+            val upd = if (t.cardPayment.isNotEmpty()) {
                 t.copy(desc = desc, value = value, category = category, date = date, accountId = accountId, paid = true)
-            else t.copy(kind = d.kind, desc = desc, value = value, category = category, date = date, paid = paid, accountId = accountId, cardId = cardId)
+            } else {
+                val (entryDate, scheduledDate) = transactionDates(t, date, paid, card, today)
+                t.copy(kind = d.kind, desc = desc, value = value, category = category, date = entryDate, paid = paid,
+                    accountId = accountId, cardId = cardId, scheduledDate = scheduledDate)
+            }
             return ok(s.copy(txs = s.txs.map { if (it.id == editId) upd else it }))
         }
 
         val n = d.reps.coerceIn(1, 60)
         if (n > 1 && d.recurring) return err("Escolha parcelas ou repetição mensal, não os dois.", "Revise o lançamento")
-        val base = Tx(Ids.new(), d.kind, value, date, desc, category, paid, accountId, cardId)
+        val (entryDate, scheduledDate) = transactionDates(null, date, paid, card, today)
+        val base = Tx(Ids.new(), d.kind, value, entryDate, desc, category, paid, accountId, cardId, scheduledDate = scheduledDate)
         val added = if (n > 1) {
             val values = if (d.repsMode == RepsMode.EACH) List(n) { value } else Finance.splitInstallments(value, n)
             if (values.any { it <= 0 }) return err("O valor é pequeno demais para tantas parcelas.", "Valor inválido")
             val group = Ids.new()
             values.mapIndexed { i, v ->
-                base.copy(id = Ids.new(), value = v, date = date.plusMonthsClamped(i.toLong()), paid = card || (i == 0 && d.paid),
-                    desc = parcelDesc(desc, i + 1, n), groupId = group, parcelN = i + 1, parcelTotal = n)
+                val installmentPaid = card || (i == 0 && d.paid)
+                base.copy(
+                    id = Ids.new(), value = v,
+                    date = if (i == 0) entryDate else date.plusMonthsClamped(i.toLong()),
+                    paid = installmentPaid,
+                    scheduledDate = if (i == 0 && installmentPaid) scheduledDate else null,
+                    desc = parcelDesc(desc, i + 1, n), groupId = group, parcelN = i + 1, parcelTotal = n,
+                )
             }
         } else listOf(base)
         var rec = s.recurring
         // a recorrência guarda até 120 caracteres (o limite lido de volta do arquivo); sem cortar aqui, o fim se perdia na próxima abertura
         if (d.recurring) rec = rec + Recurring(Ids.new(), d.kind, desc.take(REC_DESC_MAX).trimEnd(), value, category, accountId, cardId, date.dayOfMonth, true, date, date.ym())
-        return ok(s.copy(txs = s.txs + added, recurring = rec))
+        return ok(s, s.copy(txs = s.txs + added, recurring = rec))
     }
 
     const val TX_DESC_MAX = 200
@@ -99,8 +129,12 @@ object Ops {
      *  reabria a fatura e deixava o pagamento pendente, descontando o mesmo valor duas vezes. */
     fun canTogglePaid(t: Tx) = !t.isCard && t.isFlow && !t.isProjected
 
-    fun togglePaid(s: AppState, id: String): AppState =
-        s.copy(txs = s.txs.map { if (it.id == id && canTogglePaid(it)) it.copy(paid = !it.paid) else it })
+    fun togglePaid(s: AppState, id: String, today: LocalDate = LocalDate.now()): AppState =
+        s.copy(txs = s.txs.map { t ->
+            if (t.id != id || !canTogglePaid(t)) t
+            else if (t.paid) t.copy(paid = false, date = t.scheduledDate ?: t.date, scheduledDate = null)
+            else t.copy(paid = true, scheduledDate = t.date.takeIf { it != today }, date = today)
+        })
 
     // ---------------- metas ----------------
     fun saveGoal(s: AppState, id: String?, name: String, target: String, move: String, deadline: LocalDate?, monthly: String): Outcome {
@@ -111,8 +145,10 @@ object Ops {
         if (t == null || t <= 0) return err("Informe um valor de meta maior que zero. Ex.: 1500,50")
         if (m == null || m < 0) return err("Contribuição mensal inválida.")
         val mv = if (move.isBlank()) 0L else Money.parse(move) ?: return err("Valor a guardar inválido.")
-        if (id == null) return ok(s.copy(goals = s.goals + Goal(Ids.new(), n, t, 0, deadline, m)))
-        return ok(s.copy(goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = maxOf(0L, it.saved + mv)) else it }))
+        if (id == null) return ok(s, s.copy(goals = s.goals + Goal(Ids.new(), n, t, 0, deadline, m)))
+        val saved = try { Math.addExact(s.goals.firstOrNull { it.id == id }?.saved ?: 0L, mv).coerceAtLeast(0L) }
+        catch (_: ArithmeticException) { return err("O valor guardado excede o limite seguro.", "Limite financeiro excedido") }
+        return ok(s.copy(goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = saved) else it }))
     }
 
     fun deleteGoal(s: AppState, id: String) = s.copy(goals = s.goals.filterNot { it.id == id })
@@ -123,7 +159,7 @@ object Ops {
         val ini = if (initial.isBlank()) 0L else Money.parse(initial)
         if (n.isEmpty()) return err("Informe o nome da conta.")
         if (ini == null) return err("Saldo inicial inválido. Ex.: 1.250,00 ou -300")
-        if (id == null) return ok(s.copy(accounts = s.accounts + Account(Ids.new(), n, ini)))
+        if (id == null) return ok(s, s.copy(accounts = s.accounts + Account(Ids.new(), n, ini)))
         return ok(s.copy(accounts = s.accounts.map { if (it.id == id) it.copy(name = n, initial = ini) else it }))
     }
 
@@ -148,7 +184,7 @@ object Ops {
         if (n.isEmpty()) return err("Informe o nome do cartão.")
         if (lim == null || lim < 0) return err("Limite inválido.")
         if (c == null || d == null || c !in 1..31 || d !in 1..31) return err("Os dias de fechamento e vencimento devem estar entre 1 e 31.")
-        if (id == null) return ok(s.copy(cards = s.cards + Card(Ids.new(), n, lim, c, d)))
+        if (id == null) return ok(s, s.copy(cards = s.cards + Card(Ids.new(), n, lim, c, d)))
         return ok(s.copy(cards = s.cards.map { if (it.id == id) it.copy(name = n, limit = lim, close = c, due = d) else it }))
     }
 
@@ -164,7 +200,7 @@ object Ops {
         if (v == null || v <= 0) return err("Informe um valor maior que zero.")
         if (date == null) return err("Informe uma data válida.")
         val acc = if (s.account(accountId) != null) accountId else s.accounts[0].id
-        return ok(s.copy(txs = s.txs + Tx(Ids.new(), Kind.EXPENSE, v, date, "Pagamento fatura ${c.name}", AppState.CARD_PAYMENT_CAT, true, acc, cardPayment = c.id)))
+        return ok(s, s.copy(txs = s.txs + Tx(Ids.new(), Kind.EXPENSE, v, date, "Pagamento fatura ${c.name}", AppState.CARD_PAYMENT_CAT, true, acc, cardPayment = c.id)))
     }
 
     // ---------------- recorrências ----------------
@@ -187,7 +223,7 @@ object Ops {
             else it.copy(kind = kind, desc = ds, value = v, day = dd, category = cat, accountId = acc, cardId = card, active = active,
                 last = if (!it.active && active) resumedLast(it.last, today) else it.last)
         })
-        return ok(Finance.generateRecurring(next, today).first)
+        return ok(s, Finance.generateRecurring(next, today).first)
     }
 
     /** Ao reativar uma recorrência pausada, os meses parados não geram lançamento: retoma a partir do mês atual.
@@ -217,7 +253,7 @@ object Ops {
         val n = name.trim().take(40)
         if (n.isEmpty()) return err("Digite o nome da categoria.", "Nome vazio")
         if (s.cats.of(kind).any { sameName(it, n) }) return err("Essa categoria já existe.", "Categoria duplicada")
-        return ok(s.copy(cats = s.cats.with(kind, s.cats.of(kind) + n)))
+        return ok(s, s.copy(cats = s.cats.with(kind, s.cats.of(kind) + n)))
     }
 
     fun renameCategory(s: AppState, kind: Kind, old: String, name: String): Outcome {

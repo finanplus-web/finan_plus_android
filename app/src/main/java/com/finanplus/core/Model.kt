@@ -50,6 +50,8 @@ data class Tx(
     val groupId: String = "",
     val parcelN: Int = 0,
     val parcelTotal: Int = 0,
+    /** Data prevista preservada quando um lançamento pendente é realizado em outro dia. */
+    val scheduledDate: LocalDate? = null,
 ) {
     val isFlow get() = cardPayment.isEmpty()
     val isCard get() = cardId.isNotEmpty()
@@ -105,6 +107,49 @@ data class AppState(
 ) {
     fun account(id: String) = accounts.firstOrNull { it.id == id }
     fun card(id: String) = cards.firstOrNull { it.id == id }
+
+    /** Garante que valores e somas permaneçam exatos em Long e no Number do PWA. */
+    fun hasSafeMoneyTotals(): Boolean {
+        val cap = java.math.BigInteger("9007199254740991") // Number.MAX_SAFE_INTEGER, em centavos
+        val max = java.math.BigInteger.valueOf(Money.MAX_ABS)
+        var total = java.math.BigInteger.ZERO
+        fun add(value: Cents): Boolean {
+            val n = java.math.BigInteger.valueOf(value).abs()
+            if (n > max) return false
+            total = total.add(n)
+            return total <= cap
+        }
+        return txs.all { add(it.value) } && accounts.all { add(it.initial) } && cards.all { add(it.limit) } &&
+            goals.all { add(it.target) && add(it.saved) && add(it.monthly) } &&
+            recurring.all { add(it.value) } && limits.values.all(::add)
+    }
+
+    /** Mensagem de erro se [next] cria itens além de [Limits] (null = dentro do limite). Só conta quando a
+     *  coleção cresce: quem já tinha mais itens antes do limite existir continua editando normalmente. */
+    fun growthError(next: AppState): String? {
+        fun grew(a: Int, b: Int, max: Int) = b > max && b > a
+        return when {
+            grew(txs.size, next.txs.size, Limits.TRANSACTIONS) -> "Limite de ${Limits.TRANSACTIONS} lançamentos atingido."
+            grew(accounts.size, next.accounts.size, Limits.ACCOUNTS) -> "Limite de ${Limits.ACCOUNTS} contas atingido."
+            grew(cards.size, next.cards.size, Limits.CARDS) -> "Limite de ${Limits.CARDS} cartões atingido."
+            grew(recurring.size, next.recurring.size, Limits.RECURRING) -> "Limite de ${Limits.RECURRING} recorrências atingido."
+            grew(goals.size, next.goals.size, Limits.GOALS) -> "Limite de ${Limits.GOALS} metas atingido."
+            Kind.entries.any { grew(cats.of(it).size, next.cats.of(it).size, Limits.CATEGORIES_PER_KIND) } ->
+                "Limite de ${Limits.CATEGORIES_PER_KIND} categorias atingido."
+            else -> null
+        }
+    }
+
+    /** Quantidades máximas aceitas num backup externo; o app também não deixa criar além delas,
+     *  para que todo backup gerado por ele possa ser restaurado. */
+    object Limits {
+        const val TRANSACTIONS = 50_000
+        const val ACCOUNTS = 100
+        const val CARDS = 100
+        const val RECURRING = 1_000
+        const val GOALS = 1_000
+        const val CATEGORIES_PER_KIND = 500
+    }
 
     companion object {
         const val MAIN_ACCOUNT = "main"

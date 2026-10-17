@@ -73,6 +73,8 @@ import androidx.compose.ui.unit.sp
 import com.finanplus.core.Cents
 import com.finanplus.core.Money
 import com.finanplus.ui.theme.Fin
+import com.finanplus.ui.theme.FinRadius
+import com.finanplus.ui.theme.FinSpace
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -120,7 +122,7 @@ fun MoneyText(c: Cents, modifier: Modifier = Modifier, style: TextStyle = Materi
 fun Modifier.sensitive(hide: Boolean): Modifier = if (!hide) this
     else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) this.blur(10.dp) else this.alpha(0.1f)
 
-/** Fundo com os brilhos radiais do Finan+. */
+/** Fundo com os brilhos radiais e uma grade pontilhada discreta, adaptada à paleta ativa. */
 @Composable
 fun AppBackground(content: @Composable () -> Unit) {
     val p = Fin.c
@@ -128,13 +130,25 @@ fun AppBackground(content: @Composable () -> Unit) {
         Modifier.fillMaxSize().background(p.bg).drawBehind {
             if (p.glowA != p.bg) drawCircle(Brush.radialGradient(listOf(p.glowA, Color.Transparent), Offset(size.width * 0.9f, size.height * 0.05f), size.width * 0.7f), size.width * 0.7f, Offset(size.width * 0.9f, size.height * 0.05f))
             if (p.glowB != p.bg) drawCircle(Brush.radialGradient(listOf(p.glowB, Color.Transparent), Offset(0f, size.height * 0.3f), size.width * 0.65f), size.width * 0.65f, Offset(0f, size.height * 0.3f))
+            val spacing = 34.dp.toPx()
+            val radius = 1.25.dp.toPx()
+            val dotColor = p.text.copy(alpha = if (p.dark) 0.055f else 0.075f)
+            var y = spacing / 2f
+            while (y < size.height) {
+                var x = spacing / 2f
+                while (x < size.width) {
+                    drawCircle(dotColor, radius, Offset(x, y))
+                    x += spacing
+                }
+                y += spacing
+            }
         },
     ) { content() }
 }
 
 /** Cartão translúcido ("Liquid Glass"). */
 @Composable
-fun Glass(modifier: Modifier = Modifier, radius: Dp = 25.dp, padding: Dp = 17.dp, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun Glass(modifier: Modifier = Modifier, radius: Dp = FinRadius.card, padding: Dp = FinSpace.lg, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val p = Fin.c
     val shape = RoundedCornerShape(radius)
     Column(
@@ -151,7 +165,7 @@ fun Eyebrow(text: String, modifier: Modifier = Modifier) =
 
 @Composable
 fun SectionHead(eyebrow: String?, title: String, action: String? = null, actionIcon: Ico? = null, onAction: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 10.dp), verticalAlignment = Alignment.Bottom) {
+    Row(Modifier.fillMaxWidth().padding(top = FinSpace.xl, bottom = FinSpace.sm), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             if (eyebrow != null) Eyebrow(eyebrow)
             Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })
@@ -222,8 +236,20 @@ fun Field(label: String, value: String, onChange: (String) -> Unit, modifier: Mo
 }
 
 @Composable
-fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String = "0,00") =
-    Field(label, value, { v -> onChange(v.filter { it.isDigit() || it in ".,-" }) }, modifier, placeholder, KeyboardType.Decimal, maxLength = 18)
+fun MoneyField(label: String, value: String, onChange: (String) -> Unit, modifier: Modifier = Modifier, placeholder: String = "0,00") {
+    OutlinedTextField(
+        value,
+        { v -> onChange(v.filter { it.isDigit() || it in ".,-" }.take(18)) },
+        modifier.fillMaxWidth().padding(vertical = 5.dp),
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        textStyle = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+        shape = RoundedCornerShape(18.dp),
+        colors = fieldColors(),
+    )
+}
 
 /** Campo de leitura que abre algo ao tocar (data, seleção). */
 @Composable

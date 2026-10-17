@@ -76,7 +76,8 @@ object Repo {
         when (val r = store.read()) {
             is SecureStore.ReadResult.Empty -> { saveBlocked = false; _state.value = AppState() }
             is SecureStore.ReadResult.Ok -> try {
-                val n = Backup.parse(r.json)
+                // dados do próprio app: sem limite de quantidade (quem já passou de um limite não pode abrir o app vazio)
+                val n = Backup.parse(r.json, enforceLimits = false)
                 saveBlocked = false
                 _state.value = n.state
                 lastWritten = n.state

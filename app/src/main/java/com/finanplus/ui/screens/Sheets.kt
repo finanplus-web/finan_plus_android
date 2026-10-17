@@ -219,6 +219,10 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
         if (card) SelectField("Cartão", s.cards.map { it.id to it.name }, cardId, { cardId = it })
         else SelectField(if (kind == Kind.INCOME) "Conta de destino" else "Conta", s.accounts.map { it.id to it.name }, accountId, { accountId = it })
         DateField("Data", date, { date = it })
+        if (tx?.scheduledDate != null) Text(
+            "Data prevista original: ${tx.scheduledDate.br()}. Ela será restaurada se o lançamento voltar a ficar pendente.",
+            style = MaterialTheme.typography.bodySmall, color = Fin.c.muted,
+        )
     }
 
     if (!card && !isPayment) {

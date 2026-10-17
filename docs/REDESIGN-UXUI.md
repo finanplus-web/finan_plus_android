@@ -15,3 +15,6 @@ undefined
 - Teste de regressão para marcar um lançamento futuro como realizado, conferir a contabilização no mês de hoje e desfazer preservando o vencimento.
 - Compilação, testes unitários e auditoria de licenças serão executados pelo GitHub Actions no commit desta rodada.
 - Não houve teste visual por emulador nesta sessão.
+
+
+- A seção de gerenciamento de categorias começa minimizada; sua lista e formulário só aparecem após tocar em **Maximizar**. O estado segue reversível pela ação **Minimizar**.

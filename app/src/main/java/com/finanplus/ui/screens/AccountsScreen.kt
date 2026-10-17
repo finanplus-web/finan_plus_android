@@ -205,11 +205,11 @@ private fun CategoryManager(s: AppState) {
     val dialogs = LocalDialogs.current
     var newCategory by rememberSaveable { mutableStateOf("") }
     var newKind by rememberSaveable { mutableStateOf(Kind.EXPENSE) }
-    var expanded by rememberSaveable { mutableStateOf(true) }
+    var expanded by rememberSaveable { mutableStateOf(false) }
     Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
         AccountCardHeading(
             Ico.TUNE, "Categorias", "Organize relatórios e lançamentos",
-            action = if (expanded) "Minimizar" else "Expandir",
+            action = if (expanded) "Minimizar" else "Maximizar",
             onAction = { expanded = !expanded },
         )
         if (expanded) {

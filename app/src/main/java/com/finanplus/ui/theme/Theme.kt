@@ -76,7 +76,7 @@ private val Nord = Palette(true, Color(0xFF2E3440), Color(0xDB3B4252), Color(0x1
 
 // Gruvbox (paleta de morhetz): fundo #282828, cartões #32302F, texto creme, azul como destaque
 private val Gruvbox = Palette(true, Color(0xFF282828), Color(0xFF32302F), Color(0xFF3C3836), Color(0xFFEBDBB2), Color(0xFFA89984),
-    Color(0xFF83A598), Color(0xFF3A4442), Color(0xFF1D2021), Color(0xFFFB4934), Color(0xFFB8BB26), Color(0xFF504945), Color(0xFF282828), Color(0xFF282828))
+    Color(0xFF83A598), Color(0xFF3A4442), Color(0xFF1D2021), Color(0xFFFF7F7F), Color(0xFFB8BB26), Color(0xFF504945), Color(0xFF282828), Color(0xFF282828))
 // Gruvbox OLED: as mesmas cores sobre preto puro (pixels apagados nas telas OLED); cartões quase pretos com borda fina
 private val GruvboxOled = Palette(true, Color(0xFF000000), Color(0xFF0D0D0C), Color(0xFF1D2021), Color(0xFFEBDBB2), Color(0xFFA89984),
     Color(0xFF83A598), Color(0xFF17201F), Color(0xFF000000), Color(0xFFFB4934), Color(0xFFB8BB26), Color(0xFF282828), Color(0xFF000000), Color(0xFF000000))

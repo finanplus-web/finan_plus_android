@@ -360,7 +360,7 @@ private fun DayHeader(s: AppState, nav: Nav, d: LocalDate, day: CalDay?, today: 
             val countText = when (n) { 0 -> "Sem lançamentos"; 1 -> "1 lançamento"; else -> "$n lançamentos" }
             val net = day?.net ?: 0L
             val netText = if (hide || day == null || (day.income == 0L && day.expense == 0L)) "" else
-                " · saldo do dia " + (if (net > 0) "+ " else if (net < 0) "− " else "") + Money.format(kotlin.math.abs(net))
+                " · resultado das movimentações deste dia " + (if (net > 0) "+ " else if (net < 0) "− " else "") + Money.format(kotlin.math.abs(net))
             Text(countText + netText, style = MaterialTheme.typography.bodySmall, color = p.muted)
         }
     }

@@ -81,6 +81,24 @@ class RegressionTest {
         assertFailsWith<BackupException> { Backup.parse("""{"txs":[$txs]}""") }
     }
 
+    @Test fun marcarLancamentoFuturoComoRealizadoEDesfazerPreservaVencimento() {
+        val today = d("2026-10-17")
+        val due = Tx("salario", Kind.INCOME, 250_000, d("2026-10-30"), "Salário", "Salário", false, "main")
+        val pending = AppState(txs = listOf(due))
+
+        val paid = Ops.togglePaid(pending, due.id, today).txs.single()
+        assertTrue(paid.paid)
+        assertEquals(today, paid.date)
+        assertEquals(due.date, paid.scheduledDate)
+        assertEquals(250_000L, Finance.monthFlow(AppState(txs = listOf(paid)), today.ym()).income)
+
+        val undone = Ops.togglePaid(pending.copy(txs = listOf(paid)), due.id, today).txs.single()
+        assertFalse(undone.paid)
+        assertEquals(due.date, undone.date)
+        assertNull(undone.scheduledDate)
+        assertEquals(0L, Finance.monthFlow(AppState(txs = listOf(undone)), today.ym()).income)
+    }
+
     @Test fun inicioMostraAteTresVencimentosEmOrdemSemIncluirPagos() {
         val today = d("2026-10-06")
         val txs = listOf(

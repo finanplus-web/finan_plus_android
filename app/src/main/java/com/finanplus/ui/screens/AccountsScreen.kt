@@ -74,8 +74,10 @@ fun AccountsScreen(s: AppState) {
         item {
             Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
                 AccountCardHeading(Ico.BANK, "Contas e cartões", "Saldo das contas e situação dos cartões")
-                if (s.accounts.isEmpty() && s.cards.isEmpty()) {
-                    Text("Cadastre uma conta ou cartão para organizar seus lançamentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                if (s.accounts.isEmpty()) {
+                    Text("Adicione uma conta para acompanhar seu saldo e relacionar lançamentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                } else if (s.cards.isEmpty()) {
+                    Text("Sem cartão cadastrado. Você pode adicionar um para acompanhar faturas e vencimentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
                 }
                 s.accounts.forEach { account ->
                     ManageItem(account.name, "Conta · Saldo ${if (hide) "R$ ••••" else Money.format(Finance.accountBalance(s, account))}") {
@@ -112,11 +114,13 @@ fun AccountsScreen(s: AppState) {
         item {
             Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
                 AccountCardHeading(Ico.LIMIT, "Definir um limite mensal", "Acompanhe quanto gasta por categoria")
-                Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
-                    Pill("Adicionar limite", icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
-                }
-                if (s.limits.isEmpty()) Text("Seus limites aparecerão aqui.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
-                else {
+                if (s.limits.isEmpty()) {
+                    Text("Defina quanto deseja gastar por categoria para acompanhar seus gastos do mês.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
+                    Pill("Criar meu primeiro limite", Modifier.fillMaxWidth().padding(top = 10.dp), icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
+                } else {
+                    Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
+                        Pill("Adicionar limite", icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
+                    }
                     Text("Inclui lançamentos pendentes deste mês.", style = MaterialTheme.typography.labelSmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
                     s.limits.forEach { (category, limit) ->
                         val spent = usage[category] ?: 0L
@@ -149,10 +153,14 @@ fun AccountsScreen(s: AppState) {
 
         item {
             Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
-                AccountCardHeading(Ico.GOAL, "Metas", "Acompanhe seus objetivos financeiros", action = "Criar meta", onAction = { nav.open(Sheet.GoalEdit()) })
+                AccountCardHeading(
+                    Ico.GOAL, "Metas", "Acompanhe seus objetivos financeiros",
+                    action = if (s.goals.isEmpty()) null else "Criar meta",
+                    onAction = { nav.open(Sheet.GoalEdit()) },
+                )
                 if (s.goals.isEmpty()) {
-                    Text("Suas metas aparecerão aqui.", fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
-                    Text("Defina um objetivo e acompanhe seu progresso.", style = MaterialTheme.typography.bodySmall, color = p.muted)
+                    Text("Uma meta ajuda a acompanhar um objetivo, como uma viagem ou uma reserva.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
+                    Pill("Criar minha primeira meta", Modifier.fillMaxWidth().padding(top = 10.dp), icon = Ico.ADD) { nav.open(Sheet.GoalEdit()) }
                 } else s.goals.forEach { goal ->
                     val plan = Finance.goalPlan(goal, today)
                     Glass(Modifier.fillMaxWidth().padding(top = 9.dp), radius = 19.dp, padding = 12.dp, onClick = { nav.open(Sheet.GoalEdit(goal.id)) }) {

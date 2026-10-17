@@ -1,27 +1,17 @@
-# Redesign UX/UI — Finan+
+undefined
 
-## Auditoria da base
+## Correções UX/UI da rodada seguinte
 
-- Aplicativo Android nativo em Kotlin, com Jetpack Compose e Material 3; não há alvo iOS no repositório.
-- Navegação principal em cinco destinos por pager; o estado de navegação é salvo.
-- Estado financeiro imutável, persistido localmente como JSON e protegido por AES-GCM com chave do Android Keystore.
-- Valores monetários representados em centavos inteiros (Long); cálculos principais estão em core/Finance.kt e operações/validações em core/Ops.kt.
-- Backup JSON, importação/exportação CSV, relatórios PDF, categorias, contas, cartões, parcelas, recorrências, metas, limites, simulador, lembretes, biometria/bloqueio, widget e servidor local opcional já existem.
-- O modelo atual representa receita e despesa, mas não tem transferência pareada entre contas. A UI não anuncia transferência até haver modelagem e migração segura.
-- Não há migração de esquema nesta etapa. O formato de backup e o armazenamento existentes foram preservados.
+- A ação contextual foi compactada em um FAB circular de 56 dp, disponível apenas em Início e Lançamentos. O bottom sheet continua oferecendo despesa, receita e recorrência; o conteúdo mantém espaço inferior reservado e rótulo acessível.
+- O status do lançamento agora aparece em texto junto à data (pago/recebido, pendente, vencido, cartão ou recorrência prevista). A ação de confirmar mantém o diálogo existente e oferece **Desfazer** por snackbar, usando a mesma operação financeira persistida.
+- Para lançamentos futuros marcados como realizados, a lógica existente move a data efetiva para hoje e preserva o vencimento original; desfazer restaura a data agendada. Foi acrescentada regressão que verifica também o total realizado do mês.
+- O saldo previsto da tela Início informa a data final de referência e os componentes considerados, sem reimplementar a fórmula de Finance.futureBalance. A decomposição simples só aparece quando bate com o cálculo existente.
+- O calendário mantém seleção diária e detalhes dos lançamentos; o rótulo do resultado diário foi esclarecido para não confundir fluxo do dia com saldo acumulado.
+- Estados vazios de contas/cartões, limites e metas agora explicam a ação útil e fornecem CTA contextual. Ajustes foram agrupados visualmente sem remover opções.
+- A auditoria de contraste identificou o vermelho de texto do tema Gruvbox abaixo de 4,5:1 em superfície escura (3,82:1). O token foi ajustado para #FF7F7F nos dois temas Gruvbox; o contraste calculado é 5,37:1 no cartão Gruvbox e 7,96:1 no Gruvbox OLED. É uma verificação de tokens, não substitui auditoria visual completa em dispositivo.
 
-## Plano incremental e rollback
+### Verificação desta rodada
 
-Esta branch altera somente componentes Compose, rótulos de navegação, o agrupamento do formulário e a seleção de próximos vencimentos. As mudanças são reversíveis como um único PR; não alteram o esquema persistido nem substituem a lógica de cálculo existente.
-
-1. Design system: tokens semânticos de cor, espaçamento e raio; fundo pontilhado já adaptado à paleta dos temas existentes.
-2. Navegação e adição: mantém cinco abas; adiciona seletor modal de despesa, receita e recorrência; mantém o botão contextual apenas em Início e Lançamentos.
-3. Formulário: campos essenciais primeiro, opções avançadas recolhidas; descrição opcional usa a categoria como rótulo quando vazia.
-4. Início e nomes: botão de privacidade, texto contextual factual, até três vencimentos relevantes, e rótulos “Meu dinheiro” e “Resumo”.
-5. Verificação: regressões para vencimentos ordenados e descrição opcional; compilação, testes, APK debug/release e auditoria de licenças por Actions.
-
-## Limitações e validação
-
-- Transferências entre contas não estão disponíveis no modelo atual. Implementá-las exige definir semântica de saldo, histórico, edição/exclusão e uma migração compatível; não foi simulada como receita/despesa.
-- A validação visual em dispositivo/emulador ainda depende de executar o APK depois da integração do PR.
-- O workflow inicial apontou uma referência ausente ao composable da barra inferior; corrigida nesta atualização. A validação final deve usar a execução de Actions do commit atualizado.
+- Teste de regressão para marcar um lançamento futuro como realizado, conferir a contabilização no mês de hoje e desfazer preservando o vencimento.
+- Compilação, testes unitários e auditoria de licenças serão executados pelo GitHub Actions no commit desta rodada.
+- Não houve teste visual por emulador nesta sessão.

@@ -78,7 +78,8 @@ fun HomeScreen(s: AppState) {
     val ym = today.ym()
     val flow = Finance.monthFlow(s, ym)
     val balance = Finance.currentBalance(s)
-    val future = Finance.futureBalance(s, ym.atEndOfMonth(), today)
+    val projectionEnd = ym.atEndOfMonth()
+    val future = Finance.futureBalance(s, projectionEnd, today)
     val pending = androidx.compose.runtime.remember(s, ym, today) { com.finanplus.core.Period.monthPending(s, ym, today) }
     val nextDues = androidx.compose.runtime.remember(s, today) { Finance.upcomingDues(s, today) }
     // saldo no fim do mês anterior = saldo atual sem o que foi realizado nas contas a partir deste mês
@@ -142,8 +143,12 @@ fun HomeScreen(s: AppState) {
                 ) {
                     IconTile(Ico.FORECAST, p.accent, p.accent2)
                     Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                        Text("Saldo previsto no fim do mês", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text("Saldo previsto até ${projectionEnd.br()}", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         MoneyText(future, color = if (future < 0) p.red else p.accent, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold))
+                        Text(
+                            "Considera valores pendentes, faturas e recorrências até esta data.",
+                            style = MaterialTheme.typography.labelSmall, color = p.muted, maxLines = 2,
+                        )
                         // comparação com o fim do mês anterior; no primeiro mês não há com o que comparar
                         if (!hide) {
                             Spacer(Modifier.height(6.dp))

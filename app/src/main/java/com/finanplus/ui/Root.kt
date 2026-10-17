@@ -34,6 +34,10 @@ import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -182,6 +186,7 @@ class Nav {
 }
 
 val LocalNav = staticCompositionLocalOf { Nav() }
+private val LocalTxSnackbar = staticCompositionLocalOf { SnackbarHostState() }
 
 /** Padding inferior para o conteúdo não ficar sob a navegação e a ação flutuante. */
 @Composable
@@ -239,6 +244,7 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
 
     // Android 13+: pede a permissão de notificação na primeira abertura (uma vez só).
     val ctx = LocalContext.current
+    val txSnackbarState = remember { SnackbarHostState() }
     val prefs = DevicePrefs.get(ctx)
     val askNotif = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> prefs.update { it.copy(notifications = granted) } }
     LaunchedEffect(Unit) {
@@ -279,7 +285,11 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
     }
     // a barra acompanha o gesto na hora: marca a página para onde o pager está indo
     val shownTab = Tab.entries[pager.targetPage]
-    CompositionLocalProvider(LocalNav provides nav, com.finanplus.ui.components.LocalToday provides today) {
+    CompositionLocalProvider(
+        LocalNav provides nav,
+        LocalTxSnackbar provides txSnackbarState,
+        com.finanplus.ui.components.LocalToday provides today,
+    ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             androidx.compose.foundation.pager.HorizontalPager(
                 pager, Modifier.fillMaxSize(), key = { Tab.entries[it].name },
@@ -299,8 +309,13 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
             BottomNav(nav, shownTab, Modifier.align(Alignment.BottomCenter))
-            if (shownTab == Tab.HOME || shownTab == Tab.MOVES) AddTransactionPill(
+            if (shownTab == Tab.HOME || shownTab == Tab.MOVES) AddTransactionFab(
                 nav, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 116.dp),
+            )
+            SnackbarHost(
+                hostState = txSnackbarState,
+                modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding()
+                    .padding(start = 12.dp, end = 82.dp, bottom = 116.dp).widthIn(max = 360.dp),
             )
             SaveErrorBanner(Modifier.align(Alignment.TopCenter)) { reaskProblem++ }
         }
@@ -360,19 +375,15 @@ private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
 }
 
 @Composable
-private fun AddTransactionPill(nav: Nav, modifier: Modifier = Modifier) {
+private fun AddTransactionFab(nav: Nav, modifier: Modifier = Modifier) {
     val p = Fin.c
-    Row(
-        modifier.shadow(8.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
-            .background(p.accent).clickable(role = Role.Button) { nav.open(Sheet.AddChoice) }
-            .semantics { contentDescription = "Adicionar movimentação" }
-            .padding(horizontal = 16.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    Box(
+        modifier.size(56.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
+            .clickable(role = Role.Button, onClickLabel = "Adicionar movimentação") { nav.open(Sheet.AddChoice) }
+            .semantics { contentDescription = "Adicionar movimentação" },
+        contentAlignment = Alignment.Center,
     ) {
-        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 20.dp)
-        Text("Adicionar", color = p.onAccent, fontWeight = FontWeight.Bold)
-        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, p.onAccent, size = 18.dp)
+        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 26.dp)
     }
 }
 
@@ -383,19 +394,29 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val today = com.finanplus.ui.components.LocalToday.current
     val nav = LocalNav.current
     val dialogs = LocalDialogs.current
+    val scope = rememberCoroutineScope()
+    val snackbar = LocalTxSnackbar.current
     // recorrência prevista (mês que ainda não chegou): não existe no estado; tocar abre a recorrência
     val projected = t.isProjected
     val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
     val status = when {
-        projected -> "Previsto · recorrência"
-        t.isCard -> "Cartão"
-        !t.paid && t.date.isBefore(today) -> "Em atraso"
-        else -> ""
+        projected -> "Prevista · recorrência"
+        t.isCard -> "No cartão"
+        !t.paid && t.date.isBefore(today) -> if (t.kind == Kind.INCOME) "Vencida · a receber" else "Vencida · a pagar"
+        !t.paid -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
+        t.kind == Kind.INCOME -> "Recebida"
+        else -> "Paga"
+    }
+    val statusColor = when {
+        !t.paid && t.date.isBefore(today) -> p.red
+        t.paid && t.kind == Kind.INCOME -> p.green
+        t.paid && t.kind == Kind.EXPENSE -> p.green
+        t.isCard -> p.accent
+        else -> p.muted
     }
     val dateLabel = buildString {
         append(t.date.br())
         if (t.paid && t.scheduledDate != null) append(" · previsto ").append(t.scheduledDate.br())
-        else if (status.isNotEmpty()) append(" · ").append(status)
     }
     val where = if (t.isCard) "Cartão " + (s.card(t.cardId)?.name ?: "") else s.account(t.accountId)?.name ?: "Conta"
     Row(
@@ -414,7 +435,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                 Text(t.desc, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 // duas linhas fixas: data e situação nunca são cortadas, mesmo com nomes longos
                 Text("${t.category} · $where", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(dateLabel, style = MaterialTheme.typography.bodySmall, color = if (status == "Em atraso") p.red else p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text("$status · $dateLabel", style = MaterialTheme.typography.bodySmall, color = statusColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.kind == Kind.EXPENSE) p.red else p.green,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
@@ -434,12 +455,23 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                             if (t.paid) "Marcar “${t.desc}” como pendente novamente?" else "Marcar “${t.desc}” como $action?",
                             ok = if (t.paid) "Marcar pendente" else "Confirmar",
                             danger = t.paid,
-                            onOk = onToggle,
+                            onOk = {
+                                onToggle()
+                                scope.launch {
+                                    val result = snackbar.showSnackbar(
+                                        message = if (t.paid) "Movimentação voltou para pendente." else "Movimentação marcada como $action.",
+                                        actionLabel = "Desfazer",
+                                        withDismissAction = true,
+                                        duration = SnackbarDuration.Short,
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed) onToggle()
+                                }
+                            },
                         )
                     }
                     .semantics {
                         contentDescription = if (t.paid) "Desfazer confirmação: $action" else "Marcar como $action"
-                        stateDescription = if (t.paid) "Pago" else "Pendente"
+                        stateDescription = status
                     },
                 contentAlignment = Alignment.Center,
             ) {

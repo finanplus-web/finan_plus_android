@@ -103,12 +103,13 @@ import java.time.LocalDate
 
 enum class Tab(val label: String, val icon: com.finanplus.ui.components.Ico) {
     HOME("Início", com.finanplus.ui.components.Ico.HOME), MOVES("Lançamentos", com.finanplus.ui.components.Ico.MOVES),
-    ACCOUNTS("Contas", com.finanplus.ui.components.Ico.BANK), REPORTS("Relatórios", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
+    ACCOUNTS("Meu dinheiro", com.finanplus.ui.components.Ico.BANK), REPORTS("Resumo", com.finanplus.ui.components.Ico.REPORTS), PREFS("Ajustes", com.finanplus.ui.components.Ico.SETTINGS),
 }
 
 /** Folhas (formulários) abertas. Serializable para sobreviver a girar a tela e ao bloqueio. */
 sealed interface Sheet : java.io.Serializable {
     /** [date]: data inicial de um lançamento novo (ex.: o dia escolhido no calendário) */
+    data object AddChoice : Sheet
     data class TxEdit(val kind: Kind, val id: String? = null, val date: LocalDate? = null) : Sheet
     /** [name]/[target]/[monthly]: valores iniciais de uma meta nova (ex.: vindos do simulador) */
     data class GoalEdit(val id: String? = null, val name: String = "", val target: Long = 0, val monthly: Long = 0) : Sheet
@@ -333,85 +334,45 @@ private fun BottomNav(nav: Nav, shown: Tab, modifier: Modifier) {
     }
 }
 
-/** Ação global fora do centro da navegação, com escolha clara entre receita e despesa. */
-@Composable
-private fun AddTransactionPill(nav: Nav, modifier: Modifier = Modifier) {
-    val p = Fin.c
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    Box(modifier, contentAlignment = Alignment.CenterEnd) {
-        if (expanded) {
-            Row(
-                Modifier.shadow(10.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
-                    .background(p.surface.compositeOver(p.bg)).border(1.dp, p.border, RoundedCornerShape(99.dp))
-                    .padding(5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-            ) {
-                Box(
-                    Modifier.size(40.dp).clip(RoundedCornerShape(50)).clickable(role = Role.Button) { expanded = false }
-                        .semantics { contentDescription = "Fechar opções de lançamento" },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.REMOVE, p.muted, size = 20.dp)
-                }
-                TransactionChoice(
-                    label = "Despesa", icon = com.finanplus.ui.components.Ico.DOWN, tint = p.red,
-                    background = p.red.copy(alpha = 0.12f), modifier = Modifier.widthIn(min = 112.dp),
-                ) { expanded = false; nav.open(Sheet.TxEdit(Kind.EXPENSE)) }
-                TransactionChoice(
-                    label = "Receita", icon = com.finanplus.ui.components.Ico.UP, tint = p.green,
-                    background = p.green.copy(alpha = 0.12f), modifier = Modifier.widthIn(min = 112.dp),
-                ) { expanded = false; nav.open(Sheet.TxEdit(Kind.INCOME)) }
-            }
-        } else {
-            Row(
-                Modifier.shadow(10.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
-                    .background(p.accent).clickable(role = Role.Button) { expanded = true }
-                    .semantics { contentDescription = "Adicionar receita ou despesa" }
-                    .padding(horizontal = 16.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp),
-            ) {
-                com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 20.dp)
-                Text("Adicionar", color = p.onAccent, fontWeight = FontWeight.Bold)
-                com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, p.onAccent, size = 18.dp)
-            }
-        }
-    }
-}
-
-@Composable
-private fun TransactionChoice(
-    label: String,
-    icon: com.finanplus.ui.components.Ico,
-    tint: androidx.compose.ui.graphics.Color,
-    background: androidx.compose.ui.graphics.Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier.clip(RoundedCornerShape(99.dp)).background(background).clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = label }.padding(horizontal = 12.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        com.finanplus.ui.components.AppIcon(icon, tint, size = 19.dp)
-        Text(label, Modifier.padding(start = 6.dp), color = tint, fontWeight = FontWeight.Bold, maxLines = 1)
-    }
-}
-
+/** Botão contextual de lançamento; o seletor abre como folha modal. */
 @Composable
 private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
     val p = Fin.c
     val on = shown == t
     Column(
-        modifier.height(58.dp).clip(RoundedCornerShape(20.dp)).background(if (on) p.accent.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
-            .clickable(role = Role.Tab) { nav.tab = t }.semantics { selected = on },
-        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+        modifier.height(58.dp).clip(RoundedCornerShape(20.dp))
+            .background(if (on) p.accent.copy(alpha = 0.15f) else androidx.compose.ui.graphics.Color.Transparent)
+            .clickable(role = Role.Tab) { nav.tab = t }
+            .semantics { selected = on; contentDescription = t.label },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        // aba selecionada usa o ícone preenchido (estilo Material)
         com.finanplus.ui.components.AppIcon(t.icon, if (on) p.accent else p.muted, size = 22.dp, filled = on)
-        Text(t.label, fontSize = 10.sp, color = if (on) p.accent else p.muted, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            t.label,
+            fontSize = 10.sp,
+            color = if (on) p.accent else p.muted,
+            fontWeight = if (on) FontWeight.ExtraBold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun AddTransactionPill(nav: Nav, modifier: Modifier = Modifier) {
+    val p = Fin.c
+    Row(
+        modifier.shadow(8.dp, RoundedCornerShape(99.dp)).clip(RoundedCornerShape(99.dp))
+            .background(p.accent).clickable(role = Role.Button) { nav.open(Sheet.AddChoice) }
+            .semantics { contentDescription = "Adicionar movimentação" }
+            .padding(horizontal = 16.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 20.dp)
+        Text("Adicionar", color = p.onAccent, fontWeight = FontWeight.Bold)
+        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, p.onAccent, size = 18.dp)
     }
 }
 

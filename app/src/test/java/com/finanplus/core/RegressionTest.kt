@@ -21,6 +21,15 @@ private fun d(s: String) = LocalDate.parse(s)
 private fun AppState.ok(o: Outcome): AppState = when (o) { is Outcome.Ok -> o.state; is Outcome.Err -> error("esperava Ok: ${o.message}") }
 
 class RegressionTest {
+    @Test fun descricaoOpcionalUsaCategoriaComoRotulo() {
+        val s = AppState()
+        val saved = s.ok(
+            Ops.saveTx(s, null, TxDraft(Kind.EXPENSE, "", "25,50", "Alimentação", today, true, "main"), today)
+        )
+        assertEquals("Alimentação", saved.txs.single().desc)
+        assertEquals(2_550L, saved.txs.single().value)
+    }
+
     private val today = d("2026-10-06")
 
     @Test fun reativarRecorrenciaPausadaNaoGeraMesesParados() {
@@ -44,6 +53,19 @@ class RegressionTest {
         assertTrue(Ops.togglePaid(s, "p").txs[0].paid)
         val normal = Tx("n", Kind.EXPENSE, 10_00, d("2026-10-05"), "Luz", "Moradia", true, "main")
         assertFalse(Ops.togglePaid(s.copy(txs = listOf(normal)), "n").txs[0].paid)
+    }
+
+    @Test fun inicioMostraAteTresVencimentosEmOrdemSemIncluirPagos() {
+        val s = AppState(txs = listOf(
+            Tx("c", Kind.EXPENSE, 300, d("2026-10-12"), "C", "Outros", false, "main"),
+            Tx("paid", Kind.EXPENSE, 100, d("2026-10-07"), "Pago", "Outros", true, "main"),
+            Tx("b", Kind.EXPENSE, 200, d("2026-10-09"), "B", "Outros", false, "main"),
+            Tx("income", Kind.INCOME, 400, d("2026-10-08"), "Salário", "Salário", false, "main"),
+            Tx("a", Kind.EXPENSE, 100, d("2026-10-08"), "A", "Outros", false, "main"),
+            Tx("later", Kind.EXPENSE, 500, d("2026-10-13"), "Depois", "Outros", false, "main"),
+        ))
+        assertEquals(listOf("a", "b", "c"), Finance.upcomingDues(s, today).map { it.refId })
+        assertTrue(Finance.upcomingDues(s, today, 0).isEmpty())
     }
 
     @Test fun backupRecusaValoresGigantesEBooleanos() {
@@ -70,6 +92,21 @@ class RegressionTest {
             """{"id":"t$i","kind":"income","value":9999999999999.99,"date":"2026-10-01","paid":true}"""
         }
         assertFailsWith<BackupException> { Backup.parse("""{"txs":[$txs]}""") }
+    }
+
+    @Test fun inicioMostraAteTresVencimentosEmOrdemSemIncluirPagos() {
+        val today = d("2026-10-06")
+        val txs = listOf(
+            Tx("c", Kind.EXPENSE, 3_00, d("2026-10-12"), "C", "Outros", false, "main"),
+            Tx("a", Kind.EXPENSE, 1_00, d("2026-10-08"), "A", "Outros", false, "main"),
+            Tx("paid", Kind.EXPENSE, 99_00, d("2026-10-07"), "Pago", "Outros", true, "main"),
+            Tx("b", Kind.EXPENSE, 2_00, d("2026-10-09"), "B", "Outros", false, "main"),
+            Tx("d", Kind.EXPENSE, 4_00, d("2026-10-13"), "D", "Outros", false, "main"),
+        )
+        val dues = Finance.upcomingDues(AppState(txs = txs), today)
+        assertEquals(listOf("a", "b", "c"), dues.map { it.refId })
+        assertEquals(1, Finance.upcomingDues(AppState(txs = txs), today, 1).size)
+        assertEquals("a", Finance.nextDue(AppState(txs = txs), today)?.refId)
     }
 
     @Test fun backupComBomEVersaoNova() {

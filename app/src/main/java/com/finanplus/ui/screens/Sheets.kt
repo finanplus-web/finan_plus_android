@@ -3,6 +3,7 @@
 
 package com.finanplus.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -94,6 +96,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
     ModalBottomSheet(onDismissRequest = onClose, sheetState = state, containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(start = 20.dp, end = 20.dp, bottom = 24.dp)) {
             when (sheet) {
+                Sheet.AddChoice -> AddChoiceEditor()
                 is Sheet.TxEdit -> TxEditor(s, sheet, onClose)
                 is Sheet.GoalEdit -> GoalEditor(s, sheet, onClose)
                 is Sheet.AccountEdit -> AccountEditor(s, sheet.id, onClose)
@@ -109,6 +112,37 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
             }
         }
     }
+    }
+}
+
+@Composable
+private fun AddChoiceEditor() {
+    val nav = com.finanplus.ui.LocalNav.current
+    Header("Adicionar movimentação", "Escolha o que deseja registrar.")
+    AddChoiceRow("Despesa", "Dinheiro que saiu", com.finanplus.ui.components.Ico.EXPENSE, Fin.c.dangerContainer, Fin.c.red) {
+        nav.open(Sheet.TxEdit(Kind.EXPENSE))
+    }
+    AddChoiceRow("Receita", "Dinheiro que entrou", com.finanplus.ui.components.Ico.INCOME, Fin.c.successContainer, Fin.c.green) {
+        nav.open(Sheet.TxEdit(Kind.INCOME))
+    }
+    AddChoiceRow("Nova recorrência", "Configure uma movimentação que se repete", com.finanplus.ui.components.Ico.REPEAT, Fin.c.accent2, Fin.c.accent) {
+        nav.open(Sheet.RecurringEdit())
+    }
+}
+
+@Composable
+private fun AddChoiceRow(title: String, description: String, icon: com.finanplus.ui.components.Ico,
+                         container: androidx.compose.ui.graphics.Color, tint: androidx.compose.ui.graphics.Color,
+                         onClick: () -> Unit) {
+    Glass(Modifier.padding(top = 8.dp), radius = 20.dp, padding = 14.dp, onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            com.finanplus.ui.components.IconTile(icon, tint, container, size = 44.dp)
+            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(description, style = MaterialTheme.typography.bodySmall, color = Fin.c.muted)
+            }
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.NEXT, Fin.c.muted, size = 20.dp)
+        }
     }
 }
 
@@ -167,10 +201,20 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     var reps by rememberSaveable { mutableStateOf("1") }
     var repsMode by rememberSaveable { mutableStateOf(RepsMode.TOTAL) }
     var recurring by rememberSaveable { mutableStateOf(false) }
+    var advancedExpanded by rememberSaveable(sheet.id) { mutableStateOf(tx != null) }
+    val initialKind = tx?.kind ?: sheet.kind
+    val initialDate = tx?.date ?: sheet.date ?: LocalDate.now()
+    val initialPaid = tx?.paid ?: (sheet.date?.isAfter(LocalDate.now()) != true)
+    val initialAccountId = tx?.accountId ?: s.accounts[0].id
+    val initialCardId = tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: ""
+    val initialUseCard = tx?.isCard == true
+    val initialCategory = tx?.category ?: s.cats.of(kind)[0]
     val guard = LocalSheetGuard.current
     SideEffect {
-        guard.dirty = desc != (tx?.desc ?: "") || value != (tx?.let { Money.input(it.value) } ?: "") ||
-            (tx != null && (category != tx.category || date != tx.date)) || (tx == null && (reps != "1" || recurring))
+        guard.dirty = kind != initialKind || desc != (tx?.desc ?: "") ||
+            value != (tx?.let { Money.input(it.value) } ?: "") || category != initialCategory || date != initialDate ||
+            paid != initialPaid || useCard != initialUseCard || accountId != initialAccountId || cardId != initialCardId ||
+            (tx == null && (reps != "1" || repsMode != RepsMode.TOTAL || recurring))
     }
 
     val canCard = kind == Kind.EXPENSE && s.cards.isNotEmpty() && !isPayment
@@ -211,47 +255,59 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     }
 
     Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
-        Field("Descrição", desc, { desc = it }, placeholder = if (kind == Kind.INCOME) "Ex.: Salário" else "Ex.: Mercado")
-        // assistente: sugere a categoria pela descrição (lançamento novo, ou quando a descrição foi alterada)
+        // Assistente: sugere categoria com base na descrição, sem preencher dados financeiros fictícios.
         if (!isPayment) CategoryHint(s, kind, desc, category, enabled = tx == null || desc != tx.desc) { category = it }
         SelectField("Categoria", cats.map { it to it }, category, { category = it })
-        if (canCard) SelectField("Forma de pagamento", listOf(false to "Conta / dinheiro", true to "Cartão de crédito"), card, { useCard = it })
-        if (card) SelectField("Cartão", s.cards.map { it.id to it.name }, cardId, { cardId = it })
-        else SelectField(if (kind == Kind.INCOME) "Conta de destino" else "Conta", s.accounts.map { it.id to it.name }, accountId, { accountId = it })
         DateField("Data", date, { date = it })
-        if (tx?.scheduledDate != null) Text(
-            "Data prevista original: ${tx.scheduledDate.br()}. Ela será restaurada se o lançamento voltar a ficar pendente.",
-            style = MaterialTheme.typography.bodySmall, color = Fin.c.muted,
-        )
-    }
-
-    if (!card && !isPayment) {
-        val settled = if (kind == Kind.INCOME) "Já recebida" else "Já paga"
-        val pending = if (kind == Kind.INCOME) "A receber" else "A pagar"
-        Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
-            Text(if (kind == Kind.INCOME) "Situação da receita" else "Situação da despesa", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            PaymentStatusChoice(settled, paid) { paid = true }
-            PaymentStatusChoice(pending, !paid) { paid = false }
-            Text(
-                if (paid) "O valor será considerado no saldo realizado da conta." else "O valor ficará pendente até ser recebido ou pago.",
-                style = MaterialTheme.typography.bodySmall, color = Fin.c.muted, modifier = Modifier.padding(start = 4.dp, top = 2.dp),
-            )
+        Field("Descrição (opcional)", desc, { desc = it }, placeholder = if (kind == Kind.INCOME) "Ex.: Salário" else "Ex.: Mercado")
+        TextButton(onClick = { advancedExpanded = !advancedExpanded }) {
+            Text(if (advancedExpanded) "Menos opções" else "Mais opções")
+            com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.DROPDOWN, Fin.c.accent, size = 18.dp)
         }
     }
 
-    if (tx == null) {
-        Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
-            Text("Parcelamento e repetição", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            Field("Número de parcelas", reps, { reps = it.filter(Char::isDigit) }, keyboard = KeyboardType.Number, maxLength = 2)
-            if ((reps.toIntOrNull() ?: 1) > 1) SelectField(
-                "O valor informado é", listOf(RepsMode.TOTAL to "O total da compra (divide entre as parcelas)", RepsMode.EACH to "O valor de cada parcela"), repsMode, { repsMode = it },
-            )
-            CheckRow(if (kind == Kind.INCOME) "Repetir esta receita mensalmente" else "Repetir esta despesa mensalmente", recurring) { recurring = it }
+    AnimatedVisibility(visible = advancedExpanded) {
+        Column {
+            Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
+                Text("Detalhes adicionais", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                if (canCard) SelectField("Forma de pagamento", listOf(false to "Conta / dinheiro", true to "Cartão de crédito"), card, { useCard = it })
+                if (card) SelectField("Cartão", s.cards.map { it.id to it.name }, cardId, { cardId = it })
+                else SelectField(if (kind == Kind.INCOME) "Conta de destino" else "Conta", s.accounts.map { it.id to it.name }, accountId, { accountId = it })
+                if (tx?.scheduledDate != null) Text(
+                    "Data prevista original: ${tx.scheduledDate.br()}. Ela será restaurada se o lançamento voltar a ficar pendente.",
+                    style = MaterialTheme.typography.bodySmall, color = Fin.c.muted,
+                )
+            }
+
+            if (!card && !isPayment) {
+                val settled = if (kind == Kind.INCOME) "Já recebida" else "Já paga"
+                val pending = if (kind == Kind.INCOME) "A receber" else "A pagar"
+                Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
+                    Text(if (kind == Kind.INCOME) "Situação da receita" else "Situação da despesa", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                    PaymentStatusChoice(settled, paid) { paid = true }
+                    PaymentStatusChoice(pending, !paid) { paid = false }
+                    Text(
+                        if (paid) "O valor será considerado no saldo realizado da conta." else "O valor ficará pendente até ser recebido ou pago.",
+                        style = MaterialTheme.typography.bodySmall, color = Fin.c.muted, modifier = Modifier.padding(start = 4.dp, top = 2.dp),
+                    )
+                }
+            }
+
+            if (tx == null) {
+                Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
+                    Text("Parcelamento e repetição", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                    Field("Número de parcelas", reps, { reps = it.filter(Char::isDigit) }, keyboard = KeyboardType.Number, maxLength = 2)
+                    if ((reps.toIntOrNull() ?: 1) > 1) SelectField(
+                        "O valor informado é", listOf(RepsMode.TOTAL to "O total da compra (divide entre as parcelas)", RepsMode.EACH to "O valor de cada parcela"), repsMode, { repsMode = it },
+                    )
+                    CheckRow(if (kind == Kind.INCOME) "Repetir esta receita mensalmente" else "Repetir esta despesa mensalmente", recurring) { recurring = it }
+                }
+            }
         }
     }
 
     Spacer(Modifier.height(12.dp))
-    PrimaryButton("Salvar lançamento") {
+    PrimaryButton(when { isPayment -> "Registrar pagamento"; kind == Kind.INCOME -> "Salvar receita"; else -> "Salvar despesa" }) {
         val draft = TxDraft(kind, desc, value, category, date, paid, accountId, if (card) cardId else "", reps.toIntOrNull() ?: 1, repsMode, recurring)
         apply(Ops.saveTx(Repo.state.value, tx?.id, draft), dialogs, close)
     }

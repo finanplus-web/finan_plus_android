@@ -73,6 +73,8 @@ import androidx.compose.ui.unit.sp
 import com.finanplus.core.Cents
 import com.finanplus.core.Money
 import com.finanplus.ui.theme.Fin
+import com.finanplus.ui.theme.FinRadius
+import com.finanplus.ui.theme.FinSpace
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -146,7 +148,7 @@ fun AppBackground(content: @Composable () -> Unit) {
 
 /** Cartão translúcido ("Liquid Glass"). */
 @Composable
-fun Glass(modifier: Modifier = Modifier, radius: Dp = 25.dp, padding: Dp = 17.dp, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
+fun Glass(modifier: Modifier = Modifier, radius: Dp = FinRadius.card, padding: Dp = FinSpace.lg, onClick: (() -> Unit)? = null, content: @Composable ColumnScope.() -> Unit) {
     val p = Fin.c
     val shape = RoundedCornerShape(radius)
     Column(
@@ -163,7 +165,7 @@ fun Eyebrow(text: String, modifier: Modifier = Modifier) =
 
 @Composable
 fun SectionHead(eyebrow: String?, title: String, action: String? = null, actionIcon: Ico? = null, onAction: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth().padding(top = 22.dp, bottom = 10.dp), verticalAlignment = Alignment.Bottom) {
+    Row(Modifier.fillMaxWidth().padding(top = FinSpace.xl, bottom = FinSpace.sm), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             if (eyebrow != null) Eyebrow(eyebrow)
             Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { heading() })

@@ -67,8 +67,8 @@ fun AccountsScreen(s: AppState) {
 
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.fillMaxWidth()) {
         item {
-            Text("Contas", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
-            Text("Contas, cartões e seus planos financeiros.", style = MaterialTheme.typography.bodyMedium, color = p.muted, modifier = Modifier.padding(bottom = 4.dp))
+            Text("Meu dinheiro", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
+            Text("Contas, cartões e seus planos financeiros em um só lugar.", style = MaterialTheme.typography.bodyMedium, color = p.muted, modifier = Modifier.padding(bottom = 4.dp))
         }
 
         item {

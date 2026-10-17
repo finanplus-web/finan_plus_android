@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.finanplus.core.ThemeId
 
@@ -40,7 +41,29 @@ data class Palette(
     val track: Color,
     val glowA: Color,
     val glowB: Color,
-)
+) {
+    val primaryPressed: Color get() = if (dark) accent.copy(alpha = 0.82f) else Color(0xFF304FA9)
+    val successContainer: Color get() = if (dark) green.copy(alpha = 0.18f) else Color(0xFFEAF7F0)
+    val dangerContainer: Color get() = if (dark) red.copy(alpha = 0.18f) else Color(0xFFFFF0F2)
+    val warning: Color get() = if (dark) Color(0xFFF2C46D) else Color(0xFFA36A13)
+    val warningContainer: Color get() = if (dark) warning.copy(alpha = 0.18f) else Color(0xFFFFF4DD)
+    val disabled: Color get() = if (dark) Color(0xFF777E8B) else Color(0xFFA5AEC0)
+}
+
+object FinSpace {
+    val xs = 4.dp
+    val sm = 8.dp
+    val md = 12.dp
+    val lg = 16.dp
+    val xl = 24.dp
+    val xxl = 32.dp
+}
+
+object FinRadius {
+    val field = 14.dp
+    val button = 16.dp
+    val card = 24.dp
+}
 
 private val Light = Palette(false, Color(0xFFEEF4FF), Color(0xB8FFFFFF), Color(0xB8FFFFFF), Color(0xFF182238), Color(0xFF5B6579),
     Color(0xFF3A5FC8), Color(0xFFDFE8FF), Color.White, Color(0xFFB03A4F), Color(0xFF1B7351), Color(0xFFDFE5EF), Color(0xFFD9E5FF), Color(0xFFFFE7ED))

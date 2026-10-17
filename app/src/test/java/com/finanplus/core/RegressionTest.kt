@@ -21,6 +21,14 @@ private fun d(s: String) = LocalDate.parse(s)
 private fun AppState.ok(o: Outcome): AppState = when (o) { is Outcome.Ok -> o.state; is Outcome.Err -> error("esperava Ok: ${o.message}") }
 
 class RegressionTest {
+    @Test fun novoLancamentoSoVemRealizadoPorPadraoNaDataDeHoje() {
+        val today = d("2026-10-17")
+        assertTrue(Ops.defaultPaid(today, today))
+        assertFalse(Ops.defaultPaid(today.minusDays(1), today))
+        assertFalse(Ops.defaultPaid(today.plusDays(1), today))
+        assertFalse(Ops.defaultPaid(null, today))
+    }
+
     @Test fun descricaoOpcionalUsaCategoriaComoRotulo() {
         val s = AppState()
         val saved = s.ok(

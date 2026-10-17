@@ -47,6 +47,9 @@ private fun transactionDates(old: Tx?, requested: LocalDate, paid: Boolean, card
 
 /** Todas as alterações de dados passam por aqui, com as mesmas validações do PWA. */
 object Ops {
+    /** Novos lançamentos ficam pendentes por padrão fora da data de hoje. */
+    fun defaultPaid(date: LocalDate?, today: LocalDate): Boolean = date == today
+
     // ---------------- lançamentos ----------------
     fun saveTx(s: AppState, editId: String?, d: TxDraft, today: LocalDate = LocalDate.now()): Outcome {
         val value = Money.parse(d.value)

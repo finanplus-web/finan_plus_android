@@ -188,13 +188,16 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val tx = sheet.id?.let { id -> s.txs.firstOrNull { it.id == id } }
     val isPayment = tx?.cardPayment?.isNotEmpty() == true
+    val today = LocalDate.now()
     var kind by rememberSaveable { mutableStateOf(tx?.kind ?: sheet.kind) }
     var desc by rememberSaveable { mutableStateOf(tx?.desc ?: "") }
     var value by rememberSaveable { mutableStateOf(tx?.let { Money.input(it.value) } ?: "") }
     var category by rememberSaveable { mutableStateOf(tx?.category ?: s.cats.of(kind)[0]) }
-    var date by rememberSaveable { mutableStateOf<LocalDate?>(tx?.date ?: sheet.date ?: LocalDate.now()) }
-    // novo lançamento numa data futura (ex.: escolhida no calendário) começa como pendente
-    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: (sheet.date?.isAfter(LocalDate.now()) != true)) }
+    var date by rememberSaveable { mutableStateOf<LocalDate?>(tx?.date ?: sheet.date ?: today) }
+    // Novos lançamentos só são considerados realizados por padrão quando a data é hoje.
+    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: Ops.defaultPaid(date, today)) }
+    // Se o usuário escolher explicitamente o status, mudanças de data não sobrescrevem essa escolha.
+    var paymentStatusTouched by rememberSaveable { mutableStateOf(false) }
     var useCard by rememberSaveable { mutableStateOf(tx?.isCard == true) }
     var accountId by rememberSaveable { mutableStateOf(tx?.accountId ?: s.accounts[0].id) }
     var cardId by rememberSaveable { mutableStateOf(tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: "") }
@@ -203,8 +206,8 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     var recurring by rememberSaveable { mutableStateOf(false) }
     var advancedExpanded by rememberSaveable(sheet.id) { mutableStateOf(tx != null) }
     val initialKind = tx?.kind ?: sheet.kind
-    val initialDate = tx?.date ?: sheet.date ?: LocalDate.now()
-    val initialPaid = tx?.paid ?: (sheet.date?.isAfter(LocalDate.now()) != true)
+    val initialDate = tx?.date ?: sheet.date ?: today
+    val initialPaid = tx?.paid ?: Ops.defaultPaid(initialDate, today)
     val initialAccountId = tx?.accountId ?: s.accounts[0].id
     val initialCardId = tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: ""
     val initialUseCard = tx?.isCard == true
@@ -258,7 +261,10 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
         // Assistente: sugere categoria com base na descrição, sem preencher dados financeiros fictícios.
         if (!isPayment) CategoryHint(s, kind, desc, category, enabled = tx == null || desc != tx.desc) { category = it }
         SelectField("Categoria", cats.map { it to it }, category, { category = it })
-        DateField("Data", date, { date = it })
+        DateField("Data", date, { selectedDate ->
+            date = selectedDate
+            if (tx == null && !paymentStatusTouched) paid = Ops.defaultPaid(selectedDate, today)
+        })
         Field("Descrição (opcional)", desc, { desc = it }, placeholder = if (kind == Kind.INCOME) "Ex.: Salário" else "Ex.: Mercado")
         TextButton(onClick = { advancedExpanded = !advancedExpanded }) {
             Text(if (advancedExpanded) "Menos opções" else "Mais opções")
@@ -284,8 +290,8 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
                 val pending = if (kind == Kind.INCOME) "A receber" else "A pagar"
                 Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 14.dp) {
                     Text(if (kind == Kind.INCOME) "Situação da receita" else "Situação da despesa", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-                    PaymentStatusChoice(settled, paid) { paid = true }
-                    PaymentStatusChoice(pending, !paid) { paid = false }
+                    PaymentStatusChoice(settled, paid) { paid = true; paymentStatusTouched = true }
+                    PaymentStatusChoice(pending, !paid) { paid = false; paymentStatusTouched = true }
                     Text(
                         if (paid) "O valor será considerado no saldo realizado da conta." else "O valor ficará pendente até ser recebido ou pago.",
                         style = MaterialTheme.typography.bodySmall, color = Fin.c.muted, modifier = Modifier.padding(start = 4.dp, top = 2.dp),

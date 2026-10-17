@@ -16,9 +16,15 @@ class LanRemoteTest {
     @After fun stop() = f.close()
 
     @Suppress("UNCHECKED_CAST")
+    private fun number(value: Any?) = when (value) {
+        is Json.NumberToken -> value.text.toDouble()
+        is Number -> value.toDouble()
+        else -> error("número JSON esperado")
+    }
+
     private fun read(t: String): Pair<Long, Map<String, Any?>> {
         val st = f.api("/api/remote/state", token = t).json
-        return (st["rev"] as Double).toLong() to (st["data"] as Map<String, Any?>)
+        return number(st["rev"]).toLong() to (st["data"] as Map<String, Any?>)
     }
 
     private fun withTx(data: Map<String, Any?>, id: String, desc: String): String {
@@ -32,7 +38,7 @@ class LanRemoteTest {
         val (rev, data) = read(t)
         val ok = f.api("/api/remote/state", "PUT", """{"rev":$rev,"data":${withTx(data, "a1", "Feira")}}""", t)
         assertEquals(200, ok.status)
-        val rev2 = (ok.json["rev"] as Double).toLong()
+        val rev2 = number(ok.json["rev"]).toLong()
         assertTrue(rev2 > rev)
         assertEquals(1250L, f.backend.state.txs.single().value)
         assertEquals(rev2, read(t).first) // a versão devolvida é a do estado gravado
@@ -83,7 +89,7 @@ class LanRemoteTest {
         assertTrue(r1["rev"] != r2["rev"])
         assertEquals(r1["data"], r2["data"]) // só as cores mudaram
         f.backend.apply { s -> Outcome.Ok(s.copy(privacy = !s.privacy)) }
-        assertTrue((f.api("/api/rev", token = t).json["data"] as Double) > (r2["data"] as Double))
+        assertTrue(number(f.api("/api/rev", token = t).json["data"]) > number(r2["data"]))
     }
 
     @Test fun desconectarInvalidaOToken() {

@@ -229,7 +229,12 @@ class LanRoutes(
     private fun remoteSave(req: HttpRequest): HttpResponse {
         backend.writeBlocked()?.let { return HttpResponse.error(503, "O celular não está salvando", it) }
         val body = req.jsonObject()
-        val rev = (body["rev"] as? Double)?.takeIf { it >= 0 && it <= MAX_SAFE_INT && it == Math.floor(it) }?.toLong()
+        val revNumber = when (val value = body["rev"]) {
+            is Json.NumberToken -> value.text.toDoubleOrNull()
+            is Double -> value
+            else -> null
+        }
+        val rev = revNumber?.takeIf { it >= 0 && it <= MAX_SAFE_INT && it == Math.floor(it) }?.toLong()
             ?: return HttpResponse.error(400, "Requisição inválida", "Versão ausente ou inválida.")
         val data = body["data"] as? Map<String, Any?> ?: return HttpResponse.error(400, "Requisição inválida", "Dados ausentes.")
         val normalized = try { Backup.normalize(data) } catch (e: BackupException) {

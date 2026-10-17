@@ -122,7 +122,9 @@ object Finance {
             }
             if (last == r.last) r else r.copy(last = last)
         }
-        return if (newTxs.isEmpty() && recs == s.recurring) s to 0 else s.copy(txs = s.txs + newTxs, recurring = recs) to newTxs.size
+        if (newTxs.isEmpty() && recs == s.recurring) return s to 0
+        val next = s.copy(txs = s.txs + newTxs, recurring = recs)
+        return if (next.hasSafeMoneyTotals()) next to newTxs.size else s to 0
     }
 
     // ---------------- parcelas ----------------

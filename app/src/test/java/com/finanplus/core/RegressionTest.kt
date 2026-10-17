@@ -12,6 +12,7 @@ import java.time.YearMonth
 import java.util.Locale
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -56,6 +57,19 @@ class RegressionTest {
         assertEquals(0L, n.state.accounts[0].initial)
         assertEquals(1250L, n.state.txs[0].value)
         assertNull(Money.fromReaisOrNull(1e14)); assertEquals(Money.MAX_ABS, Money.fromReaisOrNull(9_999_999_999_999.99))
+    }
+
+    @Test fun decimalJsonMantemCentavosExatos() {
+        assertEquals(29L, Money.fromReaisOrNull("0.29"))
+        assertEquals(12_345_678_912L, Money.fromReaisOrNull("123456789.12"))
+        assertEquals(10L, Backup.parse("""{"txs":[{"id":"a","kind":"income","value":0.10,"date":"2026-10-01"}]}""").state.txs.single().value)
+    }
+
+    @Test fun importacaoRecusaSomaAcimaDoLimiteExato() {
+        val txs = (1..10).joinToString(",") { i ->
+            """{"id":"t$i","kind":"income","value":9999999999999.99,"date":"2026-10-01","paid":true}"""
+        }
+        assertFailsWith<BackupException> { Backup.parse("""{"txs":[$txs]}""") }
     }
 
     @Test fun backupComBomEVersaoNova() {

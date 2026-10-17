@@ -12,7 +12,8 @@ sealed class Outcome {
 }
 
 private fun err(msg: String, title: String = "Revise os dados") = Outcome.Err(title, msg)
-private fun ok(s: AppState) = Outcome.Ok(s)
+private fun ok(s: AppState): Outcome = if (s.hasSafeMoneyTotals()) Outcome.Ok(s)
+else err("O total dos valores excede o limite seguro. Reduza algum valor antes de salvar.", "Limite financeiro excedido")
 private fun sameName(a: String, b: String) = a.lowercase() == b.lowercase()
 
 enum class RepsMode { TOTAL, EACH }
@@ -139,7 +140,9 @@ object Ops {
         if (m == null || m < 0) return err("Contribuição mensal inválida.")
         val mv = if (move.isBlank()) 0L else Money.parse(move) ?: return err("Valor a guardar inválido.")
         if (id == null) return ok(s.copy(goals = s.goals + Goal(Ids.new(), n, t, 0, deadline, m)))
-        return ok(s.copy(goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = maxOf(0L, it.saved + mv)) else it }))
+        val saved = try { Math.addExact(s.goals.firstOrNull { it.id == id }?.saved ?: 0L, mv).coerceAtLeast(0L) }
+        catch (_: ArithmeticException) { return err("O valor guardado excede o limite seguro.", "Limite financeiro excedido") }
+        return ok(s.copy(goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = saved) else it }))
     }
 
     fun deleteGoal(s: AppState, id: String) = s.copy(goals = s.goals.filterNot { it.id == id })

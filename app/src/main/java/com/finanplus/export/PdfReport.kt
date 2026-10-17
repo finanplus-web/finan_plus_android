@@ -136,7 +136,7 @@ object PdfReport {
         pen.newPage()
         header(pen, r)
         kpis(pen, r)
-        section(pen, "Despesas por categoria", "Valores realizados. Média mensal comparada com o limite mensal definido em Ajustes.", keep = 160f)
+        section(pen, "Despesas por categoria", "Valores realizados. Média mensal comparada com o limite mensal definido em Meu dinheiro.", keep = 160f)
         if (r.expenseByCategory.isEmpty()) note(pen, "Sem despesas realizadas no período.")
         else { donut(pen, r.expenseByCategory, r.expense); categoryTable(pen, r.expenseByCategory, withLimit = true) }
 

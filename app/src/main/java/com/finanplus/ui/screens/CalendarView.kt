@@ -93,6 +93,7 @@ private fun markColor(m: DayMark): Color = when (m) {
     DayMark.INCOME -> Fin.c.green
     DayMark.EXPENSE -> Fin.c.red
     DayMark.CARD -> cardColor()
+    DayMark.GOAL -> Fin.c.accent
 }
 
 /** Chave "Lista | Calendário" no topo da aba Lançamentos. */
@@ -218,6 +219,7 @@ private fun CalendarCard(nav: Nav, days: Map<LocalDate, CalDay>, today: LocalDat
             LegendDot(markColor(DayMark.INCOME), "Receita")
             LegendDot(markColor(DayMark.EXPENSE), "Despesa")
             LegendDot(markColor(DayMark.CARD), "Cartão")
+            LegendDot(markColor(DayMark.GOAL), "Meta")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(Ico.WARNING, p.red, size = 12.dp)
                 Spacer(Modifier.width(4.dp))

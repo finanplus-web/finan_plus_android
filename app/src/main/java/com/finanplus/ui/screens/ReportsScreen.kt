@@ -72,6 +72,8 @@ fun ReportsScreen(s: AppState) {
     val today = com.finanplus.ui.components.LocalToday.current
     val inRange = remember(s, f.from, f.to) { s.txs.filter { f.inRange(it) } }
     val flow = remember(inRange) { Finance.flow(inRange) }
+    // reservas para metas no período (1.7.0): saem das contas, mas não são despesas
+    val goalMoves = remember(inRange) { Finance.goalMoves(inRange) }
     val cmp = remember(f.from, f.to, today) { PeriodCompare.of(f.from, f.to, today) }
     val prev = remember(s, cmp) { cmp?.let { c -> Finance.flow(s.txs.filter { !it.date.isBefore(c.from) && !it.date.isAfter(c.to) }) } }
     val categories = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
@@ -144,6 +146,18 @@ fun ReportsScreen(s: AppState) {
                 Text("Resultado do período", style = MaterialTheme.typography.bodySmall, color = p.muted)
                 MoneyText(result, color = if (result < 0) p.red else p.accent, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold))
                 Text(explanation, style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 2.dp))
+                if (goalMoves.saved > 0L || goalMoves.withdrawn > 0L) {
+                    Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                        AppIcon(Ico.GOAL, p.accent, size = 16.dp)
+                        Text("Guardado em metas", Modifier.weight(1f).padding(start = 6.dp), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                        MoneyText(goalMoves.net, color = p.accent, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.ExtraBold))
+                    }
+                    Text(
+                        if (goalMoves.withdrawn > 0L) "Guardou ${if (hide) "R$ ••••" else Money.format(goalMoves.saved)} e retirou ${if (hide) "R$ ••••" else Money.format(goalMoves.withdrawn)}. Não entra nas despesas."
+                        else "Saiu das contas para as metas. Não entra nas despesas.",
+                        style = MaterialTheme.typography.labelSmall, color = p.muted,
+                    )
+                }
             }
         }
         if (flow.income > 0L || flow.expense > 0L) item {
@@ -155,7 +169,7 @@ fun ReportsScreen(s: AppState) {
                     .sortedByDescending { it.second }
             }
             val expenses = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
-            MoneyFlowCard(sources, expenses, flow.income, flow.expense, hide)
+            MoneyFlowCard(sources, expenses, flow.income, flow.expense, hide, goalMoves.saved, goalMoves.withdrawn)
         }
         if (categories.isNotEmpty()) item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
@@ -214,14 +228,21 @@ private fun MoneyFlowCard(
     income: Long,
     expense: Long,
     hide: Boolean,
+    toGoals: Long = 0L,
+    fromGoals: Long = 0L,
 ) {
     val p = Fin.c
     val colors = listOf(Color(0xFF00AFC1), p.red, Color(0xFF278AE5), p.green, Color(0xFF8C9499), p.accent)
-    val incomeParts = sources.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[i % colors.size]) }
+    val incomeParts = sources.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[i % colors.size]) }.toMutableList()
+    // o que voltou das metas entra como origem; o que foi para as metas, como destino (separado dos gastos)
+    if (fromGoals > 0L) incomeParts += FlowPart("Retirado de metas", fromGoals, p.accent)
     val outputParts = expenses.mapIndexed { i, (name, value) -> FlowPart(name, value, colors[(i + 1) % colors.size]) }.toMutableList()
-    val leftover = (income - expense).coerceAtLeast(0L)
+    if (toGoals > 0L) outputParts += FlowPart("Metas", toGoals, p.accent)
+    val totalIn = income + fromGoals
+    val totalOut = expense + toGoals
+    val leftover = (totalIn - totalOut).coerceAtLeast(0L)
     if (leftover > 0L) outputParts += FlowPart("Sobrou", leftover, p.green)
-    val scale = maxOf(income, expense, 1L)
+    val scale = maxOf(totalIn, totalOut, 1L)
     val description = buildString {
         append("Fluxo do dinheiro. Entradas realizadas: ")
         append(if (hide) "valores ocultos" else Money.format(income))
@@ -235,13 +256,13 @@ private fun MoneyFlowCard(
         Text("De onde veio (em cima) e para onde foi (embaixo).", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(bottom = 12.dp))
         Text("De onde veio", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
         SegmentedFlowBar(incomeParts, scale, hide)
-        FlowLegend(incomeParts, income, hide)
+        FlowLegend(incomeParts, totalIn, hide)
         Row(
             Modifier.fillMaxWidth().padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.Center,
         ) {
             Text(
-                if (hide) "Entradas ocultas" else "Entrou ${Money.format(income)}",
+                if (hide) "Entradas ocultas" else "Entrou ${Money.format(totalIn)}",
                 modifier = Modifier.clip(RoundedCornerShape(24.dp)).background(p.text).padding(horizontal = 20.dp, vertical = 8.dp),
                 color = p.bg,
                 style = MaterialTheme.typography.titleSmall,
@@ -253,7 +274,7 @@ private fun MoneyFlowCard(
             Text("Nenhuma despesa realizada; todo o valor recebido permaneceu disponível.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 6.dp))
         } else {
             SegmentedFlowBar(outputParts, scale, hide)
-            FlowLegend(outputParts, maxOf(income, expense), hide)
+            FlowLegend(outputParts, maxOf(totalIn, totalOut), hide)
         }
         if (expense > income) {
             Text("As despesas passaram o valor recebido neste período.", style = MaterialTheme.typography.bodySmall, color = p.red, modifier = Modifier.padding(top = 8.dp))

@@ -412,6 +412,7 @@ object PdfReport {
                 else -> s.account(t.accountId)?.name ?: ""
             }
             val status = when {
+                t.isGoal -> if (t.kind == Kind.EXPENSE) "Meta" else "Da meta"
                 payment -> "Pag. fatura"
                 t.isCard -> "Cartão"
                 t.paid -> if (t.kind == Kind.INCOME) "Recebido" else "Pago"

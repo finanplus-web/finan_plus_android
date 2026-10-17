@@ -401,6 +401,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
     val status = when {
         projected -> "Prevista · recorrência"
+        t.isGoal -> if (t.kind == Kind.EXPENSE) "Guardado na meta" else "Retirado da meta"
         t.isCard -> "No cartão"
         !t.paid && t.date.isBefore(today) -> if (t.kind == Kind.INCOME) "Vencida · a receber" else "Vencida · a pagar"
         !t.paid -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
@@ -408,6 +409,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
         else -> "Paga"
     }
     val statusColor = when {
+        t.isGoal -> p.accent
         !t.paid && t.date.isBefore(today) -> p.red
         t.paid && t.kind == Kind.INCOME -> p.green
         t.paid && t.kind == Kind.EXPENSE -> p.green
@@ -437,14 +439,16 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                 Text("${t.category} · $where", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("$status · $dateLabel", style = MaterialTheme.typography.bodySmall, color = statusColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.kind == Kind.EXPENSE) p.red else p.green,
+            MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.isGoal) p.accent else if (t.kind == Kind.EXPENSE) p.red else p.green,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
         }
         // compra no cartão e pagamento de fatura não alternam pago/pendente (ver Ops.canTogglePaid)
         if (projected) Box(Modifier.size(48.dp).semantics { contentDescription = "Previsto: lançamento criado quando o mês chegar" }, contentAlignment = Alignment.Center) {
             com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.REPEAT, p.muted, size = 20.dp)
         }
-        else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
+        else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            com.finanplus.ui.components.AppIcon(if (t.isGoal) com.finanplus.ui.components.Ico.GOAL else com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp)
+        }
         else {
             val action = if (t.kind == Kind.INCOME) "recebido" else "pago"
             Box(

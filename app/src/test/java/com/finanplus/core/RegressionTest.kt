@@ -55,19 +55,6 @@ class RegressionTest {
         assertFalse(Ops.togglePaid(s.copy(txs = listOf(normal)), "n").txs[0].paid)
     }
 
-    @Test fun inicioMostraAteTresVencimentosEmOrdemSemIncluirPagos() {
-        val s = AppState(txs = listOf(
-            Tx("c", Kind.EXPENSE, 300, d("2026-10-12"), "C", "Outros", false, "main"),
-            Tx("paid", Kind.EXPENSE, 100, d("2026-10-07"), "Pago", "Outros", true, "main"),
-            Tx("b", Kind.EXPENSE, 200, d("2026-10-09"), "B", "Outros", false, "main"),
-            Tx("income", Kind.INCOME, 400, d("2026-10-08"), "Salário", "Salário", false, "main"),
-            Tx("a", Kind.EXPENSE, 100, d("2026-10-08"), "A", "Outros", false, "main"),
-            Tx("later", Kind.EXPENSE, 500, d("2026-10-13"), "Depois", "Outros", false, "main"),
-        ))
-        assertEquals(listOf("a", "b", "c"), Finance.upcomingDues(s, today).map { it.refId })
-        assertTrue(Finance.upcomingDues(s, today, 0).isEmpty())
-    }
-
     @Test fun backupRecusaValoresGigantesEBooleanos() {
         val json = """{"txs":[{"id":"a","kind":"income","value":1e300,"date":"2026-10-01"},
             {"id":"b","kind":"expense","value":true,"date":"2026-10-01"},

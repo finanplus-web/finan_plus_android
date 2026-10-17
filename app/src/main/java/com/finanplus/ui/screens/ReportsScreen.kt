@@ -74,6 +74,9 @@ fun ReportsScreen(s: AppState) {
     val flow = remember(inRange) { Finance.flow(inRange) }
     val cmp = remember(f.from, f.to, today) { PeriodCompare.of(f.from, f.to, today) }
     val prev = remember(s, cmp) { cmp?.let { c -> Finance.flow(s.txs.filter { !it.date.isBefore(c.from) && !it.date.isAfter(c.to) }) } }
+    val categories = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
+    val months = remember(s, today) { Finance.lastMonths(s, today) }
+    val hasHistory = months.any { it.second.income > 0L || it.second.expense > 0L }
 
     LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         item {
@@ -154,13 +157,11 @@ fun ReportsScreen(s: AppState) {
             val expenses = remember(s, f.from, f.to) { Finance.categoryTotals(s, f.from, f.to) }
             MoneyFlowCard(sources, expenses, flow.income, flow.expense, hide)
         }
-        item {
+        if (categories.isNotEmpty()) item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
                 Column2("Despesas", "Por categoria")
-                val cats = Finance.categoryTotals(s, f.from, f.to)
-                val total = cats.sumOf { it.second }
-                if (cats.isEmpty()) Text("Sem despesas realizadas no período.", color = p.muted, style = MaterialTheme.typography.bodySmall)
-                cats.forEach { (cat, v) ->
+                val total = categories.sumOf { it.second }
+                categories.forEach { (cat, v) ->
                     val lim = s.limits[cat]
                     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(cat, Modifier.widthIn(min = 90.dp, max = 110.dp), style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -174,14 +175,9 @@ fun ReportsScreen(s: AppState) {
                 }
             }
         }
-        item {
-            val months = Finance.lastMonths(s, today)
+        if (hasHistory) item {
             Glass(Modifier.padding(top = 10.dp), radius = 25.dp) {
                 Column2("Evolução", "Últimos 6 meses")
-                if (months.all { it.second.income == 0L && it.second.expense == 0L }) {
-                    Text("Aparece quando houver pelo menos um mês com valores realizados.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-                    return@Glass
-                }
                 val max = maxOf(1L, months.maxOf { maxOf(it.second.income, it.second.expense) })
                 val desc = months.joinToString("; ") { (ym, fl) ->
                     ym.format(DateTimeFormatter.ofPattern("MMMM yyyy", BR)) + if (hide) "" else ": receitas ${Money.format(fl.income)}, despesas ${Money.format(fl.expense)}"

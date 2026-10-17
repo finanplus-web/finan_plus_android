@@ -183,7 +183,7 @@ val LocalNav = staticCompositionLocalOf { Nav() }
 @Composable
 fun bottomSpace(): Dp {
     val hasAddPill = LocalNav.current.tab in setOf(Tab.HOME, Tab.MOVES)
-    return WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (hasAddPill) 170.dp else 110.dp
+    return WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + if (hasAddPill) 180.dp else 140.dp
 }
 
 @Composable

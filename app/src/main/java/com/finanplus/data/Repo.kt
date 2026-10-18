@@ -62,6 +62,12 @@ object Repo {
 
     @Volatile var ready = false; private set
 
+    /**
+     * Os dados foram lidos de verdade (não é um estado vazio por falha de leitura do arquivo). O backup
+     * automático só copia nesse caso: nunca troca as cópias boas da pasta por um app vazio.
+     */
+    val healthy: Boolean get() = ready && !saveBlocked && (_problem.value == null || _problem.value is LoadProblem.Dropped)
+
     @Synchronized
     fun init(context: Context) {
         if (ready) return
@@ -186,6 +192,7 @@ object Repo {
                 store.wipe()
                 DevicePrefs.get(app).wipe()
                 BillPasswords.get(app).wipe() // senhas de fatura lembradas
+                AutoBackup.wipe(app) // desliga o backup automático e esquece a pasta e a senha (os arquivos na pasta ficam)
                 lastWritten = null
                 saveBlocked = false
                 _problem.value = null

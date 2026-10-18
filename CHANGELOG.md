@@ -9,7 +9,7 @@
 
 ### Backup automático (em teste)
 
-- **Ajustes › Dados › Backup automático:** uma cópia por dia, criptografada com senha (AES-256-GCM, PBKDF2), numa pasta escolhida (celular, cartão SD, Syncthing, Nextcloud). Guarda as últimas 7 a 60 cópias, mostra a última cópia e avisa se falhar.
+- **Ajustes › Dados › Backup automático:** uma cópia por dia, criptografada com senha (AES-256-GCM, PBKDF2), numa pasta escolhida (celular, cartão SD, Google Drive, Syncthing, Nextcloud). Guarda as últimas 7 a 60 cópias, mostra a última cópia e avisa se falhar.
 - **Restaurar** abre também essas cópias (pede a senha). Formato e regras em [BACKUP-AUTOMATICO.md](BACKUP-AUTOMATICO.md).
 
 ## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)

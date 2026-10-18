@@ -5,13 +5,17 @@ Em teste no repositório de desenvolvimento. Fica em **Ajustes › Dados › Bac
 ## Como funciona
 
 1. Defina uma **senha** (mínimo 8 caracteres, digitada duas vezes) e toque em **Escolher pasta e ligar**.
-2. Escolha uma pasta pelo seletor do Android: do celular, do cartão SD, do Syncthing, do Nextcloud etc. O Finan+ só tem acesso a essa pasta.
+2. Escolha uma pasta pelo seletor do Android: do celular, do cartão SD, do **Google Drive**, do Syncthing, do Nextcloud etc. O Finan+ só tem acesso a essa pasta.
 3. A primeira cópia é feita na hora. Depois, **uma vez por dia, de madrugada** (por volta das 3h, quando a bateria não está fraca; o Android pode atrasar um pouco).
 
 - Arquivo: `finan-plus-auto-AAAA-MM-DD.json`, um por dia. No mesmo dia, a cópia nova substitui a anterior.
 - **Guardar:** as últimas 7, 14 (padrão), 30 ou 60 cópias. As mais antigas **com esse nome** são apagadas; os outros arquivos da pasta nunca são tocados.
 - **Fazer agora**, **Trocar pasta**, **Trocar senha** e **Desligar**. Desligar para o agendamento e esquece pasta e senha; os arquivos já gravados ficam na pasta.
 - A tela mostra a última cópia (data, hora e arquivo) e o último erro. Se uma cópia falhar (pasta removida, sem acesso, sem espaço), aparece também uma notificação discreta, sem valores.
+
+## Google Drive
+
+Testado e validado (backup e restauração) escolhendo uma pasta do Google Drive no seletor do Android. O arquivo já sai criptografado do celular: o Google guarda só dados ilegíveis. Sem internet, a cópia fica no celular e sobe depois. A limpeza das cópias antigas no Drive ainda está em observação.
 
 ## Segurança
 

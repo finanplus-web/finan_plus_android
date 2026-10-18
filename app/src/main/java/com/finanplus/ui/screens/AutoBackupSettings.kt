@@ -112,7 +112,7 @@ fun AutoBackupSettings() {
     Text("Backup automático", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
 
     if (!st.enabled) {
-        Text("Uma cópia criptografada por dia numa pasta sua (do celular, cartão SD, Syncthing ou Nextcloud). Só o Finan+ com a senha consegue abrir.",
+        Text("Uma cópia criptografada por dia numa pasta sua (do celular, cartão SD, Google Drive, Syncthing ou Nextcloud). Só o Finan+ com a senha consegue abrir.",
             style = MaterialTheme.typography.bodySmall, color = p.muted)
         val ok = PasswordPair(pw, { pw = it }, again, { again = it })
         PrimaryButton(if (ok != null) "Escolher pasta e ligar" else "Defina a senha para continuar", Modifier.padding(top = 8.dp)) {

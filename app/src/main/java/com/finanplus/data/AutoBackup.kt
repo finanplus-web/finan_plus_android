@@ -59,7 +59,7 @@ data class AutoBackupState(
 
 /**
  * Backup automático: uma vez por dia, uma cópia criptografada com senha ([BackupCrypto]) numa pasta escolhida
- * pela pessoa (Storage Access Framework: pasta do aparelho, cartão SD, Syncthing, Nextcloud…).
+ * pela pessoa (Storage Access Framework: pasta do aparelho, cartão SD, Google Drive, Syncthing, Nextcloud…).
  *
  * - Arquivo `finan-plus-auto-AAAA-MM-DD.json` (um por dia; no mesmo dia, o novo substitui o anterior).
  * - Guarda as últimas [AutoBackupState.keep] cópias e apaga só arquivos com esse nome; o resto da pasta não é tocado.

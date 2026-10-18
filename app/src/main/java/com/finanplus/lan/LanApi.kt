@@ -252,11 +252,7 @@ class LanRoutes(
             conflict = versions.of(s) != rev
             if (conflict) Outcome.Err("Conflito", "Os dados mudaram no celular.")
             else s.growthError(normalized.state)?.let { Outcome.Err("Limite atingido", "$it Exclua itens antigos antes de criar novos.") }
-                ?: run {
-                    // a interface pela rede (PWA) ainda não conhece a reserva do Radar: sem o campo, mantém a do celular
-                    val next = if (data.containsKey("reserve")) normalized.state else normalized.state.copy(reserve = s.reserve)
-                    newRev = versions.assign(next); Outcome.Ok(next)
-                }
+                ?: run { newRev = versions.assign(normalized.state); Outcome.Ok(normalized.state) }
         }
         if (conflict) return HttpResponse.json(linkedMapOf("error" to true, "conflict" to true, "rev" to versions.of(backend.state()),
             "title" to "Alteração não salva", "message" to "Os dados foram alterados no celular ao mesmo tempo."), 409)

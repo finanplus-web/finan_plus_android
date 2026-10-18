@@ -190,8 +190,6 @@ fun HomeScreen(s: AppState, listState: LazyListState = rememberLazyListState()) 
                 }
             }
         }
-        // Radar: saldo previsto dia a dia e atalho para o "Posso comprar?" (RADAR.md)
-        item { RadarHomeCard(s) }
         // pendências e progresso deixam claro o que falta entrar e sair, sem misturar valores realizados.
         item {
             Row(Modifier.fillMaxWidth().padding(top = 12.dp).height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {

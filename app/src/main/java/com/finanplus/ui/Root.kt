@@ -219,6 +219,12 @@ fun FinanRoot(activity: MainActivity) {
         // ao desbloquear, a folha aberta e o que foi digitado continuam lá
         val holder = rememberSaveableStateHolder()
         val showLock = locked && dev.lockEnabled
+        // boas-vindas: primeira abertura (sem lançamentos) ou "Ver apresentação" em Ajustes; quem já tem dados não vê
+        val prefs = DevicePrefs.get(activity)
+        var firstRun by rememberSaveable { mutableStateOf(!prefs.welcomeSeen && s.txs.isEmpty()) }
+        LaunchedEffect(Unit) { if (!firstRun && !prefs.welcomeSeen) prefs.welcomeSeen = true }
+        val reopen by com.finanplus.ui.screens.Welcome.reopen.collectAsStateWithLifecycle()
+        val showWelcome = firstRun || reopen
         // Bloqueou: fecha qualquer diálogo aberto. Um AlertDialog é uma janela própria e ficaria utilizável por cima
         // da tela de bloqueio (ex.: "Definir PIN" deixado aberto permitia trocar o PIN sem saber o atual).
         LaunchedEffect(showLock) { if (showLock) dialogs.close() }
@@ -231,7 +237,12 @@ fun FinanRoot(activity: MainActivity) {
         CompositionLocalProvider(LocalDialogs provides dialogs, LocalPrivacy provides s.privacy) {
             AppBackground {
                 // Bloqueado: o conteúdo do app nem é composto (nada acessível por trás).
-                if (showLock) LockScreen(activity, dev) else holder.SaveableStateProvider("main") { MainScaffold(s, dev, activity, nav) }
+                if (showLock) LockScreen(activity, dev)
+                else if (showWelcome) com.finanplus.ui.screens.WelcomeScreen { restore ->
+                    prefs.welcomeSeen = true; firstRun = false; com.finanplus.ui.screens.Welcome.reopen.value = false
+                    nav.tab = if (restore) Tab.PREFS else Tab.HOME
+                }
+                else holder.SaveableStateProvider("main") { MainScaffold(s, dev, activity, nav) }
             }
             if (!showLock) DialogHost(dialogs)
             // acesso pela rede: "Permitir <navegador>?" aparece em qualquer tela, só com o app desbloqueado

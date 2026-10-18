@@ -7,6 +7,10 @@
 - **Excluir** o lançamento desfaz o valor na meta; **excluir a meta** devolve à conta o que saiu dela pelo Finan+.
 - **Backup:** campo novo `goalId` nos lançamentos. Detalhes, regras e testes em [METAS.md](METAS.md).
 
+### Boas-vindas (em teste)
+
+- **Apresentação na primeira abertura:** 4 páginas no estilo do app (o que o Finan+ faz, contas e cartões, planejamento, privacidade), com **Pular**, **Continuar**, **Começar** e **Já tenho um backup** (abre Ajustes para restaurar). Quem já tem lançamentos não vê; dá para rever em **Ajustes › Sobre › Ver apresentação**. Só no Android.
+
 ## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)
 
 Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #1 a #10). `versionCode 15`. Notas de design em [docs/REDESIGN-UXUI.md](docs/REDESIGN-UXUI.md).

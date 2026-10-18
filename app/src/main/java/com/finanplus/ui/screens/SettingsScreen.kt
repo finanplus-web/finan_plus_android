@@ -337,6 +337,7 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
 
         item {
             Collapsible("Sobre", "Conheça o Finan+ · versão ${BuildConfig.VERSION_NAME}") {
+                Pill("Ver apresentação", Modifier.fillMaxWidth().padding(bottom = 8.dp), icon = com.finanplus.ui.components.Ico.ASSIST) { Welcome.reopen.value = true }
                 AboutText()
             }
         }

@@ -74,6 +74,7 @@ class TabSwipeTest {
     fun deslizesRapidosMantemBarraETelaIguais() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = true
         Repo.showForScreenshots(DemoData.state().copy(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {
             assertInSync()

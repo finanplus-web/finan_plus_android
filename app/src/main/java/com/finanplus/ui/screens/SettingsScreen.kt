@@ -116,6 +116,23 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
         com.finanplus.security.AppLock.endExternal()
         if (uri != null) saveTo(uri, "CSV") { Csv.build(Repo.state.value).toByteArray() }
     }
+    // revisão antes de substituir (backup comum ou já aberto com a senha)
+    fun reviewRestore(text: String) = scope.launch {
+        val n = withContext(Dispatchers.Default) {
+            try { Backup.parse(text) } catch (e: BackupException) { null } catch (e: Throwable) { null } // inclui falta de memória
+        }
+        if (n == null) { dialogs.notice("Não foi possível restaurar", "Arquivo de backup inválido ou danificado. Nada foi alterado."); return@launch }
+        val st = n.state
+        val bad = n.dropped.total
+        dialogs.confirm(
+            "Revisar restauração",
+            "Backup com ${st.txs.size} lançamentos, ${st.accounts.size} contas, ${st.cards.size} cartões e ${st.goals.size} metas." +
+                (if (bad > 0) "\n$bad item(ns) inválido(s) será(ão) ignorado(s)." else "") +
+                (if (n.newer) "\nEste backup foi feito por uma versão mais nova do Finan+: dados de recursos que esta versão não conhece serão ignorados." else "") +
+                "\nSubstituir os dados atuais? O PIN e o bloqueio deste aparelho são mantidos.",
+            ok = "Substituir", danger = true,
+        ) { Repo.replace(Finance.generateRecurring(st, LocalDate.now()).first) }
+    }
     val importJson = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         com.finanplus.security.AppLock.endExternal()
         if (uri == null) return@rememberLauncherForActivityResult
@@ -131,20 +148,20 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                 }.getOrNull()
             }
             if (text == null) { dialogs.notice("Não foi possível restaurar", "Arquivo grande demais (máximo 30 MB) ou ilegível. Nada foi alterado."); return@launch }
-            val n = withContext(Dispatchers.Default) {
-                try { Backup.parse(text) } catch (e: BackupException) { null } catch (e: Throwable) { null } // inclui falta de memória
+            // backup automático (criptografado): pede a senha e abre antes de revisar
+            if (withContext(Dispatchers.Default) { com.finanplus.core.BackupCrypto.isEncrypted(text) }) {
+                dialogs.input("Backup criptografado", "Digite a senha do backup automático.", "Senha", ok = "Abrir", secret = true) { pw ->
+                    scope.launch {
+                        val plain = withContext(Dispatchers.Default) {
+                            try { Result.success(com.finanplus.core.BackupCrypto.decrypt(text, pw)) } catch (e: BackupException) { Result.failure(e) } catch (e: Throwable) { Result.failure(e) }
+                        }
+                        plain.onSuccess { reviewRestore(it) }
+                            .onFailure { dialogs.notice("Não foi possível abrir", (it as? BackupException)?.message ?: "Arquivo danificado. Nada foi alterado.") }
+                    }
+                }
+                return@launch
             }
-            if (n == null) { dialogs.notice("Não foi possível restaurar", "Arquivo de backup inválido ou danificado. Nada foi alterado."); return@launch }
-            val st = n.state
-            val bad = n.dropped.total
-            dialogs.confirm(
-                "Revisar restauração",
-                "Backup com ${st.txs.size} lançamentos, ${st.accounts.size} contas, ${st.cards.size} cartões e ${st.goals.size} metas." +
-                    (if (bad > 0) "\n$bad item(ns) inválido(s) será(ão) ignorado(s)." else "") +
-                    (if (n.newer) "\nEste backup foi feito por uma versão mais nova do Finan+: dados de recursos que esta versão não conhece serão ignorados." else "") +
-                    "\nSubstituir os dados atuais? O PIN e o bloqueio deste aparelho são mantidos.",
-                ok = "Substituir", danger = true,
-            ) { Repo.replace(Finance.generateRecurring(st, LocalDate.now()).first) }
+            reviewRestore(text)
         }
     }
     val notifPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -309,7 +326,8 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
         }
 
         item {
-            Collapsible("Dados", "Backup, restauração, CSV e relatório em PDF") {
+            val auto by com.finanplus.data.AutoBackup.state.collectAsState()
+            Collapsible("Dados", if (auto.enabled) "Backup automático ligado · restauração, CSV e PDF" else "Backup, backup automático, restauração, CSV e PDF") {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Pill("Exportar CSV", Modifier.weight(1f)) { AppLock.allowExternalOnce(); exportCsv.launch("lancamentos-${LocalDate.now()}.csv") }
                     Pill("Backup JSON", Modifier.weight(1f)) { AppLock.allowExternalOnce(); exportJson.launch("backup-finan-plus-${LocalDate.now()}.json") }
@@ -330,6 +348,7 @@ fun SettingsScreen(s: AppState, dev: DeviceSettings, activity: MainActivity) {
                     }
                 }
                 Text("O backup JSON é compatível com o Finan+ web: dá para levar os dados de um para o outro.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
+                AutoBackupSettings()
             }
         }
 

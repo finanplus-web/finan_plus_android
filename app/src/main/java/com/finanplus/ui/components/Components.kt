@@ -333,6 +333,8 @@ data class DialogSpec(
     val input: String? = null,
     val inputLabel: String = "",
     val password: Boolean = false,
+    /** senha de texto (backup criptografado): qualquer caractere, oculta */
+    val secret: Boolean = false,
     val onOk: (String) -> Unit = {},
     val onCancel: () -> Unit = {},
 )
@@ -344,8 +346,8 @@ class Dialogs {
     fun confirm(title: String, message: String, ok: String = "Confirmar", cancel: String = "Cancelar", danger: Boolean = false, onCancel: () -> Unit = {}, onOk: () -> Unit) {
         current = DialogSpec(title, message, ok, cancel, danger, onOk = { onOk() }, onCancel = onCancel)
     }
-    fun input(title: String, message: String, label: String, value: String = "", ok: String = "OK", password: Boolean = false, onOk: (String) -> Unit) {
-        current = DialogSpec(title, message, ok, "Cancelar", input = value, inputLabel = label, password = password, onOk = onOk)
+    fun input(title: String, message: String, label: String, value: String = "", ok: String = "OK", password: Boolean = false, secret: Boolean = false, onOk: (String) -> Unit) {
+        current = DialogSpec(title, message, ok, "Cancelar", input = value, inputLabel = label, password = password, secret = secret, onOk = onOk)
     }
     fun close() { current = null }
 }
@@ -365,7 +367,8 @@ fun DialogHost(d: Dialogs) {
                 if (spec.message.isNotEmpty()) Text(spec.message, color = p.muted)
                 if (spec.input != null) Field(
                     spec.inputLabel, text, { v -> text = if (spec.password) v.filter { it.isDigit() } else v }, Modifier.padding(top = 8.dp),
-                    keyboard = if (spec.password) KeyboardType.NumberPassword else KeyboardType.Text, password = spec.password, maxLength = if (spec.password) 8 else 40,
+                    keyboard = when { spec.password -> KeyboardType.NumberPassword; spec.secret -> KeyboardType.Password; else -> KeyboardType.Text },
+                    password = spec.password || spec.secret, maxLength = when { spec.password -> 8; spec.secret -> 128; else -> 40 },
                 )
             }
         },

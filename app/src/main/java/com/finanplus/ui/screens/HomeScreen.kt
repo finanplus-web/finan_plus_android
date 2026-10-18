@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -70,7 +72,7 @@ fun fullDate(d: LocalDate): String =
 fun YearMonth.label(): String = format(DateTimeFormatter.ofPattern("MMM 'de' yyyy", BR))
 
 @Composable
-fun HomeScreen(s: AppState) {
+fun HomeScreen(s: AppState, listState: LazyListState = rememberLazyListState()) {
     val nav = LocalNav.current
     val p = Fin.c
     val hide = LocalPrivacy.current
@@ -93,7 +95,7 @@ fun HomeScreen(s: AppState) {
         }
     }
 
-    LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
+    LazyColumn(state = listState, contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         // topo: nome e data; a engrenagem saiu (a aba Ajustes faz o mesmo)
         item {
             Row(Modifier.fillMaxWidth().padding(bottom = 14.dp), verticalAlignment = Alignment.Bottom) {
@@ -121,7 +123,6 @@ fun HomeScreen(s: AppState) {
             Glass(radius = 30.dp, padding = 16.dp) {
                 // saldo atual em destaque; as ondas ficam junto ao rótulo, sem passar pelo valor
                 Box(Modifier.fillMaxWidth()) {
-                    BalanceWaves(Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = 2.dp).width(120.dp).height(50.dp))
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconTile(Ico.WALLET, p.accent, p.accent2, size = 44.dp, iconSize = 22.dp)
@@ -150,7 +151,7 @@ fun HomeScreen(s: AppState) {
                             style = MaterialTheme.typography.labelSmall, color = p.muted, maxLines = 2,
                         )
                         // comparação com o fim do mês anterior; no primeiro mês não há com o que comparar
-                        if (!hide) {
+                        if (!hide && prevEnd != null) {
                             Spacer(Modifier.height(6.dp))
                             val (chipText, chipColor) = when {
                                 prevEnd == null -> "1º mês · sem comparação" to p.muted

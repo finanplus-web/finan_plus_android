@@ -62,6 +62,7 @@ class ScreenshotTest {
     fun seletorListaCalendarioMantemEstadoELabelsAcessiveis() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = true
         Repo.showForScreenshots(DemoData.state().copy(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {
             tab("Lançamentos")
@@ -86,6 +87,7 @@ class ScreenshotTest {
     fun meuDinheiroComContaZeradaMantemAtalhosVisiveis() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = true
         Repo.showForScreenshots(AppState(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {
             tab("Meu dinheiro")
@@ -103,6 +105,26 @@ class ScreenshotTest {
         }
     }
 
+    /** Boas-vindas na primeira abertura (sem lançamentos): 4 páginas e "Começar" leva ao app. */
+    @Test
+    fun boasVindas() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = false
+        Repo.showForScreenshots(AppState(theme = ThemeId.LIGHT))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.waitForIdle()
+            assertTrue("boas-vindas não apareceu", compose.onAllNodes(hasText("Seu dinheiro, sem complicação.")).fetchSemanticsNodes().isNotEmpty())
+            shot("boas-vindas")
+            repeat(3) { compose.onNode(hasText("Continuar")).performClick(); compose.waitForIdle() }
+            assertTrue("última página", compose.onAllNodes(hasText("Seus dados ficam com você.")).fetchSemanticsNodes().isNotEmpty())
+            compose.onNode(hasText("Começar")).performClick()
+            compose.waitForIdle()
+            assertTrue("não marcou como vista", DevicePrefs.get(app).welcomeSeen)
+            assertTrue("não abriu o app", compose.onAllNodes(hasText("Saldo atual")).fetchSemanticsNodes().isNotEmpty())
+        }
+    }
+
     private fun view(description: String) {
         compose.onNode(
             hasContentDescription(description) and
@@ -115,6 +137,7 @@ class ScreenshotTest {
     fun telas() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         DevicePrefs.get(app).askedNotifications = true // sem o pedido de permissão de notificação na primeira abertura
+        DevicePrefs.get(app).welcomeSeen = true
         val demo = DemoData.state()
         Repo.showForScreenshots(demo.copy(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {

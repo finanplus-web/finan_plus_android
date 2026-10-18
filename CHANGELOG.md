@@ -12,6 +12,10 @@
 - **Ajustes › Dados › Backup automático:** uma cópia por dia, criptografada com senha (AES-256-GCM, PBKDF2), numa pasta escolhida (celular, cartão SD, Google Drive, Syncthing, Nextcloud). Guarda as últimas 7 a 60 cópias, mostra a última cópia e avisa se falhar.
 - **Restaurar** abre também essas cópias (pede a senha). Formato e regras em [BACKUP-AUTOMATICO.md](BACKUP-AUTOMATICO.md).
 
+### Boas-vindas (em teste)
+
+- **Apresentação na primeira abertura:** 4 páginas no estilo do app (o que o Finan+ faz, contas e cartões, planejamento, privacidade e backup), com **Pular**, **Continuar**, **Começar** e **Já tenho um backup** (abre Ajustes para restaurar). Quem já tem lançamentos não vê; dá para rever em **Ajustes › Sobre › Ver apresentação**. Só no Android.
+
 ## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)
 
 Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #1 a #10). `versionCode 15`. Notas de design em [docs/REDESIGN-UXUI.md](docs/REDESIGN-UXUI.md).

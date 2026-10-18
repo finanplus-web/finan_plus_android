@@ -14,11 +14,13 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.finanplus.MainActivity
+import com.finanplus.core.AppState
 import com.finanplus.core.ThemeId
 import com.finanplus.data.DevicePrefs
 import com.finanplus.data.Repo
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -52,6 +54,28 @@ class ScreenshotTest {
     private fun tab(label: String) {
         compose.onNode(hasText(label) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)).performClick()
         compose.waitForIdle()
+    }
+
+    /** Regressão de texto e acessibilidade na conta inicial (sem cartões ou metas). */
+    @Test
+    fun meuDinheiroComContaZeradaMantemAtalhosVisiveis() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        DevicePrefs.get(app).askedNotifications = true
+        Repo.showForScreenshots(AppState(theme = ThemeId.LIGHT))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            tab("Meu dinheiro")
+            for (label in listOf(
+                "Conta principal · Saldo: R$ 0,00",
+                "Adicione um cartão para acompanhar faturas e vencimentos.",
+                "Adicionar conta",
+                "Adicionar cartão",
+            )) {
+                assertTrue(
+                    "Texto ou ação ausente em Meu dinheiro: $label",
+                    compose.onAllNodes(hasText(label, substring = true)).fetchSemanticsNodes().isNotEmpty(),
+                )
+            }
+        }
     }
 
     @Test

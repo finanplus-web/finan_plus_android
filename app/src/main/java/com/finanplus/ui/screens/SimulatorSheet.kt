@@ -65,6 +65,7 @@ import com.finanplus.ui.theme.Fin
  */
 
 private enum class Scen(val key: String, val title: String, val sub: String, val icon: Ico) {
+    CANBUY("canbuy", "Posso comprar?", "Veja o efeito de uma compra no saldo dos próximos dias", Ico.SHOPPING),
     SAVE("save", "E se eu economizar…", "Ex.: R$ 200 por mês, por 12 meses", Ico.INVEST),
     BUY("buy", "Quanto tempo para comprar…", "Ex.: um computador de R$ 4.500", Ico.SHOPPING),
     INCOME("income", "E se minha renda mudar…", "Ex.: diminuir 15% a partir do mês que vem", Ico.WORK),
@@ -92,7 +93,7 @@ fun SimulatorSheet(s: AppState, sheet: Sheet.Simulator, close: () -> Unit) {
         AppIcon(Ico.PREV, p.accent, size = 20.dp)
         Text("E se…?", color = p.accent, fontWeight = FontWeight.Bold)
     }
-    Text(current?.title?.removeSuffix("…")?.let { if (current == Scen.BUY) "Quanto tempo para comprar?" else "$it…?" } ?: "E se…?",
+    Text(current?.title?.removeSuffix("…")?.let { when (current) { Scen.BUY -> "Quanto tempo para comprar?"; Scen.CANBUY -> it; else -> "$it…?" } } ?: "E se…?",
         style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
     if (current == null) Text("Teste decisões antes de tomá-las.", color = p.muted)
     SafeBadge()
@@ -104,6 +105,7 @@ fun SimulatorSheet(s: AppState, sheet: Sheet.Simulator, close: () -> Unit) {
             Text("Escolha uma pergunta", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 14.dp, bottom = 4.dp).semantics { heading() })
             Scen.entries.forEach { sc -> ScenarioRow(sc) { scen = sc.key } }
         }
+        Scen.CANBUY -> CanBuyScenario(s, m, today, close)
         Scen.SAVE -> SaveScenario(base, m, close)
         Scen.BUY -> BuyScenario(base, m, today, close)
         Scen.INCOME -> IncomeScenario(s, base, m)

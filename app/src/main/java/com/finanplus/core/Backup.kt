@@ -190,7 +190,8 @@ object Backup {
         obj(r["limits"])?.forEach { (k, v) -> val c = k.trim().take(40); val n = cents(v); if (c.isNotEmpty() && n > 0) limits[c] = n }
 
         val autoLock = intIn(r["autoLock"], 0, 30, 0).takeIf { it in AppState.AUTOLOCK_OPTIONS } ?: 0
-        val state = AppState(txs, goals, accounts, cards, recurring, cats, limits, r["privacy"] == true, autoLock, ThemeId.of(r["theme"]))
+        val reserve = maxOf(0L, cents(r["reserve"]))
+        val state = AppState(txs, goals, accounts, cards, recurring, cats, limits, r["privacy"] == true, autoLock, ThemeId.of(r["theme"]), reserve)
         if (!state.hasSafeMoneyTotals()) throw BackupException("O total dos valores excede o limite seguro")
         val version = num(r["backupVersion"])?.takeIf { it >= 0 && it <= Int.MAX_VALUE.toDouble() }?.roundToInt()
         return Normalized(state, d, version)
@@ -228,6 +229,8 @@ object Backup {
         m["privacy"] = s.privacy
         m["autoLock"] = s.autoLock
         m["theme"] = s.theme.json
+        // Radar (1.7.0): só vai para o arquivo quando definida, para backups antigos continuarem idênticos
+        if (s.reserve > 0) m["reserve"] = Money.toReaisJson(s.reserve)
         m["backupVersion"] = VERSION
         if (meta != null) m["_backup"] = meta
         return Json.stringify(m)

@@ -9,6 +9,7 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
 - Calendário de lançamentos (como ler e o que entra na conta): [CALENDARIO.md](CALENDARIO.md)
 - Simulador "E se…?" (as contas e o que não considera): [SIMULADOR.md](SIMULADOR.md)
+- Radar e "Posso comprar?" (saldo previsto dia a dia, em teste): [RADAR.md](RADAR.md)
 - Recorrências nos próximos meses ("Previsto"): [RECORRENCIAS.md](RECORRENCIAS.md)
 - Ler fatura ou boleto (PDF com senha, linha digitável e Pix): [FATURAS.md](FATURAS.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)

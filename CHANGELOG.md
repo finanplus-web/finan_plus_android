@@ -7,6 +7,12 @@
 - **Excluir** o lançamento desfaz o valor na meta; **excluir a meta** devolve à conta o que saiu dela pelo Finan+.
 - **Backup:** campo novo `goalId` nos lançamentos. Detalhes, regras e testes em [METAS.md](METAS.md).
 
+### Radar e "Posso comprar?" (em teste)
+
+- **Radar:** saldo previsto dia a dia (30, 60 ou 90 dias) com gráfico, menor saldo, dias negativos e o que explica a queda. Usa os pendentes, as faturas e as recorrências que o saldo previsto já usava. Cartão novo no Início.
+- **Reserva mínima:** o Radar avisa quando o saldo previsto fica abaixo dela. Campo novo `reserve` no backup (só quando definida).
+- **E se…? › Posso comprar?:** compara o saldo previsto sem e com uma compra (à vista ou no cartão, parcelada), diz o porquê e sugere alternativas (adiar, parcelar, usar dinheiro de uma meta). Nada é gravado; "Lançar como previsto" abre o formulário preenchido. Detalhes em [RADAR.md](RADAR.md).
+
 ## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)
 
 Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #1 a #10). `versionCode 15`. Notas de design em [docs/REDESIGN-UXUI.md](docs/REDESIGN-UXUI.md).

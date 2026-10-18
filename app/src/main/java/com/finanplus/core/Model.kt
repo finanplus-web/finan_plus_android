@@ -109,6 +109,8 @@ data class AppState(
     /** minutos em segundo plano até bloquear; 0 = desativado */
     val autoLock: Int = 0,
     val theme: ThemeId = ThemeId.AUTO,
+    /** Radar: saldo mínimo que a pessoa quer manter (0 = só avisa saldo negativo). Ver RADAR.md. */
+    val reserve: Cents = 0,
 ) {
     fun account(id: String) = accounts.firstOrNull { it.id == id }
     fun card(id: String) = cards.firstOrNull { it.id == id }
@@ -126,7 +128,7 @@ data class AppState(
         }
         return txs.all { add(it.value) } && accounts.all { add(it.initial) } && cards.all { add(it.limit) } &&
             goals.all { add(it.target) && add(it.saved) && add(it.monthly) } &&
-            recurring.all { add(it.value) } && limits.values.all(::add)
+            recurring.all { add(it.value) } && limits.values.all(::add) && add(reserve)
     }
 
     /** Mensagem de erro se [next] cria itens além de [Limits] (null = dentro do limite). Só conta quando a

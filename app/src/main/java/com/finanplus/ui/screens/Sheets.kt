@@ -108,6 +108,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.ReportPdf -> ReportExportSheet(s, sheet.from, sheet.to, onClose)
                 is Sheet.MovesFilters -> MovesFiltersSheet(s, onClose)
                 is Sheet.Simulator -> SimulatorSheet(s, sheet, onClose)
+                is Sheet.Radar -> RadarSheet(s, onClose)
                 is Sheet.BillImport -> BillImportSheet(s, sheet, onClose)
             }
         }
@@ -191,27 +192,30 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     val isPayment = tx?.cardPayment?.isNotEmpty() == true
     val today = LocalDate.now()
     var kind by rememberSaveable { mutableStateOf(tx?.kind ?: sheet.kind) }
-    var desc by rememberSaveable { mutableStateOf(tx?.desc ?: "") }
-    var value by rememberSaveable { mutableStateOf(tx?.let { Money.input(it.value) } ?: "") }
+    val pre = if (tx == null) sheet.prefill else null
+    var desc by rememberSaveable { mutableStateOf(tx?.desc ?: pre?.desc ?: "") }
+    var value by rememberSaveable { mutableStateOf(tx?.let { Money.input(it.value) } ?: pre?.let { Money.input(it.value) } ?: "") }
     var category by rememberSaveable { mutableStateOf(tx?.category ?: s.cats.of(kind)[0]) }
     var date by rememberSaveable { mutableStateOf<LocalDate?>(tx?.date ?: sheet.date ?: today) }
     // Novos lançamentos só são considerados realizados por padrão quando a data é hoje.
-    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: Ops.defaultPaid(date, today)) }
+    // Vindo do "Posso comprar?", começa a pagar: é um plano, não um gasto já feito.
+    var paid by rememberSaveable { mutableStateOf(tx?.paid ?: if (pre != null) false else Ops.defaultPaid(date, today)) }
     // Se o usuário escolher explicitamente o status, mudanças de data não sobrescrevem essa escolha.
-    var paymentStatusTouched by rememberSaveable { mutableStateOf(false) }
-    var useCard by rememberSaveable { mutableStateOf(tx?.isCard == true) }
-    var accountId by rememberSaveable { mutableStateOf(tx?.accountId ?: s.accounts[0].id) }
-    var cardId by rememberSaveable { mutableStateOf(tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: "") }
-    var reps by rememberSaveable { mutableStateOf("1") }
+    var paymentStatusTouched by rememberSaveable { mutableStateOf(pre != null) }
+    val preCard = pre?.cardId?.takeIf { s.card(it) != null }
+    var useCard by rememberSaveable { mutableStateOf(tx?.isCard == true || preCard != null) }
+    var accountId by rememberSaveable { mutableStateOf(tx?.accountId ?: pre?.accountId?.takeIf { s.account(it) != null } ?: s.accounts[0].id) }
+    var cardId by rememberSaveable { mutableStateOf(tx?.cardId?.ifEmpty { null } ?: preCard ?: s.cards.firstOrNull()?.id ?: "") }
+    var reps by rememberSaveable { mutableStateOf((pre?.parcels?.coerceIn(1, 60) ?: 1).toString()) }
     var repsMode by rememberSaveable { mutableStateOf(RepsMode.TOTAL) }
     var recurring by rememberSaveable { mutableStateOf(false) }
-    var advancedExpanded by rememberSaveable(sheet.id) { mutableStateOf(tx != null) }
+    var advancedExpanded by rememberSaveable(sheet.id) { mutableStateOf(tx != null || pre != null) }
     val initialKind = tx?.kind ?: sheet.kind
     val initialDate = tx?.date ?: sheet.date ?: today
-    val initialPaid = tx?.paid ?: Ops.defaultPaid(initialDate, today)
-    val initialAccountId = tx?.accountId ?: s.accounts[0].id
-    val initialCardId = tx?.cardId?.ifEmpty { null } ?: s.cards.firstOrNull()?.id ?: ""
-    val initialUseCard = tx?.isCard == true
+    val initialPaid = tx?.paid ?: if (pre != null) false else Ops.defaultPaid(initialDate, today)
+    val initialAccountId = tx?.accountId ?: pre?.accountId?.takeIf { s.account(it) != null } ?: s.accounts[0].id
+    val initialCardId = tx?.cardId?.ifEmpty { null } ?: preCard ?: s.cards.firstOrNull()?.id ?: ""
+    val initialUseCard = tx?.isCard == true || preCard != null
     val initialCategory = tx?.category ?: s.cats.of(kind)[0]
     val guard = LocalSheetGuard.current
     SideEffect {
@@ -380,7 +384,8 @@ private fun GoalEditor(s: AppState, sheet: Sheet.GoalEdit, close: () -> Unit) {
     // meta nova pode vir preenchida (simulador "E se…?" › Transformar em meta)
     var name by rememberSaveable { mutableStateOf(g?.name ?: sheet.name) }
     var target by rememberSaveable { mutableStateOf(g?.let { Money.input(it.target) } ?: sheet.target.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
-    var move by rememberSaveable { mutableStateOf("") }
+    // "Radar › Usar dinheiro da meta" já traz o valor a retirar (negativo)
+    var move by rememberSaveable { mutableStateOf(if (g != null && sheet.move != 0L) Money.input(sheet.move) else "") }
     var deadline by rememberSaveable { mutableStateOf(g?.deadline) }
     var monthly by rememberSaveable { mutableStateOf(g?.monthly?.takeIf { it > 0 }?.let { Money.input(it) } ?: sheet.monthly.takeIf { it > 0 }?.let { Money.input(it) } ?: "") }
     // reserva para meta (1.7.0): o valor guardado sai da conta, sem contar como despesa

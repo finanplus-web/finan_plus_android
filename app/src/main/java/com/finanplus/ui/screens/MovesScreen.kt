@@ -97,8 +97,20 @@ fun MovesScreen(s: AppState, listState: LazyListState = rememberLazyListState())
     val days = if (calendar) androidx.compose.runtime.remember(s, nav.calMonth, today) { com.finanplus.core.MonthCalendar.build(s, nav.calMonth, today) } else emptyMap()
 
     LazyColumn(state = listState, contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
-        item { Text("Lançamentos", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 12.dp).semantics { heading() }) }
-        item { MovesViewSwitch(nav) }
+        item(key = "moves-heading") {
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Lançamentos",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+                MovesViewSwitch(nav)
+            }
+        }
         if (calendar) {
             calendarItems(s, nav, days, today, hide)
             return@LazyColumn

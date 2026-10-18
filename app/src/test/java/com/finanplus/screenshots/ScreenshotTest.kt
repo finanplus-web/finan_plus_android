@@ -20,6 +20,7 @@ import com.finanplus.data.DevicePrefs
 import com.finanplus.data.Repo
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -56,6 +57,30 @@ class ScreenshotTest {
         compose.waitForIdle()
     }
 
+    /** Seletor de ícones usa descrição acessível e mantém o modo ao trocar de aba. */
+    @Test
+    fun seletorListaCalendarioMantemEstadoELabelsAcessiveis() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        DevicePrefs.get(app).askedNotifications = true
+        Repo.showForScreenshots(DemoData.state().copy(theme = ThemeId.LIGHT))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            tab("Lançamentos")
+            val list = hasContentDescription("Visualização em lista") and
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+            val calendar = hasContentDescription("Visualização em calendário") and
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+            val selected = SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
+            assertEquals(1, compose.onAllNodes(list and selected).fetchSemanticsNodes().size)
+            compose.onNode(calendar).performClick()
+            assertEquals(1, compose.onAllNodes(calendar and selected).fetchSemanticsNodes().size)
+            tab("Meu dinheiro")
+            tab("Lançamentos")
+            assertEquals(1, compose.onAllNodes(calendar and selected).fetchSemanticsNodes().size)
+            compose.onNode(list).performClick()
+            assertEquals(1, compose.onAllNodes(list and selected).fetchSemanticsNodes().size)
+        }
+    }
+
     /** Regressão de texto e acessibilidade na conta inicial (sem cartões ou metas). */
     @Test
     fun meuDinheiroComContaZeradaMantemAtalhosVisiveis() {
@@ -78,6 +103,14 @@ class ScreenshotTest {
         }
     }
 
+    private fun view(description: String) {
+        compose.onNode(
+            hasContentDescription(description) and
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab),
+        ).performClick()
+        compose.waitForIdle()
+    }
+
     @Test
     fun telas() {
         val app = ApplicationProvider.getApplicationContext<Application>()
@@ -87,8 +120,8 @@ class ScreenshotTest {
         ActivityScenario.launch(MainActivity::class.java).use {
             shot("inicio")
             tab("Lançamentos"); shot("lancamentos")
-            tab("Calendário"); shot("calendario")
-            tab("Lista")
+            view("Visualização em calendário"); shot("calendario")
+            view("Visualização em lista")
             tab("Meu dinheiro"); shot("contas")
             tab("Resumo"); shot("relatorios")
             tab("Ajustes"); shot("ajustes")

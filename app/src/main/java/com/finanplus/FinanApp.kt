@@ -22,6 +22,7 @@ class FinanApp : Application() {
         if (prefs.value.lockEnabled) AppLock.lockNow() // processo novo com PIN/digital: começa bloqueado
         Reminders.createChannel(this)
         Reminders.schedule(this)
+        com.finanplus.data.AutoBackup.schedule(this) // só agenda se estiver ligado
         ProcessLifecycleOwner.get().lifecycle.addObserver(object : DefaultLifecycleObserver {
             override fun onStart(owner: LifecycleOwner) {
                 AppLock.onForeground(prefs.value.lockEnabled, prefs.value.autoLock)

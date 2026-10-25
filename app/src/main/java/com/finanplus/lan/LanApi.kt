@@ -8,6 +8,7 @@ import com.finanplus.core.Backup
 import com.finanplus.core.BackupException
 import com.finanplus.core.Json
 import com.finanplus.core.Outcome
+import com.finanplus.core.RemoteSave
 
 /**
  * O que o servidor precisa do app. Fica separado para o servidor não depender de Android
@@ -250,9 +251,14 @@ class LanRoutes(
         var newRev = 0L
         val err = backend.apply { s ->
             conflict = versions.of(s) != rev
-            if (conflict) Outcome.Err("Conflito", "Os dados mudaram no celular.")
-            else s.growthError(normalized.state)?.let { Outcome.Err("Limite atingido", "$it Exclua itens antigos antes de criar novos.") }
-                ?: run { newRev = versions.assign(normalized.state); Outcome.Ok(normalized.state) }
+            if (conflict) return@apply Outcome.Err("Conflito", "Os dados mudaram no celular.")
+            // o Finan+ web ainda não conhece o goalId: o celular restaura as reservas para meta (RemoteSave)
+            val next = when (val o = RemoteSave.protectGoalReserves(s, normalized.state)) {
+                is Outcome.Err -> return@apply o
+                is Outcome.Ok -> o.state
+            }
+            s.growthError(next)?.let { Outcome.Err("Limite atingido", "$it Exclua itens antigos antes de criar novos.") }
+                ?: run { newRev = versions.assign(next); Outcome.Ok(next) }
         }
         if (conflict) return HttpResponse.json(linkedMapOf("error" to true, "conflict" to true, "rev" to versions.of(backend.state()),
             "title" to "Alteração não salva", "message" to "Os dados foram alterados no celular ao mesmo tempo."), 409)

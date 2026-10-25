@@ -133,4 +133,21 @@ class LanRemoteTest {
             assertTrue(ev.any { it is LanEvent.Stopped && it.reason == StopReason.IDLE })
         } finally { s.stop() }
     }
+
+    @Test fun reservaParaMetaSobreviveAGravacaoPeloNavegador() {
+        // estado do celular com uma reserva para meta (goalId) e o navegador devolvendo tudo sem esse campo
+        val today = java.time.LocalDate.parse("2026-10-17")
+        val base = com.finanplus.core.AppState()
+        val g = (com.finanplus.core.Ops.saveGoal(base, null, "Viagem", "6000", "", null, "") as Outcome.Ok).state
+        f.backend.state = (com.finanplus.core.Ops.saveGoal(g, g.goals[0].id, "Viagem", "6000", "300", null, "",
+            fromAccount = true, accountId = "main", today = today) as Outcome.Ok).state
+        val goalId = f.backend.state.goals[0].id
+        val t = f.pair()
+        val (rev, data) = read(t)
+        val semGoalId = Json.stringify(data).replace(",\"goalId\":\"$goalId\"", "")
+        check(!semGoalId.contains("goalId")) { "o teste precisa mandar os dados sem goalId" }
+        val ok = f.api("/api/remote/state", "PUT", """{"rev":$rev,"data":$semGoalId}""", t)
+        assertEquals(200, ok.status)
+        assertEquals(goalId, f.backend.state.txs.single().goalId)
+    }
 }

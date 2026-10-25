@@ -5,6 +5,8 @@ package com.finanplus.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -21,6 +23,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -65,7 +69,7 @@ fun PageTitle(eyebrow: String, title: String, subtitle: String) {
 }
 
 @Composable
-fun MovesScreen(s: AppState) {
+fun MovesScreen(s: AppState, listState: LazyListState = rememberLazyListState()) {
     val nav = LocalNav.current
     val f = nav.filters
     val p = Fin.c
@@ -92,9 +96,21 @@ fun MovesScreen(s: AppState) {
     // calendário: dias do mês mostrado (calculado só nessa visão)
     val days = if (calendar) androidx.compose.runtime.remember(s, nav.calMonth, today) { com.finanplus.core.MonthCalendar.build(s, nav.calMonth, today) } else emptyMap()
 
-    LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
-        item { Text("Lançamentos", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 12.dp).semantics { heading() }) }
-        item { MovesViewSwitch(nav) }
+    LazyColumn(state = listState, contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
+        item(key = "moves-heading") {
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Lançamentos",
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+                MovesViewSwitch(nav)
+            }
+        }
         if (calendar) {
             calendarItems(s, nav, days, today, hide)
             return@LazyColumn
@@ -181,11 +197,10 @@ private fun SearchBar(value: String, onChange: (String) -> Unit) {
  * Filtros de um toque: Todos, Receitas, Despesas, Pendentes.
  * Receitas/Despesas e Pendentes combinam (ex.: despesas pendentes). "Realizados" fica no botão de ajuste.
  */
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun FilterChips(nav: com.finanplus.ui.Nav) {
     val f = nav.filters
-    androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+    Row(Modifier.fillMaxWidth().padding(top = 6.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
         Pill("Todos", selected = f.kind == null && f.paid == null) { f.kind = null; f.paid = null }
         Pill("Receitas", selected = f.kind == Kind.INCOME) { f.kind = if (f.kind == Kind.INCOME) null else Kind.INCOME }
         Pill("Despesas", selected = f.kind == Kind.EXPENSE) { f.kind = if (f.kind == Kind.EXPENSE) null else Kind.EXPENSE }

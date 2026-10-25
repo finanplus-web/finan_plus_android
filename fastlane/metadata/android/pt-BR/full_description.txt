@@ -4,14 +4,17 @@
 <ul>
 <li>Receitas e despesas com categorias, contas e cartões de crédito (fatura atual e pagamento de fatura)</li>
 <li>Parcelas, lançamentos recorrentes e contas a pagar e a receber</li>
-<li>Saldo atual e saldo previsto para o fim do mês</li>
-<li>Limites mensais por categoria e metas de economia</li>
+<li>Saldo atual e saldo previsto para o fim do mês, e calendário com o saldo de cada dia</li>
+<li>Limites mensais por categoria e metas de economia: guardar numa meta tira o dinheiro da conta sem contar como despesa</li>
+<li>Simulador "E se…?" para economizar, planejar uma compra ou antecipar uma dívida, sem mexer nos dados</li>
+<li>Ler fatura ou boleto: valor e vencimento de PDF (inclusive com senha), da linha digitável ou do Pix copia e cola</li>
 <li>Relatórios com gráficos e exportação de relatório em PDF</li>
 <li>Assistente que funciona no aparelho: sugere a categoria pela descrição, resume o mês, dá dicas de economia e responde perguntas rápidas. Cada resultado explica o porquê</li>
 <li>Widget de saldo e lembretes diários de vencimentos</li>
-<li>6 temas, incluindo Material You, OLED, Tokyo Night e Nord</li>
+<li>7 temas, incluindo Gruvbox, OLED, Tokyo Night e Nord</li>
 <li><b>Acesso pela rede (opcional):</b> use o Finan+ no navegador do computador, na mesma rede Wi-Fi, com os dados continuando no celular. Conexão HTTPS com certificado do próprio celular, código e confirmação no celular</li>
 <li>Backup e restauração em JSON (compatível com o Finan+ web e o Finan+ para Linux) e exportação em CSV</li>
+<li><b>Backup automático:</b> uma cópia por dia, criptografada com senha, numa pasta que você escolhe (celular, cartão SD, Google Drive, Nextcloud…)</li>
 </ul>
 
 <p><b>Privacidade e segurança</b></p>

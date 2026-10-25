@@ -1,14 +1,16 @@
-# Finan+ para Android — v1.5.2
+# Finan+ para Android
 
 Finan+ é um aplicativo para gerenciamento financeiro pessoal, desenvolvido com foco em simplicidade, privacidade, leveza e funcionamento offline.
 
 Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados criptografados no aparelho, widget de saldo, notificações de vencimento, desbloqueio por PIN e digital, assistente que funciona sem internet, relatório em PDF, backup compatível com as outras versões e **acesso pela rede local** (usar o Finan+ no navegador do computador, com os dados no celular).
 
-**Baixar:** pelo F-Droid (envio em andamento, ver [Publicar no F-Droid](#publicar-no-f-droid)) ou [APK assinado no GitHub](../../releases/latest) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
+**Baixar:** pelo [F-Droid](https://f-droid.org/packages/com.finanplus/) ou [APK assinado no GitHub](../../releases/latest) · **Outras versões:** [Finan+ web](https://finanplus-web.github.io/finan_plus/) ([código](https://github.com/finanplus-web/finan_plus)) · [Finan+ para Linux](https://github.com/finanplus-web/finan_plus_linux/releases/latest) ([código](https://github.com/finanplus-web/finan_plus_linux))
 
 - O que mudou em cada versão: [CHANGELOG.md](CHANGELOG.md)
 - Calendário de lançamentos (como ler e o que entra na conta): [CALENDARIO.md](CALENDARIO.md)
 - Simulador "E se…?" (as contas e o que não considera): [SIMULADOR.md](SIMULADOR.md)
+- Backup automático criptografado numa pasta: [BACKUP-AUTOMATICO.md](BACKUP-AUTOMATICO.md)
+- Metas e reserva para meta (guardar tira da conta sem ser despesa): [METAS.md](METAS.md)
 - Recorrências nos próximos meses ("Previsto"): [RECORRENCIAS.md](RECORRENCIAS.md)
 - Ler fatura ou boleto (PDF com senha, linha digitável e Pix): [FATURAS.md](FATURAS.md)
 - Como o assistente decide cada coisa: [ASSISTENTE.md](ASSISTENTE.md)
@@ -42,14 +44,15 @@ Requisitos: Android 8.0 (API 26) ou superior. O SDK alvo é o 35.
 | Área | Recursos |
 |---|---|
 | Navegação | Barra inferior com Início, Lançamentos, Meu dinheiro, Resumo e Ajustes. Também dá para **deslizar para o lado** e passar à aba vizinha. Em Início e Lançamentos, o botão **+** abre Despesa, Receita ou Nova recorrência |
-| Meu dinheiro | Contas e cartões (com fatura atual e "Pagar fatura"), metas, limites mensais por categoria e categorias (a lista começa minimizada). Cada parte vazia explica o que fazer e tem um atalho |
+| Primeira abertura | Apresentação em 4 páginas (o que o app faz, contas e cartões, planejamento, privacidade e backup), com **Pular** e **Já tenho um backup**. Dá para rever em *Ajustes › Sobre › Ver apresentação* |
+| Meu dinheiro | Contas e cartões (com fatura atual e "Pagar fatura"), metas (guardar tira o dinheiro da conta sem contar como despesa, ver [METAS.md](METAS.md)), limites mensais por categoria e categorias (a lista começa minimizada). Cada parte vazia explica o que fazer e tem um atalho |
 | Início | Saldo atual (inclui saldo inicial das contas), saldo previsto no fim do mês, receitas/despesas do mês com o que falta receber e pagar, resumo do assistente em 2 frases, contas e cartões com fatura atual e "Pagar fatura", limites do mês e metas com plano (cada seção aparece quando existe algo; antes disso, um atalho em "Comece por aqui") |
 | Lançamentos | **Lista**: ‹ mês › com período livre e situação no botão de ajuste, busca, filtros de um toque (Todos, Receitas, Despesas, Pendentes), resumo do período com o que falta receber e pagar, lançamentos agrupados por dia com o saldo de cada dia, marcar como pago. **Calendário**: o mês em grade com o saldo de cada dia, receitas, despesas e faturas no vencimento, atrasos em destaque, totais do mês, lançamentos do dia escolhido, saldo previsto ao fim do dia e Receita/Despesa já com a data (ou tocar de novo no dia). Nos próximos meses, as recorrências aparecem como **Previsto** ([RECORRENCIAS.md](RECORRENCIAS.md)). Detalhes em [CALENDARIO.md](CALENDARIO.md) |
 | Resumo (relatórios) | Mesmo ‹ mês › da aba Lançamentos, Receitas e Despesas realizadas com comparação justa (mês atual contra os mesmos dias do mês anterior), despesas por categoria (com limites), últimos 6 meses (com descrição para leitores de tela), fluxo do dinheiro (quanto entrou, saiu e sobrou), botão PDF |
 | Simulador "E se…?" | Economizar por mês, quanto tempo para comprar, mudança na renda e antecipar dívida parcelada, a partir da média dos últimos 3 meses. Nada é gravado; dá para transformar em meta. Detalhes em [SIMULADOR.md](SIMULADOR.md) |
 | Editores | Lançamento (parcelas com divisão do total, repetir mensalmente, cartão), meta, conta, cartão, recorrência (com início, pausa e edição), limite, pagamento de fatura |
 | Ler fatura ou boleto | Valor e vencimento de uma fatura em PDF (inclusive com senha, que pode ser lembrada por cartão), da linha digitável do boleto ou do Pix copia e cola. Também por **Compartilhar › Finan+**. Fatura de cartão é comparada com a calculada pelo app. Tudo no aparelho; você confere antes de salvar. Detalhes em [FATURAS.md](FATURAS.md) |
-| Ajustes | 7 temas (Sistema, Claro, Gruvbox, OLED Cinza, Gruvbox OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, restauração, apagar tudo |
+| Ajustes | 7 temas (Sistema, Claro, Gruvbox, OLED Cinza, Gruvbox OLED, Tokyo Night, Nord), PIN, biometria, ocultar valores, bloqueio automático, bloqueio de capturas de tela, notificações, widget, contas/cartões, recorrências, limites, categorias (com renomear), CSV, backup, **backup automático** diário criptografado numa pasta ([BACKUP-AUTOMATICO.md](BACKUP-AUTOMATICO.md)), restauração, apagar tudo |
 | Relatório em PDF | Qualquer período (atalhos ou datas): resumo com comparação ao período anterior, gastos por categoria (gráfico e tabela com limites), evolução mensal, maiores despesas, contas, metas e lista de lançamentos, com páginas numeradas. Em *Relatórios* ou *Ajustes › Dados* |
 | Assistente | No aparelho, sem internet: sugestão de categoria pela descrição, resumo do mês, dicas (duplicados, aumento de preço, ritmo do limite, acima da média, pequenos gastos, gastos fixos) e perguntas rápidas. Cada resultado tem “Por quê?”. Detalhes em [ASSISTENTE.md](ASSISTENTE.md) |
 | Acesso pela rede | Opcional, em *Ajustes › Acesso pela rede*: o celular serve o Finan+ web completo para o navegador de outro aparelho **na mesma rede Wi-Fi**, por HTTPS com certificado próprio do celular. Código de 6 dígitos + "Permitir" no celular. Os dados continuam só no celular. Detalhes em [ACESSO-PELA-REDE.md](ACESSO-PELA-REDE.md) |
@@ -149,7 +152,8 @@ app/src/main/java/com/finanplus/
   security/    PIN (PBKDF2) e AppLock (bloqueio)
   notify/      canal, agendamento diário (WorkManager) e notificações
   widget/      widget de saldo (Glance)
-  lan/         acesso pela rede: servidor HTTPS local, pareamento, certificados (ver ACESSO-PELA-REDE.md)
+  lan/         acesso pela rede: servidor HTTPS local, pareamento, certificados (ver ACESSO-PELA-REDE.md);
+               o que vem do navegador passa por core/RemoteSave.kt (reservas para meta)
   ui/          Compose: tema, componentes, telas e editores
 app/src/test/  testes das regras de negócio
 .github/       compilação, testes e APK assinado no GitHub (GitHub Actions)

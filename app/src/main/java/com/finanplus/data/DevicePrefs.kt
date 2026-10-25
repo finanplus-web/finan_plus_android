@@ -77,6 +77,11 @@ class DevicePrefs private constructor(context: Context) {
         get() = sp.getBoolean("askedNotifications", false)
         set(v) = sp.edit { putBoolean("askedNotifications", v) }
 
+    /** A tela de boas-vindas já foi vista (ou o app já tinha dados quando ela chegou). */
+    var welcomeSeen: Boolean
+        get() = sp.getBoolean("welcomeSeen", false)
+        set(v) = sp.edit(commit = true) { putBoolean("welcomeSeen", v) }
+
     /** Marca o que já foi notificado hoje, para não repetir a mesma notificação. */
     var lastNotified: String
         get() = sp.getString("lastNotified", "") ?: ""

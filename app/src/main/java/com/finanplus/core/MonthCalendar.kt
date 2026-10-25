@@ -8,7 +8,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /** Tipos de marca (pontinho) de um dia no calendário. */
-enum class DayMark { INCOME, EXPENSE, CARD }
+/** GOAL (1.7.0): reserva para meta (o dinheiro sai ou volta da conta, mas não é receita nem despesa) */
+enum class DayMark { INCOME, EXPENSE, CARD, GOAL }
 
 /** Fatura em aberto de um cartão, mostrada no dia do vencimento. */
 data class InvoiceDue(val cardId: String, val cardName: String, val amount: Cents, val due: LocalDate, val overdue: Boolean)
@@ -73,6 +74,7 @@ object MonthCalendar {
             for (t in txs) {
                 when {
                     t.isCard -> marks.add(DayMark.CARD) // compra no cartão: só na fatura
+                    t.isGoal -> { if (t.kind == Kind.INCOME) inc += t.value else exp += t.value; marks.add(DayMark.GOAL) }
                     t.kind == Kind.INCOME -> { inc += t.value; marks.add(DayMark.INCOME) }
                     else -> { exp += t.value; marks.add(if (t.cardPayment.isNotEmpty()) DayMark.CARD else DayMark.EXPENSE) }
                 }

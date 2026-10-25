@@ -52,9 +52,14 @@ data class Tx(
     val parcelTotal: Int = 0,
     /** Data prevista preservada quando um lançamento pendente é realizado em outro dia. */
     val scheduledDate: LocalDate? = null,
+    /** Reserva para meta: dinheiro que saiu da conta para esta meta (despesa) ou voltou dela (receita).
+     *  Mexe no saldo da conta, mas não é gasto nem ganho: fica fora de despesas, limites e assistente. */
+    val goalId: String = "",
 ) {
-    val isFlow get() = cardPayment.isEmpty()
+    /** Receita ou despesa de verdade (fica de fora: pagamento de fatura e reserva para meta) */
+    val isFlow get() = cardPayment.isEmpty() && goalId.isEmpty()
     val isCard get() = cardId.isNotEmpty()
+    val isGoal get() = goalId.isNotEmpty()
 }
 
 data class Account(val id: String, val name: String, val initial: Cents)
@@ -157,6 +162,8 @@ data class AppState(
         val DEFAULT_INCOME = listOf("Salário", "Extra", "Investimentos", "Outros")
         val AUTOLOCK_OPTIONS = listOf(0, 1, 5, 15, 30)
         const val CARD_PAYMENT_CAT = "Pagamento de fatura"
+        /** categoria dos lançamentos de reserva para meta (não aparece na lista de categorias) */
+        const val GOAL_CAT = "Metas"
     }
 }
 

@@ -324,6 +324,7 @@ de Ajustes e as cores reais do Material You. Erros de compilação ou de uso: an
 - Fechar a janela “Permitir” sem querer conta como Recusar: é só digitar o novo código.
 - Cada alteração envia o estado inteiro: com muitos milhares de lançamentos, gravar pode levar um
   instante a mais (limite de 8 MB).
+- **Reservas para meta** (1.7.0): o Finan+ web embutido ainda não as conhece e as mostra como despesas da categoria "Metas". O celular restaura o `goalId` ao gravar e recusa alterar ou excluir uma reserva, ou excluir uma meta com dinheiro guardado pelo Finan+; isso se faz no celular. Ver [METAS.md](METAS.md).
 - Se a conexão cair, a alteração aparece no navegador mas não é gravada (há aviso); ao reconectar, a
   tela volta aos dados do celular.
 

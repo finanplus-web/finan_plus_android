@@ -12,14 +12,14 @@ RepoType: git
 Repo: https://github.com/finanplus-web/finan_plus_android.git
 
 Builds:
-  - versionName: 1.6.0
-    versionCode: 15
-    commit: v1.6.0
+  - versionName: 1.7.0
+    versionCode: 16
+    commit: v1.7.0
     subdir: app
     gradle:
       - yes
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 1.6.0
-CurrentVersionCode: 15
+CurrentVersion: 1.7.0
+CurrentVersionCode: 16

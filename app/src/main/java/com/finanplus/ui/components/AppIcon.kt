@@ -106,6 +106,7 @@ fun categoryIcon(category: String): Ico? {
     val c = AssistText.fold(category)
     return when {
         category == AppState.CARD_PAYMENT_CAT -> Ico.CARD
+        category == AppState.GOAL_CAT -> Ico.GOAL
         c in setOf("alimentacao", "mercado", "supermercado", "comida", "feira") -> Ico.FOOD
         c in setOf("restaurante", "delivery", "lanche", "lanches") -> Ico.RESTAURANT
         c in setOf("transporte", "carro", "uber", "mobilidade") -> Ico.TRANSPORT

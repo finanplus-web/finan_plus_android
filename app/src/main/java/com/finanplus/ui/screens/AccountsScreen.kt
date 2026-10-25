@@ -3,7 +3,11 @@
 
 package com.finanplus.ui.screens
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,8 +15,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,10 +28,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,6 +67,7 @@ import com.finanplus.ui.components.sensitive
 import com.finanplus.ui.screenPadding
 import com.finanplus.ui.theme.Fin
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AccountsScreen(s: AppState) {
     val nav = LocalNav.current
@@ -65,22 +78,33 @@ fun AccountsScreen(s: AppState) {
     val ym = today.ym()
     val usage = Finance.budgetUsage(s, ym)
 
-    LazyColumn(contentPadding = screenPadding(), modifier = Modifier.fillMaxWidth()) {
+    LazyColumn(contentPadding = screenPadding(), modifier = Modifier.widthIn(max = 600.dp).fillMaxWidth()) {
         item {
             Text("Meu dinheiro", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.semantics { heading() })
             Text("Contas, cartões e seus planos financeiros em um só lugar.", style = MaterialTheme.typography.bodyMedium, color = p.muted, modifier = Modifier.padding(bottom = 4.dp))
         }
 
         item {
-            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+            Glass(Modifier.padding(top = 10.dp), radius = 24.dp, padding = 14.dp) {
                 AccountCardHeading(Ico.BANK, "Contas e cartões", "Saldo das contas e situação dos cartões")
-                if (s.accounts.isEmpty()) {
-                    Text("Adicione uma conta para acompanhar seu saldo e relacionar lançamentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-                } else if (s.cards.isEmpty()) {
-                    Text("Sem cartão cadastrado. Você pode adicionar um para acompanhar faturas e vencimentos.", style = MaterialTheme.typography.bodySmall, color = p.muted)
-                }
                 s.accounts.forEach { account ->
-                    ManageItem(account.name, "Conta · Saldo ${if (hide) "R$ ••••" else Money.format(Finance.accountBalance(s, account))}") {
+                    val balance = if (hide) "R$ ••••" else Money.format(Finance.accountBalance(s, account))
+                    Row(
+                        Modifier.fillMaxWidth().padding(top = 8.dp).clip(RoundedCornerShape(15.dp))
+                            .background(p.accent2.copy(alpha = 0.55f))
+                            .padding(start = 12.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            buildAnnotatedString {
+                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(account.name) }
+                                append(" · Saldo: ")
+                                append(balance)
+                            },
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                         Pill("Editar") { nav.open(Sheet.AccountEdit(account.id)) }
                     }
                 }
@@ -92,9 +116,23 @@ fun AccountsScreen(s: AppState) {
                         Pill("Editar") { nav.open(Sheet.CardEdit(card.id)) }
                     }
                 }
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pill("Adicionar conta", Modifier.weight(1f), icon = Ico.ADD) { nav.open(Sheet.AccountEdit()) }
-                    Pill("Adicionar cartão", Modifier.weight(1f), icon = Ico.ADD) { nav.open(Sheet.CardEdit()) }
+                if (s.accounts.isEmpty()) Text(
+                    "Adicione uma conta para acompanhar seu saldo.",
+                    style = MaterialTheme.typography.bodySmall, color = p.muted,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                if (s.cards.isEmpty()) Text(
+                    "Adicione um cartão para acompanhar faturas e vencimentos.",
+                    style = MaterialTheme.typography.bodySmall, color = p.muted,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+                // Ações sem truncamento: uma linha no tamanho normal, quebra apenas quando necessário.
+                FlowRow(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Pill("Adicionar conta", icon = Ico.ADD) { nav.open(Sheet.AccountEdit()) }
+                    Pill("Adicionar cartão", icon = Ico.ADD) { nav.open(Sheet.CardEdit()) }
                 }
                 s.cards.forEach { card ->
                     val statement = Finance.cardStatus(s, card, today).current
@@ -112,11 +150,10 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
-                AccountCardHeading(Ico.LIMIT, "Definir um limite mensal", "Acompanhe quanto gasta por categoria")
+            Glass(Modifier.padding(top = 10.dp), radius = 24.dp, padding = 14.dp) {
+                AccountCardHeading(Ico.LIMIT, "Limites mensais", "Defina um limite por categoria")
                 if (s.limits.isEmpty()) {
-                    Text("Defina quanto deseja gastar por categoria para acompanhar seus gastos do mês.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
-                    Pill("Criar meu primeiro limite", Modifier.fillMaxWidth().padding(top = 10.dp), icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
+                    Pill("Criar meu primeiro limite", Modifier.fillMaxWidth().padding(top = 8.dp), icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
                 } else {
                     Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.End) {
                         Pill("Adicionar limite", icon = Ico.ADD) { nav.open(Sheet.LimitEdit()) }
@@ -152,15 +189,14 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+            Glass(Modifier.padding(top = 10.dp), radius = 24.dp, padding = 14.dp) {
                 AccountCardHeading(
-                    Ico.GOAL, "Metas", "Acompanhe seus objetivos financeiros",
+                    Ico.GOAL, "Metas", "Organize objetivos como viagens e reservas",
                     action = if (s.goals.isEmpty()) null else "Criar meta",
                     onAction = { nav.open(Sheet.GoalEdit()) },
                 )
                 if (s.goals.isEmpty()) {
-                    Text("Uma meta ajuda a acompanhar um objetivo, como uma viagem ou uma reserva.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
-                    Pill("Criar minha primeira meta", Modifier.fillMaxWidth().padding(top = 10.dp), icon = Ico.ADD) { nav.open(Sheet.GoalEdit()) }
+                    Pill("Criar minha primeira meta", Modifier.fillMaxWidth().padding(top = 8.dp), icon = Ico.ADD) { nav.open(Sheet.GoalEdit()) }
                 } else s.goals.forEach { goal ->
                     val plan = Finance.goalPlan(goal, today)
                     Glass(Modifier.fillMaxWidth().padding(top = 9.dp), radius = 19.dp, padding = 12.dp, onClick = { nav.open(Sheet.GoalEdit(goal.id)) }) {
@@ -186,10 +222,17 @@ fun AccountsScreen(s: AppState) {
         }
 
         item {
-            Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+            Glass(Modifier.padding(top = 10.dp), radius = 22.dp, padding = 13.dp) {
                 AccountCardHeading(Ico.ASSIST, "Simular meu dinheiro", "Teste cenários sem alterar seus dados")
-                Text("Explore compras, mudanças na renda, economias e quitação de dívidas.", style = MaterialTheme.typography.bodySmall, color = p.muted, modifier = Modifier.padding(top = 8.dp))
-                Pill("Abrir simulação", Modifier.padding(top = 10.dp), icon = Ico.ASSIST) { nav.open(Sheet.Simulator()) }
+                OutlinedButton(
+                    onClick = { nav.open(Sheet.Simulator()) },
+                    modifier = Modifier.padding(top = 6.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, p.accent.copy(alpha = 0.65f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = p.accent),
+                ) {
+                    Text("Abrir simulação", fontWeight = FontWeight.SemiBold)
+                }
             }
         }
 
@@ -206,7 +249,7 @@ private fun CategoryManager(s: AppState) {
     var newCategory by rememberSaveable { mutableStateOf("") }
     var newKind by rememberSaveable { mutableStateOf(Kind.EXPENSE) }
     var expanded by rememberSaveable { mutableStateOf(false) }
-    Glass(Modifier.padding(top = 12.dp), radius = 24.dp, padding = 15.dp) {
+    Glass(Modifier.padding(top = 10.dp), radius = 24.dp, padding = 14.dp) {
         AccountCardHeading(
             Ico.TUNE, "Categorias", "Organize relatórios e lançamentos",
             action = if (expanded) "Minimizar" else "Maximizar",
@@ -261,8 +304,8 @@ private fun AccountCardHeading(
 ) {
     val p = Fin.c
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        IconTile(icon, p.accent, p.accent2, size = 46.dp, iconSize = 23.dp)
-        Column(Modifier.weight(1f).padding(start = 12.dp, end = 8.dp)) {
+        IconTile(icon, p.accent, p.accent2, size = 40.dp, iconSize = 20.dp)
+        Column(Modifier.weight(1f).padding(start = 10.dp, end = 8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = p.muted)
         }

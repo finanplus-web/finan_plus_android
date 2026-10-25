@@ -14,11 +14,14 @@ import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import com.finanplus.MainActivity
+import com.finanplus.core.AppState
 import com.finanplus.core.ThemeId
 import com.finanplus.data.DevicePrefs
 import com.finanplus.data.Repo
 import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.captureScreenRoboImage
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -54,17 +57,94 @@ class ScreenshotTest {
         compose.waitForIdle()
     }
 
+    /** Seletor de ícones usa descrição acessível e mantém o modo ao trocar de aba. */
+    @Test
+    fun seletorListaCalendarioMantemEstadoELabelsAcessiveis() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = true
+        Repo.showForScreenshots(DemoData.state().copy(theme = ThemeId.LIGHT))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            tab("Lançamentos")
+            val list = hasContentDescription("Visualização em lista") and
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+            val calendar = hasContentDescription("Visualização em calendário") and
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
+            val selected = SemanticsMatcher.expectValue(SemanticsProperties.Selected, true)
+            assertEquals(1, compose.onAllNodes(list and selected).fetchSemanticsNodes().size)
+            compose.onNode(calendar).performClick()
+            assertEquals(1, compose.onAllNodes(calendar and selected).fetchSemanticsNodes().size)
+            tab("Meu dinheiro")
+            tab("Lançamentos")
+            assertEquals(1, compose.onAllNodes(calendar and selected).fetchSemanticsNodes().size)
+            compose.onNode(list).performClick()
+            assertEquals(1, compose.onAllNodes(list and selected).fetchSemanticsNodes().size)
+        }
+    }
+
+    /** Regressão de texto e acessibilidade na conta inicial (sem cartões ou metas). */
+    @Test
+    fun meuDinheiroComContaZeradaMantemAtalhosVisiveis() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = true
+        Repo.showForScreenshots(AppState(theme = ThemeId.LIGHT))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            tab("Meu dinheiro")
+            for (label in listOf(
+                "Conta principal · Saldo: R$ 0,00",
+                "Adicione um cartão para acompanhar faturas e vencimentos.",
+                "Adicionar conta",
+                "Adicionar cartão",
+            )) {
+                assertTrue(
+                    "Texto ou ação ausente em Meu dinheiro: $label",
+                    compose.onAllNodes(hasText(label, substring = true)).fetchSemanticsNodes().isNotEmpty(),
+                )
+            }
+        }
+    }
+
+    /** Boas-vindas na primeira abertura (sem lançamentos): 4 páginas e "Começar" leva ao app. */
+    @Test
+    fun boasVindas() {
+        val app = ApplicationProvider.getApplicationContext<Application>()
+        DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = false
+        Repo.showForScreenshots(AppState(theme = ThemeId.LIGHT))
+        ActivityScenario.launch(MainActivity::class.java).use {
+            compose.waitForIdle()
+            assertTrue("boas-vindas não apareceu", compose.onAllNodes(hasText("Seu dinheiro, sem complicação.")).fetchSemanticsNodes().isNotEmpty())
+            shot("boas-vindas")
+            repeat(3) { compose.onNode(hasText("Continuar")).performClick(); compose.waitForIdle() }
+            assertTrue("última página", compose.onAllNodes(hasText("Seus dados ficam com você.")).fetchSemanticsNodes().isNotEmpty())
+            compose.onNode(hasText("Começar")).performClick()
+            compose.waitForIdle()
+            assertTrue("não marcou como vista", DevicePrefs.get(app).welcomeSeen)
+            assertTrue("não abriu o app", compose.onAllNodes(hasText("Saldo atual")).fetchSemanticsNodes().isNotEmpty())
+        }
+    }
+
+    private fun view(description: String) {
+        compose.onNode(
+            hasContentDescription(description) and
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab),
+        ).performClick()
+        compose.waitForIdle()
+    }
+
     @Test
     fun telas() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         DevicePrefs.get(app).askedNotifications = true // sem o pedido de permissão de notificação na primeira abertura
+        DevicePrefs.get(app).welcomeSeen = true
         val demo = DemoData.state()
         Repo.showForScreenshots(demo.copy(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {
             shot("inicio")
             tab("Lançamentos"); shot("lancamentos")
-            tab("Calendário"); shot("calendario")
-            tab("Lista")
+            view("Visualização em calendário"); shot("calendario")
+            view("Visualização em lista")
             tab("Meu dinheiro"); shot("contas")
             tab("Resumo"); shot("relatorios")
             tab("Ajustes"); shot("ajustes")

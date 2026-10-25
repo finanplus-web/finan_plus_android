@@ -69,6 +69,7 @@ object Ops {
 
         if (editId != null) {
             val t = s.txs.firstOrNull { it.id == editId } ?: return err("Lançamento não encontrado.")
+            if (t.isGoal) return err("Este lançamento é de uma meta. Para mudar o valor, guarde ou retire pela meta; ou exclua o lançamento.", "Lançamento de meta")
             val upd = if (t.cardPayment.isNotEmpty()) {
                 t.copy(desc = desc, value = value, category = category, date = date, accountId = accountId, paid = true)
             } else {
@@ -122,7 +123,15 @@ object Ops {
 
     fun deleteTx(s: AppState, id: String, withLater: Boolean): AppState {
         val ids = HashSet<String>().apply { add(id); if (withLater) laterParcels(s, id).forEach { add(it.id) } }
-        return s.copy(txs = s.txs.filterNot { it.id in ids })
+        // excluir uma reserva para meta desfaz o valor na meta (guardado volta a diminuir; retirada volta a somar)
+        var goals = s.goals
+        s.txs.filter { it.id in ids && it.isGoal }.forEach { t ->
+            goals = goals.map { g ->
+                if (g.id != t.goalId) g
+                else g.copy(saved = (if (t.kind == Kind.EXPENSE) g.saved - t.value else g.saved + t.value).coerceAtLeast(0L))
+            }
+        }
+        return s.copy(txs = s.txs.filterNot { it.id in ids }, goals = goals)
     }
 
     /** Pago/pendente. Compra no cartão e pagamento de fatura não alternam: desmarcar um pagamento de fatura
@@ -137,7 +146,15 @@ object Ops {
         })
 
     // ---------------- metas ----------------
-    fun saveGoal(s: AppState, id: String?, name: String, target: String, move: String, deadline: LocalDate?, monthly: String): Outcome {
+    /**
+     * [move]: quanto guardar (positivo) ou retirar (negativo) agora. Com [fromAccount], o valor sai da conta
+     * [accountId] (ou volta para ela) num lançamento de reserva para meta, que não conta como despesa nem receita.
+     * Sem [fromAccount], só o valor guardado na meta muda (como antes da 1.7.0).
+     */
+    fun saveGoal(
+        s: AppState, id: String?, name: String, target: String, move: String, deadline: LocalDate?, monthly: String,
+        fromAccount: Boolean = false, accountId: String = "", today: LocalDate = LocalDate.now(),
+    ): Outcome {
         val n = name.trim().take(60)
         val t = Money.parse(target)
         val m = if (monthly.isBlank()) 0L else Money.parse(monthly)
@@ -146,12 +163,45 @@ object Ops {
         if (m == null || m < 0) return err("Contribuição mensal inválida.")
         val mv = if (move.isBlank()) 0L else Money.parse(move) ?: return err("Valor a guardar inválido.")
         if (id == null) return ok(s, s.copy(goals = s.goals + Goal(Ids.new(), n, t, 0, deadline, m)))
-        val saved = try { Math.addExact(s.goals.firstOrNull { it.id == id }?.saved ?: 0L, mv).coerceAtLeast(0L) }
+        val old = s.goals.firstOrNull { it.id == id } ?: return err("Meta não encontrada.")
+        val saved = try { Math.addExact(old.saved, mv).coerceAtLeast(0L) }
         catch (_: ArithmeticException) { return err("O valor guardado excede o limite seguro.", "Limite financeiro excedido") }
-        return ok(s.copy(goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = saved) else it }))
+        val goals = s.goals.map { if (it.id == id) it.copy(name = n, target = t, deadline = deadline, monthly = m, saved = saved) else it }
+        // o que mudou de fato (uma retirada maior que o guardado para no zero)
+        val moved = saved - old.saved
+        if (!fromAccount || moved == 0L) return ok(s.copy(goals = goals))
+        val acc = if (s.account(accountId) != null) accountId else s.accounts[0].id
+        val tx = goalTx(n, id, moved, acc, today)
+        return ok(s, s.copy(goals = goals, txs = s.txs + tx))
     }
 
-    fun deleteGoal(s: AppState, id: String) = s.copy(goals = s.goals.filterNot { it.id == id })
+    /** Lançamento de reserva: [moved] > 0 sai da conta para a meta; < 0 volta da meta para a conta. */
+    private fun goalTx(goalName: String, goalId: String, moved: Cents, accountId: String, date: LocalDate, prefix: String? = null): Tx {
+        val label = prefix ?: if (moved > 0) "Meta" else "Retirada da meta"
+        return Tx(
+            Ids.new(), if (moved > 0) Kind.EXPENSE else Kind.INCOME, Math.abs(moved), date,
+            "$label › $goalName".take(TX_DESC_MAX), AppState.GOAL_CAT, true, accountId, goalId = goalId,
+        )
+    }
+
+    /** Quanto desta meta saiu das contas pelo Finan+ e ainda não voltou (o que volta ao excluir a meta). */
+    fun goalFromAccounts(s: AppState, id: String): Cents {
+        val g = s.goals.firstOrNull { it.id == id } ?: return 0L
+        val net = s.txs.filter { it.goalId == id }.sumOf { if (it.kind == Kind.EXPENSE) it.value else -it.value }
+        return net.coerceIn(0L, g.saved)
+    }
+
+    /** Exclui a meta. O que saiu das contas para ela volta para a conta do último depósito (lançamento
+     *  "Meta excluída › nome"); os lançamentos antigos ficam no histórico. */
+    fun deleteGoal(s: AppState, id: String, today: LocalDate = LocalDate.now()): AppState {
+        val g = s.goals.firstOrNull { it.id == id } ?: return s
+        val back = goalFromAccounts(s, id)
+        val rest = s.copy(goals = s.goals.filterNot { it.id == id })
+        if (back <= 0L) return rest
+        val acc = s.txs.filter { it.goalId == id && it.kind == Kind.EXPENSE }.maxByOrNull { it.date }?.accountId
+            ?.takeIf { s.account(it) != null } ?: s.accounts[0].id
+        return rest.copy(txs = rest.txs + goalTx(g.name, id, -back, acc, today, prefix = "Meta excluída"))
+    }
 
     // ---------------- contas ----------------
     fun saveAccount(s: AppState, id: String?, name: String, initial: String): Outcome {

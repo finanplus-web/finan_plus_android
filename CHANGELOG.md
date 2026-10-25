@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.7.0 — Reserva para metas, backup automático e boas-vindas (25/10/2026)
+
+Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #11 a #20, sem o Radar, que continua em teste). `versionCode 16`.
+
+### Reserva para metas
+
+- **Guardar numa meta tira o dinheiro da conta:** ao guardar, o Finan+ cria o lançamento **"Meta › nome da meta"** (categoria **Metas**), que sai do saldo da conta escolhida e aparece em Lançamentos e no calendário. Ao retirar, **"Retirada da meta › nome"** devolve o valor. A opção **Tirar da conta** vem ligada; desligada, fica como antes (só o valor da meta muda).
+- **Não é despesa:** como o pagamento de fatura, a reserva fica fora das despesas, dos limites, do % economizado e do assistente. O **Resumo** mostra **Guardado em metas** e, no fluxo do dinheiro, "Para onde foi › Metas".
+- **Excluir** o lançamento desfaz o valor na meta; **excluir a meta** devolve à conta o que saiu dela pelo Finan+.
+- **Backup:** campo novo `goalId` nos lançamentos. Detalhes, regras e testes em [METAS.md](METAS.md).
+
+### Backup automático
+
+- **Ajustes › Dados › Backup automático:** uma cópia por dia, criptografada com senha (AES-256-GCM, PBKDF2), numa pasta escolhida (celular, cartão SD, Google Drive, Syncthing, Nextcloud). Guarda as últimas 7 a 60 cópias, mostra a última cópia e avisa se falhar.
+- **Restaurar** abre também essas cópias (pede a senha). Formato e regras em [BACKUP-AUTOMATICO.md](BACKUP-AUTOMATICO.md).
+
+### Boas-vindas
+
+- **Apresentação na primeira abertura:** 4 páginas no estilo do app (o que o Finan+ faz, contas e cartões, planejamento, privacidade e backup), com **Pular**, **Continuar**, **Começar** e **Já tenho um backup** (abre Ajustes para restaurar). Quem já tem lançamentos não vê; dá para rever em **Ajustes › Sobre › Ver apresentação**. Só no Android.
+
+### Interface
+
+- **Botão +** fica mais discreto enquanto a tela rola em Início e Lançamentos, e o saldo do Início ficou mais direto (a comparação com o mês anterior só aparece quando há histórico).
+- **Meu dinheiro** mais compacto: saldos na mesma linha da conta, cartões menores e o simulador como ação secundária.
+- **Lançamentos:** a troca entre Lista e Calendário virou um seletor de ícones ao lado do título (com nome para leitores de tela), e os filtros ficaram mais compactos.
+
+### Acesso pela rede e reservas para meta
+
+- O Finan+ web embutido (que o navegador usa no acesso pela rede) ainda não conhece o campo `goalId`. Ao gravar pelo navegador, o celular **restaura as reservas para meta** a partir dos próprios dados, em vez de gravá-las como despesas comuns.
+- Pelo navegador **não dá para alterar ou excluir** uma reserva para meta, nem excluir uma meta que tenha dinheiro guardado pelo Finan+: o celular recusa e avisa, sem gravar nada. Essas ações continuam no celular. Código em `core/RemoteSave.kt`, testes em `RemoteSaveTest` e `LanRemoteTest`.
+- **Paridade:** o Finan+ web e o Finan+ para Linux ainda mostram as reservas de um backup do Android como despesas da categoria "Metas" (ver [METAS.md](METAS.md)).
+
 ## 1.6.0 — Visual renovado, nova aba Meu dinheiro e datas reais de pagamento (17/10/2026)
 
 Mescla do trabalho feito no repositório de desenvolvimento ([finan_plus_android_desenvolvimento](https://github.com/juscelino25bezerra-art/finan_plus_android_desenvolvimento), PRs #1 a #10). `versionCode 15`. Notas de design em [docs/REDESIGN-UXUI.md](docs/REDESIGN-UXUI.md).

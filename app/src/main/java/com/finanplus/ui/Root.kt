@@ -5,6 +5,8 @@ package com.finanplus.ui
 
 import android.Manifest
 import android.os.Build
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -31,6 +33,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -216,6 +219,12 @@ fun FinanRoot(activity: MainActivity) {
         // ao desbloquear, a folha aberta e o que foi digitado continuam lá
         val holder = rememberSaveableStateHolder()
         val showLock = locked && dev.lockEnabled
+        // boas-vindas: primeira abertura (sem lançamentos) ou "Ver apresentação" em Ajustes; quem já tem dados não vê
+        val prefs = DevicePrefs.get(activity)
+        var firstRun by rememberSaveable { mutableStateOf(!prefs.welcomeSeen && s.txs.isEmpty()) }
+        LaunchedEffect(Unit) { if (!firstRun && !prefs.welcomeSeen) prefs.welcomeSeen = true }
+        val reopen by com.finanplus.ui.screens.Welcome.reopen.collectAsStateWithLifecycle()
+        val showWelcome = firstRun || reopen
         // Bloqueou: fecha qualquer diálogo aberto. Um AlertDialog é uma janela própria e ficaria utilizável por cima
         // da tela de bloqueio (ex.: "Definir PIN" deixado aberto permitia trocar o PIN sem saber o atual).
         LaunchedEffect(showLock) { if (showLock) dialogs.close() }
@@ -228,7 +237,12 @@ fun FinanRoot(activity: MainActivity) {
         CompositionLocalProvider(LocalDialogs provides dialogs, LocalPrivacy provides s.privacy) {
             AppBackground {
                 // Bloqueado: o conteúdo do app nem é composto (nada acessível por trás).
-                if (showLock) LockScreen(activity, dev) else holder.SaveableStateProvider("main") { MainScaffold(s, dev, activity, nav) }
+                if (showLock) LockScreen(activity, dev)
+                else if (showWelcome) com.finanplus.ui.screens.WelcomeScreen { restore ->
+                    prefs.welcomeSeen = true; firstRun = false; com.finanplus.ui.screens.Welcome.reopen.value = false
+                    nav.tab = if (restore) Tab.PREFS else Tab.HOME
+                }
+                else holder.SaveableStateProvider("main") { MainScaffold(s, dev, activity, nav) }
             }
             if (!showLock) DialogHost(dialogs)
             // acesso pela rede: "Permitir <navegador>?" aparece em qualquer tela, só com o app desbloqueado
@@ -271,6 +285,8 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
     var reaskProblem by remember { mutableIntStateOf(0) }
     // Abas lado a lado: deslizar para o lado passa para a vizinha.
     // Os botões da barra inferior continuam funcionando; os dois caminhos mudam o mesmo nav.tab.
+    val homeListState = rememberLazyListState()
+    val movesListState = rememberLazyListState()
     val pager = androidx.compose.foundation.pager.rememberPagerState(initialPage = nav.tab.ordinal) { Tab.entries.size }
     // tocou num botão da barra (ou "Voltar" para o Início): leva o pager até a aba
     LaunchedEffect(nav.tab) { if (pager.currentPage != nav.tab.ordinal) pager.animateScrollToPage(nav.tab.ordinal) }
@@ -298,8 +314,8 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             ) { page ->
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                     when (Tab.entries[page]) {
-                        Tab.HOME -> HomeScreen(s)
-                        Tab.MOVES -> MovesScreen(s)
+                        Tab.HOME -> HomeScreen(s, homeListState)
+                        Tab.MOVES -> MovesScreen(s, movesListState)
                         Tab.ACCOUNTS -> AccountsScreen(s)
                         Tab.REPORTS -> ReportsScreen(s)
                         Tab.PREFS -> SettingsScreen(s, dev, activity)
@@ -309,9 +325,16 @@ private fun MainScaffold(s: AppState, dev: DeviceSettings, activity: MainActivit
             // Faixa atrás da barra de status: o conteúdo rolado não fica sob os ícones do sistema.
             Box(Modifier.align(Alignment.TopCenter).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(Fin.c.bg))
             BottomNav(nav, shownTab, Modifier.align(Alignment.BottomCenter))
-            if (shownTab == Tab.HOME || shownTab == Tab.MOVES) AddTransactionFab(
-                nav, Modifier.align(Alignment.BottomEnd).navigationBarsPadding().padding(end = 18.dp, bottom = 116.dp),
-            )
+            if (shownTab == Tab.HOME || shownTab == Tab.MOVES) {
+                val listScrolling = if (shownTab == Tab.HOME) homeListState.isScrollInProgress else movesListState.isScrollInProgress
+                val showFab = !listScrolling && !pager.isScrollInProgress && nav.sheet == null
+                // O próprio FAB recebe o alinhamento do Box pai: a animação nunca muda sua posição.
+                AddTransactionFab(
+                    nav, enabled = showFab,
+                    modifier = Modifier.align(Alignment.BottomEnd).navigationBarsPadding()
+                        .padding(end = 18.dp, bottom = 116.dp),
+                )
+            }
             SnackbarHost(
                 hostState = txSnackbarState,
                 modifier = Modifier.align(Alignment.BottomStart).navigationBarsPadding()
@@ -375,15 +398,30 @@ private fun NavItem(t: Tab, nav: Nav, shown: Tab, modifier: Modifier) {
 }
 
 @Composable
-private fun AddTransactionFab(nav: Nav, modifier: Modifier = Modifier) {
+private fun AddTransactionFab(nav: Nav, enabled: Boolean, modifier: Modifier = Modifier) {
     val p = Fin.c
+    val opacity by animateFloatAsState(
+        targetValue = if (enabled) 1f else 0f,
+        animationSpec = tween(durationMillis = if (enabled) 150 else 100),
+        label = "Visibilidade do botão adicionar",
+    )
+    val action = if (enabled) Modifier
+        .clickable(role = Role.Button, onClickLabel = "Adicionar movimentação") { nav.open(Sheet.AddChoice) }
+        .semantics { contentDescription = "Adicionar movimentação" }
+    else Modifier.clearAndSetSemantics {}
+    // A sombra, o fundo e o ícone são circulares e desaparecem juntos. Não animamos
+    // uma camada retangular com fade, que pode mostrar um quadrado ao aparecer.
     Box(
-        modifier.size(56.dp).shadow(8.dp, CircleShape).clip(CircleShape).background(p.accent)
-            .clickable(role = Role.Button, onClickLabel = "Adicionar movimentação") { nav.open(Sheet.AddChoice) }
-            .semantics { contentDescription = "Adicionar movimentação" },
+        modifier.size(56.dp)
+            .shadow(8.dp * opacity, CircleShape)
+            .clip(CircleShape)
+            .background(p.accent.copy(alpha = opacity))
+            .then(action),
         contentAlignment = Alignment.Center,
     ) {
-        com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.ADD, p.onAccent, size = 26.dp)
+        com.finanplus.ui.components.AppIcon(
+            com.finanplus.ui.components.Ico.ADD, p.onAccent.copy(alpha = opacity), size = 26.dp,
+        )
     }
 }
 
@@ -401,6 +439,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
     val status = when {
         projected -> "Prevista · recorrência"
+        t.isGoal -> if (t.kind == Kind.EXPENSE) "Guardado na meta" else "Retirado da meta"
         t.isCard -> "No cartão"
         !t.paid && t.date.isBefore(today) -> if (t.kind == Kind.INCOME) "Vencida · a receber" else "Vencida · a pagar"
         !t.paid -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
@@ -408,6 +447,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
         else -> "Paga"
     }
     val statusColor = when {
+        t.isGoal -> p.accent
         !t.paid && t.date.isBefore(today) -> p.red
         t.paid && t.kind == Kind.INCOME -> p.green
         t.paid && t.kind == Kind.EXPENSE -> p.green
@@ -437,14 +477,16 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
                 Text("${t.category} · $where", style = MaterialTheme.typography.bodySmall, color = p.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text("$status · $dateLabel", style = MaterialTheme.typography.bodySmall, color = statusColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.kind == Kind.EXPENSE) p.red else p.green,
+            MoneyText(t.value, prefix = if (t.kind == Kind.EXPENSE) "− " else "+ ", color = if (t.isGoal) p.accent else if (t.kind == Kind.EXPENSE) p.red else p.green,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
         }
         // compra no cartão e pagamento de fatura não alternam pago/pendente (ver Ops.canTogglePaid)
         if (projected) Box(Modifier.size(48.dp).semantics { contentDescription = "Previsto: lançamento criado quando o mês chegar" }, contentAlignment = Alignment.Center) {
             com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.REPEAT, p.muted, size = 20.dp)
         }
-        else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) { com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp) }
+        else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+            com.finanplus.ui.components.AppIcon(if (t.isGoal) com.finanplus.ui.components.Ico.GOAL else com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp)
+        }
         else {
             val action = if (t.kind == Kind.INCOME) "recebido" else "pago"
             Box(

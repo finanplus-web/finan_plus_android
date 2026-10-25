@@ -3,6 +3,8 @@
 
 package com.finanplus.ui.screens
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -93,27 +95,53 @@ private fun markColor(m: DayMark): Color = when (m) {
     DayMark.INCOME -> Fin.c.green
     DayMark.EXPENSE -> Fin.c.red
     DayMark.CARD -> cardColor()
+    DayMark.GOAL -> Fin.c.accent
 }
 
-/** Chave "Lista | Calendário" no topo da aba Lançamentos. */
+/** Seletor compacto de ícones no cabeçalho de Lançamentos.
+ * Mantém o modo em Nav.movesView e a semântica de abas, mesmo sem texto visível.
+ */
 @Composable
 fun MovesViewSwitch(nav: Nav) {
     val p = Fin.c
-    val shape = RoundedCornerShape(24.dp)
+    val blue = if (p.dark) p.accent else Color(0xFF395FCB)
+    val idleIcon = if (p.dark) p.muted else Color(0xFF65728A)
     Row(
-        Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(shape).background(p.surface).border(1.dp, p.border, shape).padding(4.dp).selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        Modifier.clip(RoundedCornerShape(17.dp))
+            .background(p.surface)
+            .padding(3.dp)
+            .selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        for ((view, label, icon) in listOf(Triple(MovesView.LIST, "Lista", Ico.LIST), Triple(MovesView.CALENDAR, "Calendário", Ico.CALENDAR))) {
-            val on = nav.movesView == view
-            Row(
-                Modifier.weight(1f).height(48.dp).clip(RoundedCornerShape(20.dp)).background(if (on) p.accent else Color.Transparent)
-                    .selectable(selected = on, role = Role.Tab) { nav.movesView = view },
-                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+        for ((view, description, icon) in listOf(
+            Triple(MovesView.LIST, "Visualização em lista", Ico.LIST),
+            Triple(MovesView.CALENDAR, "Visualização em calendário", Ico.CALENDAR),
+        )) {
+            val selected = nav.movesView == view
+            val tileColor by animateColorAsState(
+                targetValue = if (selected) blue else Color.Transparent,
+                animationSpec = tween(durationMillis = 150),
+                label = "Fundo do seletor de visualização",
+            )
+            val iconColor by animateColorAsState(
+                targetValue = if (selected) p.onAccent else idleIcon,
+                animationSpec = tween(durationMillis = 150),
+                label = "Ícone do seletor de visualização",
+            )
+            // Área de toque de 48 dp, com preenchimento visual de 44 dp.
+            Box(
+                Modifier.size(48.dp)
+                    .selectable(selected = selected, role = Role.Tab) { nav.movesView = view }
+                    .semantics { contentDescription = description },
+                contentAlignment = Alignment.Center,
             ) {
-                AppIcon(icon, if (on) p.onAccent else p.muted, size = 19.dp)
-                Spacer(Modifier.width(6.dp))
-                Text(label, color = if (on) p.onAccent else p.muted, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1)
+                Box(
+                    Modifier.size(44.dp).clip(RoundedCornerShape(13.dp)).background(tileColor),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppIcon(icon, iconColor, size = 21.dp)
+                }
             }
         }
     }
@@ -218,6 +246,7 @@ private fun CalendarCard(nav: Nav, days: Map<LocalDate, CalDay>, today: LocalDat
             LegendDot(markColor(DayMark.INCOME), "Receita")
             LegendDot(markColor(DayMark.EXPENSE), "Despesa")
             LegendDot(markColor(DayMark.CARD), "Cartão")
+            LegendDot(markColor(DayMark.GOAL), "Meta")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AppIcon(Ico.WARNING, p.red, size = 12.dp)
                 Spacer(Modifier.width(4.dp))

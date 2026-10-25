@@ -43,7 +43,7 @@ class TabSwipeTest {
 
     /** algo que só existe na tela de cada aba (texto ou descrição para leitores de tela) */
     private val marker: Map<String, SemanticsMatcher> = mapOf(
-        "Início" to hasText("Saldo atual"), "Lançamentos" to hasText("Calendário"),
+        "Início" to hasText("Saldo atual"), "Lançamentos" to hasContentDescription("Visualização em calendário"),
         "Meu dinheiro" to hasText("Contas, cartões e seus planos financeiros em um só lugar."),
         "Resumo" to hasContentDescription("Exportar relatório em PDF"), "Ajustes" to hasText("Aparência"),
     )
@@ -74,6 +74,7 @@ class TabSwipeTest {
     fun deslizesRapidosMantemBarraETelaIguais() {
         val app = ApplicationProvider.getApplicationContext<Application>()
         DevicePrefs.get(app).askedNotifications = true
+        DevicePrefs.get(app).welcomeSeen = true
         Repo.showForScreenshots(DemoData.state().copy(theme = ThemeId.LIGHT))
         ActivityScenario.launch(MainActivity::class.java).use {
             assertInSync()

@@ -25,7 +25,9 @@ A reserva para meta segue a mesma regra do pagamento de fatura: **mexe no saldo 
 
 O lançamento leva o campo `goalId` (o `id` da meta). Ele nunca fica no cartão nem pendente. Um backup sem esse campo abre como antes.
 
-**Paridade:** o Finan+ web (PWA) e o Linux precisam entender o `goalId` antes de abrir um backup com reservas para meta; sem isso, elas apareceriam como despesas comuns da categoria "Metas". O mesmo vale para o acesso pela rede, que usa o Finan+ web como interface.
+**Paridade:** o Finan+ web (PWA) e o Linux ainda não entendem o `goalId`: num backup do Android, as reservas para meta aparecem neles como despesas comuns da categoria "Metas".
+
+**Acesso pela rede:** o navegador usa o Finan+ web embutido, que devolve as reservas sem o `goalId`. O celular protege os dados (`core/RemoteSave.kt`): restaura o `goalId` de cada reserva a partir do que já tem e recusa, sem gravar nada, alterar ou excluir uma reserva ou excluir uma meta com dinheiro guardado pelo Finan+. Essas ações continuam no celular. Quando o Finan+ web passar a conhecer o `goalId`, a proteção continua valendo e não precisa mudar.
 
 ## Testes
 

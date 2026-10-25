@@ -1,6 +1,6 @@
 # Backup automático
 
-Em teste no repositório de desenvolvimento. Fica em **Ajustes › Dados › Backup automático**. O código está em `data/AutoBackup.kt` (cópia, agendamento e senha), `core/BackupCrypto.kt` (criptografia, testada em JVM em `BackupCryptoTest.kt`) e `ui/screens/AutoBackupSettings.kt` (tela).
+Desde a 1.7.0. Fica em **Ajustes › Dados › Backup automático**. O código está em `data/AutoBackup.kt` (cópia, agendamento e senha), `core/BackupCrypto.kt` (criptografia, testada em JVM em `BackupCryptoTest.kt`) e `ui/screens/AutoBackupSettings.kt` (tela).
 
 ## Como funciona
 

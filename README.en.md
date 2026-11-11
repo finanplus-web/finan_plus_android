@@ -10,6 +10,12 @@ This is the native Android version, written in **Kotlin + Jetpack Compose**: dat
 
 The app itself is in Brazilian Portuguese and uses the Brazilian real (R$). The detailed feature documents are in Portuguese.
 
+## What's new in 1.12.0
+
+- **New icons:** every icon in the app is now from Phosphor Icons (MIT license), lighter and rounder: Regular strokes in lists and buttons, the filled version on the active bottom tab and Duotone for icons inside squares (categories, My money, Settings). "To receive" and "To pay" use arrows in a circle. Only the drawings changed. Details: [ICONES.md](ICONES.md).
+- **Network access with Finan+ web 1.5.0:** the computer's browser shows the same look and rules as the app, including goal reserves and shared expenses.
+- No calculation rule or saved data changed. Full list in [CHANGELOG.md](CHANGELOG.md).
+
 ## What's new in 1.11.0
 
 - **One number, one name, one rule:** Home, Transactions (list and calendar), Summary and the widget share the same calculation for To receive, To pay, Reserved for goals and Forecast. Money already saved in a goal is no longer subtracted twice, and overdue items show up in "To pay".

@@ -449,13 +449,35 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRA
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 
-## Material Symbols
+## Phosphor Icons
 
-Ícones da interface: Material Symbols Rounded, peso 300, Google (https://github.com/google/material-design-icons).
-Licença: Apache License 2.0.
+Ícones da interface: Phosphor Icons 2.1.1, pesos Regular, Fill e Duotone (https://phosphoricons.com, https://github.com/phosphor-icons/core).
+Licença: MIT.
 Alteração feita pelo Finan+: conversão de SVG para VectorDrawable (mesmo traçado, cor branca para receber a cor do tema).
 
-Ícones usados: account_balance, account_balance_wallet, add, archive, arrow_downward, arrow_drop_down, arrow_upward, attach_file, attach_money, auto_awesome, backspace, bar_chart, calculate, calendar_month, check, checkroom, chevron_left, chevron_right, close, credit_card, database, directions_car, drag_indicator, edit, expand_more, favorite, fingerprint, fitness_center, flag, group, home, info, local_gas_station, lock, more_horiz, north_east, notifications, palette, payments, pets, pie_chart, receipt_long, redeem, remove, repeat, request_quote, restaurant, savings, school, science, search, sell, settings, share, shield, shopping_bag, shopping_cart, south_west, spa, speed, sports_esports, subscriptions, swap_horiz, theaters, track_changes, trending_up, tune, view_list, warning, wifi, work.
+Ícones usados: archive, arrow-circle-down, arrow-circle-up, arrow-down, arrow-up, arrows-left-right, backspace, bank, barbell, bell, briefcase, calculator, calendar-dots, car, caret-down, caret-left, caret-right, chart-bar, chart-pie-slice, check, coins, credit-card, database, dots-six-vertical, dots-three, film-slate, fingerprint-simple, flag, flask, flower-lotus, fork-knife, game-controller, gas-pump, gauge, gear-six, gift, graduation-cap, heart, house, info, invoice, list-bullets, lock-simple, magnifying-glass, minus, money, monitor-play, palette, paperclip, paw-print, pencil-simple, piggy-bank, plus, receipt, repeat, share-network, shield, shopping-bag, shopping-cart, sliders-horizontal, sparkle, t-shirt, tag, target, trend-up, users-three, wallet, warning, wifi-high, x.
+
+MIT License
+
+Copyright (c) 2023 Phosphor Icons
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 ## Finan+ web servido pelo Acesso pela rede
 

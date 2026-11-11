@@ -1,8 +1,8 @@
-# Material Symbols (ícones do app)
+# Material Symbols
 
-- **O que é:** 71 ícones do conjunto *Material Symbols Rounded* do Google, peso 300, em 75 arquivos (home, pie_chart, settings e swap_horiz também na versão preenchida, `*_fill.xml`), convertidos para vetor Android em `app/src/main/res/drawable/ms_*.xml`. Cada arquivo indica no comentário do topo o nome original, a origem, a licença e a mudança feita.
-- **Origem:** https://github.com/google/material-design-icons (pasta `symbols/web/<nome>/materialsymbolsrounded/<nome>_wght300_24px.svg`, ou `_wght300fill1_24px.svg` para os preenchidos). Em 13/10/2026 os traçados dos 54 arquivos foram conferidos contra esses SVG originais: todos idênticos. O ícone `info` foi incluído em 02/11/2026, com o traçado copiado do SVG original. Os ícones `edit`, `sports_esports` e `trending_up` foram incluídos em 03/11/2026, também com o traçado copiado do SVG original. O ícone `expand_more` foi incluído em 03/11/2026 da mesma forma, assim como `palette`, `notifications`, `calculate`, `wifi`, `database`, `science`, `request_quote`, `sell`, `speed`, `drag_indicator`, `archive`, `lock` (redesign de coerência).
-- **Licença:** Apache License 2.0 (texto em `LICENSE`, nesta pasta, igual ao do repositório original; também dentro do app em *Ajustes › Sobre › Componentes de terceiros*). A Apache 2.0 é compatível com a GPL-3.0 do Finan+.
-- **Uso:** são os ícones do app: barra inferior, categorias, botões rápidos, bloqueio, assistente, calendário e filtros da lista.
-- **Mudança feita:** só a conversão de SVG para VectorDrawable (mesmos traços, cor branca para receber a cor do tema). A mudança está anotada no topo de cada arquivo, como pede a seção 4(b) da Apache 2.0.
-- **Para acrescentar um ícone:** baixe o SVG da mesma pasta e peso, converta mantendo o traçado e copie o comentário de origem de um `ms_*.xml` existente, trocando o nome. Atualize a lista em `app/src/main/assets/licenca/TERCEIROS.txt` (seção *Material Symbols*).
+Os ícones do app Android deixaram de ser Material Symbols: agora são **Phosphor Icons** (ver [`third_party/phosphor/`](../phosphor/) e [ICONES.md](../../ICONES.md)). Os antigos `res/drawable/ms_*.xml` foram removidos.
+
+Esta pasta continua no repositório só por causa do **Finan+ web servido pelo Acesso pela rede** (`app/src/main/assets/lan/pwa`), que ainda usa ícones Material Symbols como caminhos SVG dentro de `js/app.bundle.js`.
+
+- **Origem:** https://github.com/google/material-design-icons
+- **Licença:** Apache License 2.0 (texto em `LICENSE`, nesta pasta; também dentro do app em *Ajustes › Sobre › Componentes de terceiros*). Compatível com a GPL-3.0 do Finan+.

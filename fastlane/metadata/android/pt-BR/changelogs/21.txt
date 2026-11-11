@@ -1,0 +1,1 @@
+Ícones novos: todos os ícones agora são Phosphor Icons, mais leves e arredondados, com versão preenchida na aba ativa e Duotone nos ícones dentro de quadrados. "Falta receber" e "Falta pagar" com setas no círculo. Acesso pela rede atualizado para o Finan+ web 1.5.0, com reservas para meta e despesas compartilhadas no navegador do computador. Nenhum cálculo mudou.

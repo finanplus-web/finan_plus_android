@@ -1,0 +1,8 @@
+# Phosphor Icons (ícones do app)
+
+- **O que é:** 70 ícones do conjunto *Phosphor Icons* (versão 2.1.1), em 146 arquivos: cada ícone no peso Regular (`ph_<nome>.xml`) e Duotone (`ph_<nome>_duotone.xml`), e 6 também no peso Fill (`ph_<nome>_fill.xml`: house, arrows-left-right, wallet, chart-pie-slice, gear-six e sparkle). Estão em `app/src/main/res/drawable/ph_*.xml`. Cada arquivo indica no comentário do topo o nome original, o peso, a origem, a licença e a mudança feita.
+- **Origem:** pacote npm `@phosphor-icons/core` 2.1.1 (https://github.com/phosphor-icons/core), pastas `assets/regular/<nome>.svg`, `assets/duotone/<nome>-duotone.svg` e `assets/fill/<nome>-fill.svg`.
+- **Licença:** MIT (texto em `LICENSE`, nesta pasta, igual ao do pacote original; também dentro do app em *Ajustes › Sobre › Componentes de terceiros*). A MIT é compatível com a GPL-3.0 do Finan+.
+- **Uso:** são os ícones do app: barra inferior (Regular; Fill na aba ativa), botões, listas, categorias e os ícones dentro de quadrados (Duotone, em `IconTile`).
+- **Mudança feita:** só a conversão de SVG para VectorDrawable (mesmos traços; cor branca para receber a cor do tema; a camada clara do Duotone mantém a opacidade 0,2 como `fillAlpha`). A mudança está anotada no topo de cada arquivo.
+- **Para acrescentar um ícone:** pegue o SVG do mesmo pacote e peso em https://github.com/phosphor-icons/core, converta mantendo o traçado (o viewport é 256×256) e copie o comentário de origem de um `ph_*.xml` existente, trocando o nome. Acrescente o nome na lista de `app/src/main/assets/licenca/TERCEIROS.txt` (seção *Phosphor Icons*). O mapa de conceito → ícone fica em `ui/components/AppIcon.kt` (enum `Ico`) e em [ICONES.md](../../ICONES.md).

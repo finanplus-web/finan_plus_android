@@ -6,6 +6,12 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 
 **English:** [README.en.md](README.en.md)
 
+## Novidades da versão 1.12.0
+
+- **Ícones novos:** todos os ícones do app agora são Phosphor Icons (licença MIT), mais leves e arredondados: traço Regular nas listas e botões, versão preenchida na aba ativa da barra inferior e Duotone nos ícones dentro de quadrados (categorias, Meu dinheiro, Ajustes). "Falta receber" e "Falta pagar" usam setas no círculo. Só o desenho mudou. Detalhes em [ICONES.md](ICONES.md).
+- **Acesso pela rede com o Finan+ web 1.5.0:** o navegador do computador mostra o mesmo visual e as mesmas regras do app, incluindo reservas para meta e despesas compartilhadas.
+- Nenhuma regra de cálculo nem dado salvo mudou. Lista completa em [CHANGELOG.md](CHANGELOG.md).
+
 ## Novidades da versão 1.11.0
 
 - **Um número, um nome, uma regra:** Início, Lançamentos (lista e calendário), Resumo e widget usam o mesmo cálculo de A receber, A pagar, Reservado para metas e Previsto. A meta já guardada não é descontada de novo e os atrasados aparecem no "A pagar".
@@ -215,7 +221,7 @@ O app inclui bibliotecas de terceiros, todas software livre e compatíveis com a
 
 - **AndroidX / Jetpack** (Compose, Glance, WorkManager, Biometric e outras) e **Kotlin** (biblioteca padrão, kotlinx.coroutines): Apache 2.0. O Glance traz uma cópia do Protocol Buffers (BSD-3-Clause).
 - **Leitura de faturas em PDF:** [PdfBox-Android](https://github.com/TomRoush/PdfBox-Android) (adaptação do Apache PDFBox por Tom Roush), Apache 2.0, que traz **Bouncy Castle** (MIT), métricas de fontes e CMaps da Adobe, a fonte Liberation Sans (SIL OFL 1.1) e dados Unicode.
-- **Ícones:** Material Symbols Rounded, © Google, Apache 2.0 (convertidos para VectorDrawable, ver [`third_party/material-symbols/`](third_party/material-symbols/)).
+- **Ícones:** Phosphor Icons, © Phosphor Icons, MIT (convertidos para VectorDrawable, ver [`third_party/phosphor/`](third_party/phosphor/) e [ICONES.md](ICONES.md)).
 
 Lista completa, com versões, origens e obrigações: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md). Textos originais das licenças e NOTICE: [`third_party/licenses/`](third_party/licenses/). Os testes usam ainda JUnit (EPL 1.0), Robolectric e Roborazzi, que não entram no APK.
 

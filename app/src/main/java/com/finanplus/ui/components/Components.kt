@@ -207,11 +207,11 @@ fun SectionHead(eyebrow: String?, title: String, action: String? = null, actionI
 @Composable
 fun IconTile(icon: Ico, tint: Color, bg: Color, size: Dp = 40.dp, iconSize: Dp = 20.dp) {
     Box(Modifier.size(size).clip(RoundedCornerShape(size * 0.32f)).background(bg), contentAlignment = Alignment.Center) {
-        AppIcon(icon, tint, size = iconSize)
+        AppIcon(icon, tint, size = iconSize, duotone = true)
     }
 }
 
-/** Botão em pílula. [icon] opcional (Material Symbols) antes do texto. Área de toque de pelo menos 48dp. */
+/** Botão em pílula. [icon] opcional (Phosphor) antes do texto. Área de toque de pelo menos 48dp. */
 @Composable
 fun Pill(text: String, modifier: Modifier = Modifier, selected: Boolean = false, danger: Boolean = false, icon: Ico? = null, onClick: () -> Unit) {
     val p = Fin.c

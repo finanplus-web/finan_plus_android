@@ -1,0 +1,1 @@
+New icons: every icon is now from Phosphor Icons, lighter and rounder, with a filled version on the active tab and Duotone icons inside squares. "To receive" and "To pay" use arrows in a circle. Network access updated to Finan+ web 1.5.0, with goal reserves and shared expenses in the computer's browser. No calculation changed.

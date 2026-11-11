@@ -510,7 +510,7 @@ private fun LicenseNotice() {
     Text("Componentes de terceiros", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 18.dp))
     Text(
         "O Finan+ usa bibliotecas AndroidX (Jetpack) e Kotlin; PdfBox-Android (adaptação do Apache PDFBox por Tom Roush), com Bouncy Castle, para ler faturas em PDF; " +
-            "e os ícones Material Symbols (Google). Licenças: Apache 2.0, MIT, BSD, SIL OFL 1.1 e Unicode, todas compatíveis com a GPL v3. " +
+            "e os ícones Phosphor Icons. Licenças: Apache 2.0, MIT, BSD, SIL OFL 1.1 e Unicode, todas compatíveis com a GPL v3. " +
             "Os avisos de copyright e os textos das licenças estão abaixo e funcionam sem internet.",
         color = p.muted, modifier = Modifier.padding(vertical = 8.dp),
     )

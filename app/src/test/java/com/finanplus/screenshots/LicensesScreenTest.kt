@@ -95,7 +95,7 @@ class LicensesScreenTest {
             tap("Ver avisos de terceiros")
             assertShown("AVISOS DE TERCEIROS")
             // começo, meio e fim do arquivo: o texto chegou inteiro
-            for (s in listOf("AndroidX (Jetpack)", "Bouncy Castle", "Liberation Sans", "Material Symbols", "Helvetica Bold")) assertShown(s)
+            for (s in listOf("AndroidX (Jetpack)", "Bouncy Castle", "Liberation Sans", "Phosphor Icons", "Helvetica Bold")) assertShown(s)
             assertShown("Ocultar avisos de terceiros")
 
             tap("Ver licença Apache 2.0")

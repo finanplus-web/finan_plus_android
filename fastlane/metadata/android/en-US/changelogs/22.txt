@@ -1,0 +1,1 @@
+Transfer between accounts: a new option in the + button and in My money › Accounts and cards. The amount leaves one account and enters the other without counting as income or expense, and stays out of the Summary, limits and reports. Both sides show in the list in a neutral color; editing or deleting one side changes both. Backup, CSV and network access keep the transfer.

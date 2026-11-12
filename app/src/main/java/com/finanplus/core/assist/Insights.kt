@@ -85,7 +85,7 @@ object Insights {
         val exp = expenses(s)
         val curExp = exp.filter { it.paid && inMonthUntil(it, ym, day) }
         val prevExp = exp.filter { it.paid && inMonthUntil(it, prev, prevDay) }
-        val curInc = s.txs.filter { it.kind == Kind.INCOME && it.paid && inMonthUntil(it, ym, day) }
+        val curInc = s.txs.filter { it.kind == Kind.INCOME && !it.isTransfer && it.paid && inMonthUntil(it, ym, day) }
         val spent = sum(curExp); val before = sum(prevExp); val income = sum(curInc)
         val lines = ArrayList<String>()
         var spentLine: String? = null; var incomeLine: String? = null; var pendingLine: String? = null
@@ -117,7 +117,7 @@ object Insights {
             pendingLine = "Ainda faltam ${money(sum(pending))} em ${Br.plural(pending.size, "conta", "contas")} a pagar até o fim do mês."
             lines.add(pendingLine)
         }
-        val toReceive = s.txs.filter { it.kind == Kind.INCOME && !it.paid && it.date.ym() == ym }
+        val toReceive = s.txs.filter { it.kind == Kind.INCOME && !it.isTransfer && !it.paid && it.date.ym() == ym }
         if (toReceive.isNotEmpty()) {
             receiveLine = "A receber neste mês: ${money(sum(toReceive))} em ${Br.plural(toReceive.size, "lançamento", "lançamentos")}."
             lines.add(receiveLine)
@@ -129,7 +129,7 @@ object Insights {
         }
         if (day <= 7) {
             val pe = sum(exp.filter { it.paid && it.date.ym() == prev })
-            val pi = sum(s.txs.filter { it.kind == Kind.INCOME && it.paid && it.date.ym() == prev })
+            val pi = sum(s.txs.filter { it.kind == Kind.INCOME && !it.isTransfer && it.paid && it.date.ym() == prev })
             if (pe > 0 || pi > 0) lines.add("Fechamento de ${Br.month(prev)}: receitas ${money(pi)}, despesas ${money(pe)}, saldo ${money(pi - pe)}.")
         }
         return MonthReport(
@@ -288,7 +288,7 @@ object Insights {
     fun overIncome(s: AppState, today: LocalDate, money: MoneyFmt): Insight? {
         val ym = today.ym(); val day = today.dayOfMonth; val len = ym.lengthOfMonth()
         if (day < PACE_MIN_DAY || day >= len) return null
-        val income = sum(s.txs.filter { it.kind == Kind.INCOME && it.date.ym() == ym }) // inclui receitas previstas
+        val income = sum(s.txs.filter { it.kind == Kind.INCOME && !it.isTransfer && it.date.ym() == ym }) // inclui receitas previstas
         if (income <= 0) return null
         val p = project(expenses(s), today, PACE_MIN_COUNT)
         if (!p.enough || p.projected <= income) return null

@@ -158,7 +158,9 @@ object Backup {
             val paid = if (cardId.isNotEmpty()) true else o["paid"] != false
             // reserva para meta (1.7.0): nunca no cartão nem junto com pagamento de fatura; sempre realizada
             val goalId = if (cardId.isEmpty() && cardPayment.isEmpty()) safeId(o["goalId"]) else ""
-            val scheduledDate = if (paid && cardId.isEmpty() && cardPayment.isEmpty() && goalId.isEmpty()) parseDate(o["scheduledDate"]) else null
+            // transferência entre contas (1.12.0): nunca no cartão, em fatura ou meta; sempre realizada
+            val transferId = if (cardId.isEmpty() && cardPayment.isEmpty() && goalId.isEmpty()) safeId(o["transferId"]) else ""
+            val scheduledDate = if (paid && cardId.isEmpty() && cardPayment.isEmpty() && goalId.isEmpty() && transferId.isEmpty()) parseDate(o["scheduledDate"]) else null
             val parcel = obj(o["parcel"])
             val pTotal = parcel?.let { intIn(it["total"], 1, 120, 0) } ?: 0
             val pN = parcel?.let { intIn(it["n"], 1, 120, 0) } ?: 0
@@ -166,12 +168,12 @@ object Backup {
             txs.add(Tx(
                 id = idFor(o["id"]), kind = kind, value = value, date = date,
                 desc = str(o["desc"], 200).ifEmpty { "Sem descrição" },
-                category = str(o["category"], 40).ifEmpty { if (cardPayment.isNotEmpty()) AppState.CARD_PAYMENT_CAT else if (goalId.isNotEmpty()) AppState.GOAL_CAT else "Outros" },
-                paid = paid || goalId.isNotEmpty(),
+                category = str(o["category"], 40).ifEmpty { if (cardPayment.isNotEmpty()) AppState.CARD_PAYMENT_CAT else if (goalId.isNotEmpty()) AppState.GOAL_CAT else if (transferId.isNotEmpty()) AppState.TRANSFER_CAT else "Outros" },
+                paid = paid || goalId.isNotEmpty() || transferId.isNotEmpty(),
                 accountId = accOf(o["accountId"]), cardId = cardId, cardPayment = cardPayment,
                 recurringId = safeId(o["recurringId"]), groupId = safeId(o["groupId"]),
                 parcelN = if (okParcel) pN else 0, parcelTotal = if (okParcel) pTotal else 0,
-                scheduledDate = scheduledDate, goalId = goalId,
+                scheduledDate = scheduledDate, goalId = goalId, transferId = transferId,
             ))
         }
 
@@ -196,7 +198,8 @@ object Backup {
         obj(r["limits"])?.forEach { (k, v) -> val c = k.trim().take(40); val n = cents(v); if (c.isNotEmpty() && n > 0) limits[c] = n }
 
         val autoLock = intIn(r["autoLock"], 0, 30, 0).takeIf { it in AppState.AUTOLOCK_OPTIONS } ?: 0
-        val state = AppState(txs, goals, accounts, cards, recurring, cats, limits, r["privacy"] == true, autoLock, ThemeId.of(r["theme"]), shared)
+        // transferência com um lado só ou lados que não combinam vira lançamento comum (Transfers.sanitize)
+        val state = AppState(Transfers.sanitize(txs), goals, accounts, cards, recurring, cats, limits, r["privacy"] == true, autoLock, ThemeId.of(r["theme"]), shared)
         if (!state.hasSafeMoneyTotals()) throw BackupException("O total dos valores excede o limite seguro")
         val version = num(r["backupVersion"])?.takeIf { it >= 0 && it <= Int.MAX_VALUE.toDouble() }?.roundToInt()
         return Normalized(state, d, version)
@@ -259,6 +262,7 @@ object Backup {
                 if (t.parcelTotal > 0) put("parcel", linkedMapOf("n" to t.parcelN, "total" to t.parcelTotal))
                 if (t.scheduledDate != null) put("scheduledDate", t.scheduledDate.toString())
                 if (t.goalId.isNotEmpty()) put("goalId", t.goalId)
+                if (t.transferId.isNotEmpty()) put("transferId", t.transferId)
             }
         }
         m["goals"] = s.goals.map { linkedMapOf("id" to it.id, "name" to it.name, "target" to Money.toReaisJson(it.target), "saved" to Money.toReaisJson(it.saved), "deadline" to (it.deadline?.toString() ?: ""), "monthly" to Money.toReaisJson(it.monthly)) }

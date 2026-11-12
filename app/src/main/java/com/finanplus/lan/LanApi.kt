@@ -253,7 +253,12 @@ class LanRoutes(
             conflict = versions.of(s) != rev
             if (conflict) return@apply Outcome.Err("Conflito", "Os dados mudaram no celular.")
             // o Finan+ web ainda não conhece o goalId: o celular restaura as reservas para meta (RemoteSave)
-            val next = when (val o = RemoteSave.protectGoalReserves(s, normalized.state)) {
+            val reserved = when (val o = RemoteSave.protectGoalReserves(s, normalized.state)) {
+                is Outcome.Err -> return@apply o
+                is Outcome.Ok -> o.state
+            }
+            // nem o transferId (transferências entre contas, TRANSFERENCIAS.md)
+            val next = when (val o = RemoteSave.protectTransfers(s, reserved)) {
                 is Outcome.Err -> return@apply o
                 is Outcome.Ok -> RemoteSave.keepShared(s, o.state, data.containsKey("shared"))
             }

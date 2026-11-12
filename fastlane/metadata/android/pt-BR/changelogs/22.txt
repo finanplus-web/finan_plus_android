@@ -1,0 +1,1 @@
+Transferência entre contas: nova opção no botão + e em Meu dinheiro › Contas e cartões. O valor sai de uma conta e entra na outra sem contar como receita nem despesa, e fica fora do Resumo, dos limites e dos relatórios. Os dois lados aparecem na lista em cor neutra; editar ou excluir um lado mexe nos dois. Backup, CSV e acesso pela rede preservam a transferência.

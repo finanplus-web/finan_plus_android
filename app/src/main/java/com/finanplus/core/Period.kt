@@ -9,7 +9,7 @@ import java.time.YearMonth
 /**
  * Total de um dia na lista de Lançamentos e no calendário.
  * [net] = receitas − despesas das contas (realizadas ou pendentes), sem compras no cartão (contam na fatura)
- * e sem reservas para meta; [goals] = guardado em metas − retirado das metas nesse dia;
+ * e sem reservas para meta nem transferências entre contas; [goals] = guardado em metas − retirado das metas nesse dia;
  * [hasFlow] = o dia tem alguma receita ou despesa que entra em [net] (sem isso, o total do dia não aparece).
  * Só apresentação: os saldos (atual, previsto) continuam tirando a reserva da conta, como sempre.
  */
@@ -91,6 +91,8 @@ object Period {
         var net = 0L; var goals = 0L; var flow = false
         for (t in txs) when {
             t.isCard -> {}
+            // transferência: sai de uma conta e entra na outra, o total do dia não muda
+            t.isTransfer -> {}
             t.isGoal -> goals += if (t.kind == Kind.EXPENSE) t.value else -t.value
             else -> { flow = true; net += if (t.kind == Kind.INCOME) t.value else -t.value }
         }

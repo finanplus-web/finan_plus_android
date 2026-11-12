@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.13.0 — Transferência entre contas (11/11/2026)
+
+- **Transferência entre contas:** nova opção "Transferir entre contas" no botão + e em Meu dinheiro › Contas e cartões. O valor sai de uma conta e entra na outra no mesmo dia, sem contar como receita ou despesa (fica fora do Resumo, dos limites, dos relatórios e do assistente). Na lista aparecem os dois lados em cor neutra ("Enviada para…" e "Recebida de…"); editar ou excluir um lado mexe nos dois. Backup, CSV e acesso pela rede preservam a transferência. Detalhes em [TRANSFERENCIAS.md](TRANSFERENCIAS.md).
+
 ## 1.12.0 — Ícones Phosphor e Finan+ web 1.5.0 no Acesso pela rede (11/11/2026)
 
 - **Ícones Phosphor:** todos os ícones do app trocados de Material Symbols para Phosphor Icons (MIT): peso Regular nas listas e botões, Fill na aba ativa da barra inferior e no Assistente, Duotone nos ícones dentro de quadrados (categorias, Meu dinheiro, Ajustes). A aba Meu dinheiro ganhou a versão preenchida da carteira quando está ativa. Só o desenho mudou: telas, textos e cálculos são os mesmos. As setas de "Falta receber", "Falta pagar" e "Adicionar movimentação" ficam no círculo (`arrow-circle-up` / `arrow-circle-down`). Mapa completo em [ICONES.md](ICONES.md).

@@ -455,7 +455,7 @@ DEALINGS IN THE SOFTWARE.
 Licença: MIT.
 Alteração feita pelo Finan+: conversão de SVG para VectorDrawable (mesmo traçado, cor branca para receber a cor do tema).
 
-Ícones usados: archive, arrow-circle-down, arrow-circle-up, arrow-down, arrow-up, arrows-left-right, backspace, bank, barbell, bell, briefcase, calculator, calendar-dots, car, caret-down, caret-left, caret-right, chart-bar, chart-pie-slice, check, coins, credit-card, database, dots-six-vertical, dots-three, film-slate, fingerprint-simple, flag, flask, flower-lotus, fork-knife, game-controller, gas-pump, gauge, gear-six, gift, graduation-cap, heart, house, info, invoice, list-bullets, lock-simple, magnifying-glass, minus, money, monitor-play, palette, paperclip, paw-print, pencil-simple, piggy-bank, plus, receipt, repeat, share-network, shield, shopping-bag, shopping-cart, sliders-horizontal, sparkle, t-shirt, tag, target, trend-up, users-three, wallet, warning, wifi-high, x.
+Ícones usados: archive, arrow-circle-down, arrow-circle-up, arrow-down, arrow-up, arrows-left-right, backspace, bank, barbell, bell, briefcase, calculator, calendar-dots, car, caret-down, caret-left, caret-right, chart-bar, chart-pie-slice, check, coins, credit-card, database, dots-six-vertical, dots-three, film-slate, fingerprint-simple, flag, flask, flower-lotus, fork-knife, game-controller, gas-pump, gauge, gear-six, gift, graduation-cap, heart, house, info, invoice, list-bullets, lock-simple, magnifying-glass, minus, money, monitor-play, palette, paperclip, paw-print, pencil-simple, piggy-bank, plus, receipt, repeat, share-network, shield, shopping-bag, shopping-cart, sliders-horizontal, sparkle, swap, t-shirt, tag, target, trend-up, users-three, wallet, warning, wifi-high, x.
 
 MIT License
 

@@ -258,7 +258,7 @@ object Csv {
         val head = listOf("data", "tipo", "categoria", "descricao", "valor", "situacao", "conta", "cartao")
         val rows = s.txs.sortedBy { it.date }.map { t ->
             listOf(
-                cell(t.date), cell(if (t.isGoal) (if (t.kind == Kind.EXPENSE) "reserva para meta" else "retirada de meta") else if (t.kind == Kind.INCOME) "receita" else "despesa"), cell(t.category), cell(t.desc),
+                cell(t.date), cell(if (t.isGoal) (if (t.kind == Kind.EXPENSE) "reserva para meta" else "retirada de meta") else if (t.isTransfer) (if (t.kind == Kind.EXPENSE) "transferência enviada" else "transferência recebida") else if (t.kind == Kind.INCOME) "receita" else "despesa"), cell(t.category), cell(t.desc),
                 cell(Money.input(t.value)), cell(if (t.paid) "realizado" else "pendente"),
                 cell(if (t.isCard) "" else s.account(t.accountId)?.name ?: ""),
                 cell(s.card(t.cardId.ifEmpty { t.cardPayment })?.name ?: ""),

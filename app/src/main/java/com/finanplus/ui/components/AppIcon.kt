@@ -103,6 +103,8 @@ enum class Ico(@DrawableRes val res: Int, @DrawableRes val filled: Int = 0, @Dra
     BANK(R.drawable.ph_bank, filled = 0, duo = R.drawable.ph_bank_duotone),
     WORK(R.drawable.ph_briefcase, filled = 0, duo = R.drawable.ph_briefcase_duotone),
     REPEAT(R.drawable.ph_repeat, filled = 0, duo = R.drawable.ph_repeat_duotone),
+    /** transferência entre contas */
+    TRANSFER(R.drawable.ph_swap, filled = 0, duo = R.drawable.ph_swap_duotone),
 }
 
 /** Ícone com a cor do tema. Com [description] nulo o ícone é decorativo (o texto ao lado já descreve). */
@@ -133,6 +135,7 @@ fun categoryIcon(category: String): Ico? {
     return when {
         category == AppState.CARD_PAYMENT_CAT -> Ico.CARD
         category == AppState.GOAL_CAT -> Ico.GOAL
+        category == AppState.TRANSFER_CAT -> Ico.TRANSFER
         c in setOf("alimentacao", "mercado", "supermercado", "comida", "feira") -> Ico.FOOD
         c in setOf("restaurante", "delivery", "lanche", "lanches") -> Ico.RESTAURANT
         c in setOf("transporte", "carro", "uber", "mobilidade") -> Ico.TRANSPORT

@@ -17,6 +17,7 @@ import java.time.YearMonth
  *   no mês e recorrências previstas. Compras no cartão entram pela fatura.
  * - **Reservado para metas**: aportes mensais planejados que ainda não foram feitos no mês. O que já foi guardado
  *   já saiu do saldo e não é descontado de novo.
+ * - **Transferência entre contas**: muda o saldo de cada conta, mas não entra no realizado nem nas pendências.
  * - **Saldo atual**: saldo das contas hoje ([Finance.currentBalance]).
  * - **Previsto no fim do mês**: saldo atual + a receber − a pagar − reservado para metas.
  */
@@ -85,6 +86,8 @@ object Totals {
         for (t in s.txs) {
             if (!t.paid || t.isCard || t.accountId !in ids || !inMonth(t.date, ym)) continue
             when {
+                // transferência entre contas: sai de uma e entra na outra; não é entrada nem saída do mês
+                t.isTransfer -> {}
                 t.isGoal -> goals += if (t.kind == Kind.EXPENSE) t.value else -t.value
                 t.kind == Kind.INCOME -> inc += t.value
                 else -> out += t.value

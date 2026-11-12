@@ -127,12 +127,12 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
- * A tela de Receita e Despesa (novo e editar) é a tela cheia abaixo. Pagamento de fatura e reserva para meta
+ * A tela de Receita e Despesa (novo e editar) é a tela cheia abaixo. Pagamento de fatura, reserva para meta e transferência
  * continuam no formulário em folha de antes (não são "lançar uma receita ou despesa").
  */
 fun usesTxScreen(s: AppState, sheet: Sheet.TxEdit): Boolean {
     val tx = sheet.id?.let { id -> s.txs.firstOrNull { it.id == id } }
-    return tx == null || (!tx.isGoal && tx.cardPayment.isEmpty())
+    return tx == null || (!tx.isGoal && !tx.isTransfer && tx.cardPayment.isEmpty())
 }
 
 /** Cor do texto sobre um fundo colorido: branco, ou o escuro do tema quando o branco não chega a 4,5:1. */

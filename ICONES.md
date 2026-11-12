@@ -97,3 +97,4 @@ No Duotone, a parte clara do desenho é a mesma cor do ícone com opacidade 0,2,
 | `BANK` | `account_balance` | `bank` |  |
 | `WORK` | `work` | `briefcase` |  |
 | `REPEAT` | `repeat` | `repeat` |  |
+| `TRANSFER` | `swap_horiz` | `swap` |  |

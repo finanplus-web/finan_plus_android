@@ -88,7 +88,7 @@ fun MovesScreen(s: AppState, listState: LazyListState = rememberLazyListState())
         // recorrências previstas dos meses que ainda não chegaram (só com fim de período definido; não são gravadas)
         val projected = f.to?.let { to -> com.finanplus.core.Projection.between(s, f.from ?: today0, to, today0) } ?: emptyList()
         (s.txs + projected).filter {
-            f.inRange(it) && (f.paid == null || it.paid == f.paid) && (f.kind == null || it.kind == f.kind) &&
+            f.inRange(it) && (f.paid == null || it.paid == f.paid) && (f.kind == null || (it.kind == f.kind && !it.isTransfer)) &&
                 (q.isEmpty() || (folded[it.id] ?: com.finanplus.core.assist.Text.fold(it.desc + " " + it.category)).contains(q))
         }.sortedWith(compareByDescending<com.finanplus.core.Tx> { it.date }.thenByDescending { it.id })
     }

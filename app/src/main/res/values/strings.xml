@@ -276,4 +276,32 @@
     <string name="tx_drawer_expenses">DESPESAS</string>
     <string name="tx_drawer_incomes">RECEITAS</string>
     <string name="tx_manage_categories">Gerenciar categorias</string>
+
+    <!-- Transferência entre contas (TRANSFERENCIAS.md) -->
+    <string name="transfer_title">Transferência</string>
+    <string name="transfer_choice">Transferir entre contas</string>
+    <string name="transfer_choice_desc">Mova dinheiro de uma conta para outra</string>
+    <string name="transfer_new">Nova transferência</string>
+    <string name="transfer_edit">Editar transferência</string>
+    <string name="transfer_subtitle">Sai de uma conta e entra na outra, sem contar como receita ou despesa.</string>
+    <string name="transfer_value">Valor da transferência (R$)</string>
+    <string name="transfer_from">De (sai desta conta)</string>
+    <string name="transfer_to">Para (entra nesta conta)</string>
+    <string name="transfer_swap">Inverter origem e destino</string>
+    <string name="transfer_date">Data</string>
+    <string name="transfer_desc">Descrição (opcional)</string>
+    <string name="transfer_desc_hint">Ex.: Guardar na poupança</string>
+    <string name="transfer_explain">O saldo de cada conta muda, mas o saldo total continua o mesmo. A transferência não entra no Resumo, nos limites nem no assistente.</string>
+    <string name="transfer_save">Transferir</string>
+    <string name="transfer_save_edit">Salvar transferência</string>
+    <string name="transfer_delete">Excluir transferência</string>
+    <string name="transfer_delete_confirm">Os dois lados (a saída e a entrada) serão excluídos, e o saldo das duas contas volta ao que era antes.</string>
+    <string name="transfer_delete_ok">Excluir</string>
+    <string name="transfer_not_found">Esta transferência não existe mais.</string>
+    <string name="transfer_close">Fechar</string>
+    <string name="transfer_need_accounts">Para transferir, você precisa de pelo menos duas contas. Cadastre outra conta em Meu dinheiro.</string>
+    <string name="transfer_add_account">Cadastrar conta</string>
+    <!-- Lista de lançamentos: o outro lado da transferência (nome da conta) -->
+    <string name="transfer_row_sent">Enviada para %1$s</string>
+    <string name="transfer_row_received">Recebida de %1$s</string>
 </resources>

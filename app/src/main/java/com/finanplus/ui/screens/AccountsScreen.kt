@@ -253,6 +253,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.accountsPage(s: AppSt
                 ) { nav.open(Sheet.AccountEdit(a.id)) }
             }
         }
+        // transferência entre contas (TRANSFERENCIAS.md): só faz sentido com duas contas ou mais
+        if (s.accounts.size > 1) Pill(stringResource(R.string.transfer_choice), Modifier.fillMaxWidth().padding(top = 8.dp), icon = Ico.TRANSFER) {
+            nav.open(Sheet.TransferEdit())
+        }
     }
     item {
         val nav = LocalNav.current

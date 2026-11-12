@@ -6,6 +6,10 @@ Esta é a versão nativa para Android, em **Kotlin + Jetpack Compose**: dados cr
 
 **English:** [README.en.md](README.en.md)
 
+## Novidades da versão 1.13.0
+
+- **Transferência entre contas:** nova opção "Transferir entre contas" no botão + e em Meu dinheiro › Contas e cartões. O valor sai de uma conta e entra na outra no mesmo dia, sem contar como receita nem despesa (fica fora do Resumo, dos limites, dos relatórios e do assistente). Na lista aparecem os dois lados em cor neutra; editar ou excluir um lado mexe nos dois. Backup, CSV e acesso pela rede preservam a transferência. Detalhes em [TRANSFERENCIAS.md](TRANSFERENCIAS.md).
+
 ## Novidades da versão 1.12.0
 
 - **Ícones novos:** todos os ícones do app agora são Phosphor Icons (licença MIT), mais leves e arredondados: traço Regular nas listas e botões, versão preenchida na aba ativa da barra inferior e Duotone nos ícones dentro de quadrados (categorias, Meu dinheiro, Ajustes). "Falta receber" e "Falta pagar" usam setas no círculo. Só o desenho mudou. Detalhes em [ICONES.md](ICONES.md).

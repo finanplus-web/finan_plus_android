@@ -55,11 +55,15 @@ data class Tx(
     /** Reserva para meta: dinheiro que saiu da conta para esta meta (despesa) ou voltou dela (receita).
      *  Mexe no saldo da conta, mas não é gasto nem ganho: fica fora de despesas, limites e assistente. */
     val goalId: String = "",
+    /** Transferência entre contas: os dois lados (saída da origem e entrada no destino) têm o mesmo [transferId].
+     *  Mexe no saldo de cada conta, mas não é gasto nem ganho: o patrimônio total não muda (TRANSFERENCIAS.md). */
+    val transferId: String = "",
 ) {
-    /** Receita ou despesa de verdade (fica de fora: pagamento de fatura e reserva para meta) */
-    val isFlow get() = cardPayment.isEmpty() && goalId.isEmpty()
+    /** Receita ou despesa de verdade (fica de fora: pagamento de fatura, reserva para meta e transferência) */
+    val isFlow get() = cardPayment.isEmpty() && goalId.isEmpty() && transferId.isEmpty()
     val isCard get() = cardId.isNotEmpty()
     val isGoal get() = goalId.isNotEmpty()
+    val isTransfer get() = transferId.isNotEmpty()
 }
 
 data class Account(val id: String, val name: String, val initial: Cents)
@@ -168,6 +172,8 @@ data class AppState(
         const val CARD_PAYMENT_CAT = "Pagamento de fatura"
         /** categoria dos lançamentos de reserva para meta (não aparece na lista de categorias) */
         const val GOAL_CAT = "Metas"
+        /** categoria dos dois lados de uma transferência entre contas (não aparece na lista de categorias) */
+        const val TRANSFER_CAT = "Transferência"
     }
 }
 

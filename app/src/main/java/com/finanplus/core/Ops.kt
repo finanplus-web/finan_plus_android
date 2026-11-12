@@ -70,6 +70,7 @@ object Ops {
         if (editId != null) {
             val t = s.txs.firstOrNull { it.id == editId } ?: return err("Lançamento não encontrado.")
             if (t.isGoal) return err("Este lançamento é de uma meta. Para mudar o valor, guarde ou retire pela meta; ou exclua o lançamento.", "Lançamento de meta")
+            if (t.isTransfer) return err("Este lançamento é uma transferência entre contas. Edite pela própria transferência.", "Transferência")
             val upd = if (t.cardPayment.isNotEmpty()) {
                 t.copy(desc = desc, value = value, category = category, date = date, accountId = accountId, paid = true)
             } else {
@@ -123,6 +124,8 @@ object Ops {
 
     fun deleteTx(s: AppState, id: String, withLater: Boolean): AppState {
         val ids = HashSet<String>().apply { add(id); if (withLater) laterParcels(s, id).forEach { add(it.id) } }
+        // transferência: os dois lados saem juntos (um lado sozinho mexeria no saldo de uma conta só)
+        s.txs.firstOrNull { it.id == id }?.takeIf { it.isTransfer }?.let { t -> s.txs.filter { it.transferId == t.transferId }.forEach { ids.add(it.id) } }
         // excluir uma reserva para meta desfaz o valor na meta (guardado volta a diminuir; retirada volta a somar)
         var goals = s.goals
         s.txs.filter { it.id in ids && it.isGoal }.forEach { t ->
@@ -144,6 +147,35 @@ object Ops {
             else if (t.paid) t.copy(paid = false, date = t.scheduledDate ?: t.date, scheduledDate = null)
             else t.copy(paid = true, scheduledDate = t.date.takeIf { it != today }, date = today)
         })
+
+    // ---------------- transferências entre contas ----------------
+    /**
+     * Cria ou edita ([transferId]) uma transferência: sai de [fromId] e entra em [toId], com o mesmo valor e data,
+     * sempre realizada (transferência futura não existe: o saldo mudaria antes da hora). Não conta como receita
+     * nem despesa (TRANSFERENCIAS.md).
+     */
+    fun saveTransfer(
+        s: AppState, transferId: String?, fromId: String, toId: String, value: String, date: LocalDate?, desc: String,
+        today: LocalDate = LocalDate.now(),
+    ): Outcome {
+        if (s.accounts.size < 2) return err("Cadastre outra conta em Meu dinheiro para transferir entre elas.", "Uma conta só")
+        val v = Money.parse(value)
+        if (v == null || v <= 0) return err("Informe um valor maior que zero. Ex.: 250,00", "Valor inválido")
+        val d = date ?: return err("Informe uma data válida.", "Data inválida")
+        if (d.isAfter(today)) return err("A transferência entra no saldo na hora. Lance no dia em que ela acontecer.", "Data no futuro")
+        if (s.account(fromId) == null || s.account(toId) == null) return err("Escolha a conta de origem e a de destino.", "Conta não encontrada")
+        if (fromId == toId) return err("A conta de origem e a de destino precisam ser diferentes.", "Mesma conta")
+        val text = Transfers.desc(desc)
+        if (transferId != null) {
+            val l = Transfers.legs(s, transferId) ?: return err("Transferência não encontrada.")
+            val out = l.out.copy(value = v, date = d, desc = text, accountId = fromId)
+            val into = l.into.copy(value = v, date = d, desc = text, accountId = toId)
+            return ok(s.copy(txs = s.txs.map { when (it.id) { out.id -> out; into.id -> into; else -> it } }))
+        }
+        val tid = Ids.new()
+        fun leg(kind: Kind, acc: String) = Tx(Ids.new(), kind, v, d, text, AppState.TRANSFER_CAT, true, acc, transferId = tid)
+        return ok(s, s.copy(txs = s.txs + leg(Kind.EXPENSE, fromId) + leg(Kind.INCOME, toId)))
+    }
 
     // ---------------- metas ----------------
     /**

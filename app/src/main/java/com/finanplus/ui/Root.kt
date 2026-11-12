@@ -5,6 +5,8 @@ package com.finanplus.ui
 
 import android.Manifest
 import android.os.Build
+import androidx.compose.ui.res.stringResource
+import com.finanplus.R
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.activity.SystemBarStyle
@@ -126,6 +128,8 @@ sealed interface Sheet : java.io.Serializable {
     data class RecurringEdit(val id: String? = null) : Sheet
     data class LimitEdit(val category: String? = null) : Sheet
     data class PayInvoice(val cardId: String) : Sheet
+    /** transferência entre contas: [id] = transferId (null = nova) */
+    data class TransferEdit(val id: String? = null) : Sheet
     /** Meu dinheiro: detalhe do cartão (fatura, compras, histórico e editar) */
     data class CardDetail(val id: String) : Sheet
     /** assistente: perguntas, resumo e todas as dicas */
@@ -468,10 +472,16 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     val snackbar = LocalTxSnackbar.current
     // recorrência prevista (mês que ainda não chegou): não existe no estado; tocar abre a recorrência
     val projected = t.isProjected
+    // transferência entre contas: os dois lados aparecem (um em cada conta), em cor neutra
+    val transfer = if (t.isTransfer) com.finanplus.core.Transfers.legsOf(s, t) else null
     val open: () -> Unit = if (projected) ({ nav.open(Sheet.RecurringEdit(t.recurringId)) }) else onOpen
     val status = when {
         projected -> "Prevista · recorrência"
         t.isGoal -> if (t.kind == Kind.EXPENSE) "Guardado na meta" else "Retirado da meta"
+        t.isTransfer -> transfer?.let { l ->
+            if (t.kind == Kind.EXPENSE) stringResource(R.string.transfer_row_sent, s.account(l.toId)?.name ?: "Conta")
+            else stringResource(R.string.transfer_row_received, s.account(l.fromId)?.name ?: "Conta")
+        } ?: stringResource(R.string.transfer_title)
         t.isCard -> "No cartão"
         !t.paid && t.date.isBefore(today) -> if (t.kind == Kind.INCOME) "Vencida · a receber" else "Vencida · a pagar"
         !t.paid -> if (t.kind == Kind.INCOME) "A receber" else "A pagar"
@@ -480,6 +490,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
     }
     val statusColor = when {
         t.isGoal -> p.goal
+        t.isTransfer -> p.muted
         !t.paid && t.date.isBefore(today) -> p.red
         t.paid && t.kind == Kind.INCOME -> p.green
         t.paid && t.kind == Kind.EXPENSE -> p.green
@@ -501,7 +512,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // ícone da categoria num quadrado na cor do tipo (despesa, receita, meta; previsto = neutro)
-            com.finanplus.ui.components.CategoryTile(com.finanplus.core.TxForm.displayCategory(t.category), com.finanplus.ui.components.txTone(t.kind, t.isGoal, neutral = projected, card = t.isCard || t.cardPayment.isNotEmpty()))
+            com.finanplus.ui.components.CategoryTile(com.finanplus.core.TxForm.displayCategory(t.category), com.finanplus.ui.components.txTone(t.kind, t.isGoal, neutral = projected || t.isTransfer, card = t.isCard || t.cardPayment.isNotEmpty()))
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 // nome em até duas linhas, sem cortar no meio (PDF de redesign)
                 Text(com.finanplus.core.Words.ordinal(t.desc), fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
@@ -511,7 +522,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
             // reserva para meta: sai do saldo ("−"), no âmbar das metas; nunca é chamada de despesa;
             // retirada da meta: volta para a conta, então "+" em verde, como uma entrada
             MoneyText(t.value, prefix = when { t.kind == Kind.EXPENSE -> "− "; else -> "+ " },
-                color = when { t.isGoal && t.kind == Kind.EXPENSE -> p.goal; t.kind == Kind.EXPENSE -> p.red; else -> p.green },
+                color = when { t.isTransfer -> p.text; t.isGoal && t.kind == Kind.EXPENSE -> p.goal; t.kind == Kind.EXPENSE -> p.red; else -> p.green },
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.ExtraBold))
         }
         // compra no cartão e pagamento de fatura não alternam pago/pendente (ver Ops.canTogglePaid)
@@ -519,7 +530,7 @@ fun TxRow(t: Tx, s: AppState, onToggle: () -> Unit, onOpen: () -> Unit) {
             com.finanplus.ui.components.AppIcon(com.finanplus.ui.components.Ico.REPEAT, p.muted, size = 20.dp)
         }
         else if (!Ops.canTogglePaid(t)) Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-            com.finanplus.ui.components.AppIcon(if (t.isGoal) com.finanplus.ui.components.Ico.GOAL else com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp)
+            com.finanplus.ui.components.AppIcon(if (t.isGoal) com.finanplus.ui.components.Ico.GOAL else if (t.isTransfer) com.finanplus.ui.components.Ico.TRANSFER else com.finanplus.ui.components.Ico.CARD, p.muted, size = 20.dp)
         }
         else {
             val action = if (t.kind == Kind.INCOME) "recebido" else "pago"

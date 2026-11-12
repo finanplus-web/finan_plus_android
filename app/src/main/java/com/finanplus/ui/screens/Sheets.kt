@@ -105,6 +105,7 @@ fun SheetHost(s: AppState, sheet: Sheet, onClose: () -> Unit) {
                 is Sheet.RecurringEdit -> RecurringEditor(s, sheet.id, onClose)
                 is Sheet.LimitEdit -> LimitEditor(s, sheet.category, onClose)
                 is Sheet.PayInvoice -> PayInvoiceEditor(s, sheet.cardId, onClose)
+                is Sheet.TransferEdit -> TransferEditor(s, sheet.id, onClose)
                 is Sheet.CardDetail -> CardDetailSheet(s, sheet.id, onClose)
                 is Sheet.Assistant -> AssistantSheet(s, onClose)
                 Sheet.ForecastInfo -> ForecastInfoSheet(s)
@@ -134,6 +135,13 @@ private fun AddChoiceEditor() {
     }
     AddChoiceRow("Receita", "Dinheiro que entrou", com.finanplus.ui.components.Ico.INCOME, Fin.c.successContainer, Fin.c.green) {
         nav.open(Sheet.TxEdit(Kind.INCOME))
+    }
+    AddChoiceRow(
+        androidx.compose.ui.res.stringResource(com.finanplus.R.string.transfer_choice),
+        androidx.compose.ui.res.stringResource(com.finanplus.R.string.transfer_choice_desc),
+        com.finanplus.ui.components.Ico.TRANSFER, Fin.c.accent2, Fin.c.accent,
+    ) {
+        nav.open(Sheet.TransferEdit())
     }
     AddChoiceRow("Nova recorrência", "Configure uma movimentação que se repete", com.finanplus.ui.components.Ico.REPEAT, Fin.c.accent2, Fin.c.accent) {
         nav.open(Sheet.RecurringEdit())
@@ -200,6 +208,8 @@ private fun TxEditor(s: AppState, sheet: Sheet.TxEdit, close: () -> Unit) {
     val dialogs = LocalDialogs.current
     val tx = sheet.id?.let { id -> s.txs.firstOrNull { it.id == id } }
     if (tx != null && tx.isGoal) { GoalMoveView(s, tx, close); return }
+    // um dos lados de uma transferência entre contas: abre a transferência inteira
+    if (tx != null && tx.isTransfer) { TransferEditor(s, tx.transferId, close); return }
     val isPayment = tx?.cardPayment?.isNotEmpty() == true
     val today = LocalDate.now()
     var kind by rememberSaveable { mutableStateOf(tx?.kind ?: sheet.kind) }

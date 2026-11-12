@@ -10,6 +10,10 @@ This is the native Android version, written in **Kotlin + Jetpack Compose**: dat
 
 The app itself is in Brazilian Portuguese and uses the Brazilian real (R$). The detailed feature documents are in Portuguese.
 
+## What's new in 1.13.0
+
+- **Transfer between accounts:** a new "Transferir entre contas" option in the + button and in My money › Accounts and cards. The amount leaves one account and enters the other on the same day, without counting as income or expense (it stays out of the Summary, limits, reports and the assistant). The list shows both sides in a neutral color; editing or deleting one side changes both. Backup, CSV and network access keep the transfer. Details: [TRANSFERENCIAS.md](TRANSFERENCIAS.md).
+
 ## What's new in 1.12.0
 
 - **New icons:** every icon in the app is now from Phosphor Icons (MIT license), lighter and rounder: Regular strokes in lists and buttons, the filled version on the active bottom tab and Duotone for icons inside squares (categories, My money, Settings). "To receive" and "To pay" use arrows in a circle. Only the drawings changed. Details: [ICONES.md](ICONES.md).

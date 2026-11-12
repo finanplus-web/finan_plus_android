@@ -81,6 +81,7 @@ object MonthCalendar {
             for (t in txs) {
                 when {
                     t.isCard -> marks.add(DayMark.CARD) // compra no cartão: só na fatura
+                    t.isTransfer -> {} // transferência entre contas: não entra nem sai dinheiro do total (aparece só na lista do dia)
                     t.isGoal -> { if (t.kind == Kind.INCOME) { inc += t.value; goals -= t.value } else { exp += t.value; goals += t.value }; marks.add(DayMark.GOAL) }
                     t.kind == Kind.INCOME -> { inc += t.value; flow = true; marks.add(DayMark.INCOME) }
                     else -> { exp += t.value; flow = true; marks.add(if (t.cardPayment.isNotEmpty()) DayMark.CARD else DayMark.EXPENSE) }

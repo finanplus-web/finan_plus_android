@@ -1,5 +1,9 @@
 # Changelog
 
+## Não lançado
+
+- **Correção — categoria de despesa que "não salvava":** criar ou renomear uma categoria de despesa com nome de dívida ("Empréstimo", "Financiamento", "Dívida") ou de forma de pagamento ("Cartão", "Cartão de crédito", "Limite especial", "Cheque especial") parecia funcionar, mas a migração de categorias da 1.11.0 (`TxForm.migrate`) apagava o nome logo em seguida, sem aviso. Agora o app recusa esses nomes na hora e explica o motivo: "Use a categoria Dívidas para empréstimos e financiamentos." ou "Cartão e limite especial agora são formas de pagamento. Escolha o cartão em “Pagar com” na hora do lançamento." Categorias de receita não mudam (não passam pela migração). Regra em `Ops.reservedCategoryName`, teste em `CoreTest.reservedExpenseCategoryNamesAreBlockedWithMessage`.
+
 ## 1.13.0 — Transferência entre contas (11/11/2026)
 
 - **Transferência entre contas:** nova opção "Transferir entre contas" no botão + e em Meu dinheiro › Contas e cartões. O valor sai de uma conta e entra na outra no mesmo dia, sem contar como receita ou despesa (fica fora do Resumo, dos limites, dos relatórios e do assistente). Na lista aparecem os dois lados em cor neutra ("Enviada para…" e "Recebida de…"); editar ou excluir um lado mexe nos dois. Backup, CSV e acesso pela rede preservam a transferência. Detalhes em [TRANSFERENCIAS.md](TRANSFERENCIAS.md).

@@ -247,6 +247,21 @@ class OpsTest {
         assertTrue(Ops.addCategory(s, Kind.EXPENSE, "comida").msg().contains("já existe"))
         assertTrue(Ops.checkDeleteCategory(s, Kind.EXPENSE, "Comida").msg().contains("recorrência"))
     }
+    @Test fun reservedExpenseCategoryNamesAreBlockedWithMessage() {
+        // antes: salvava e a migração (TxForm.migrate) apagava logo depois, sem aviso
+        for (n in listOf("Empréstimo", "financiamento", "Cartão de crédito", "Cartão", "Limite especial", "cheque especial")) {
+            assertTrue(Ops.addCategory(base, Kind.EXPENSE, n) is Outcome.Err)
+        }
+        assertTrue(Ops.addCategory(base, Kind.EXPENSE, "Empréstimo").msg().contains("Dívidas"))
+        assertTrue(Ops.addCategory(base, Kind.EXPENSE, "Cartão").msg().contains("Pagar com"))
+        assertTrue(Ops.renameCategory(base, Kind.EXPENSE, "Lazer", "Financiamento").msg().contains("Dívidas"))
+        // receita não passa pela migração: continua livre
+        val s = base.ok(Ops.addCategory(base, Kind.INCOME, "Empréstimo"))
+        assertTrue("Empréstimo" in s.cats.income)
+        // nome comum continua salvando e sobrevive à migração
+        val s2 = base.ok(Ops.addCategory(base, Kind.EXPENSE, "Pets"))
+        assertTrue("Pets" in (TxForm.migrate(s2) ?: s2).cats.expense)
+    }
     @Test fun accountInUseCannotBeDeleted() {
         var s = base.ok(Ops.saveAccount(base, null, "Banco 2", ""))
         val b2 = s.accounts[1].id

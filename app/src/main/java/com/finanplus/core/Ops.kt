@@ -331,9 +331,23 @@ object Ops {
     fun deleteLimit(s: AppState, category: String) = s.copy(limits = s.limits - category)
 
     // ---------------- categorias ----------------
+    /**
+     * Nomes que a migração de categorias (TxForm.migrate) tiraria da lista de despesas logo depois de salvar:
+     * a categoria "sumia" sem aviso. Agora o app explica na hora. null = nome permitido.
+     */
+    fun reservedCategoryName(kind: Kind, name: String): Outcome.Err? {
+        if (kind != Kind.EXPENSE) return null
+        if (Debts.isDebtCategory(name) && !sameName(name.trim(), Debts.CATEGORY))
+            return Outcome.Err("Nome reservado", "Use a categoria ${Debts.CATEGORY} para empréstimos e financiamentos.")
+        if (TxForm.isPaymentLike(name))
+            return Outcome.Err("Nome reservado", "Cartão e limite especial agora são formas de pagamento. Escolha o cartão em “Pagar com” na hora do lançamento.")
+        return null
+    }
+
     fun addCategory(s: AppState, kind: Kind, name: String): Outcome {
         val n = name.trim().take(40)
         if (n.isEmpty()) return err("Digite o nome da categoria.", "Nome vazio")
+        reservedCategoryName(kind, n)?.let { return it }
         if (s.cats.of(kind).any { sameName(it, n) }) return err("Essa categoria já existe.", "Categoria duplicada")
         return ok(s, s.copy(cats = s.cats.with(kind, s.cats.of(kind) + n)))
     }
@@ -342,6 +356,7 @@ object Ops {
         val n = name.trim().take(40)
         if (n.isEmpty()) return err("Informe um nome.", "Nome vazio")
         if (n == old) return ok(s)
+        reservedCategoryName(kind, n)?.let { return it }
         if (s.cats.of(kind).any { it != old && sameName(it, n) }) return err("Essa categoria já existe.", "Categoria duplicada")
         val limits = if (kind == Kind.EXPENSE && old in s.limits) LinkedHashMap(s.limits).apply { put(n, remove(old)!!) } else s.limits
         return ok(s.copy(
